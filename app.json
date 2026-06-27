@@ -21,7 +21,10 @@
       "buildNumber": "1"
     },
     "extra": {
-      "saasUrl": "https://option-king-saas-production.up.railway.app"
+      "saasUrl": "https://option-king-saas-production.up.railway.app",
+      "eas": {
+        "projectId": "53c0c5ce-07e1-4036-9bda-62c8cf063d62"
+      }
     }
   }
 }
