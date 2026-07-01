@@ -1115,6 +1115,453 @@ function TelegramTab({ token }) {
 
 
 
+
+// ── Backtest Tab ────────────────────────────────────────
+function BacktestTab({ token, lang }) {
+  const hi = lang === "hi";
+  const today = new Date().toISOString().slice(0, 10);
+  const [instrument, setInstrument] = useState("NIFTY");
+  const [date, setDate] = useState(today);
+  const [capital, setCapital] = useState("100000");
+  const [paperCapital, setPaperCapital] = useState("100000");
+  const [capitalMsg, setCapitalMsg] = useState("");
+  const [entryScore, setEntryScore] = useState("82");
+  const [sl, setSl] = useState("12");
+  const [target, setTarget] = useState("24");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function loadPaperCapital() {
+    try {
+      const d = await apiGet("/paper/account", token);
+      const cap = String(d.account?.paper_capital || 100000);
+      setPaperCapital(cap);
+      setCapital(cap);
+    } catch {}
+  }
+
+  useEffect(() => { loadPaperCapital(); }, []);
+
+  async function savePaperCapital() {
+    setCapitalMsg("");
+    setLoading(true);
+    try {
+      const d = await apiPostAuth("/paper/capital", {
+        capital: Number(paperCapital || 100000),
+        make_paper_mode: true
+      }, token);
+      const cap = String(d.paper_capital || paperCapital || 100000);
+      setPaperCapital(cap);
+      setCapital(cap);
+      setCapitalMsg("✅ " + (hi ? "Paper capital update ho gaya" : "Paper capital updated"));
+    } catch {
+      setCapitalMsg(hi ? "Paper capital update failed" : "Paper capital update failed");
+    }
+    setLoading(false);
+  }
+
+  async function resetPaperCapital() {
+    setCapitalMsg("");
+    setLoading(true);
+    try {
+      const d = await apiPostAuth("/paper/reset", {
+        capital: Number(paperCapital || 100000)
+      }, token);
+      const cap = String(d.paper_capital || paperCapital || 100000);
+      setPaperCapital(cap);
+      setCapital(cap);
+      setCapitalMsg("✅ " + (hi ? "Paper account reset ho gaya" : "Paper account reset"));
+    } catch {
+      setCapitalMsg(hi ? "Paper reset failed" : "Paper reset failed");
+    }
+    setLoading(false);
+  }
+
+  async function runBacktest() {
+    setLoading(true);
+    setResult(null);
+    try {
+      const d = await apiPostAuth("/backtest/run", {
+        instrument,
+        date,
+        capital: Number(capital || paperCapital || 100000),
+        entry_threshold: Number(entryScore || 82),
+        sl_percent: Number(sl || 12),
+        target_percent: Number(target || 24),
+      }, token);
+      setResult(d);
+    } catch {
+      setResult({ success: false, message: hi ? "Backtest server error" : "Backtest server error" });
+    }
+    setLoading(false);
+  }
+
+  const summary = result?.summary;
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+
+      <Card glow={C.green}>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
+          💰 {hi ? "Paper Capital" : "Paper Capital"}
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
+          {hi ? "Paper mode aur Backtest dono ke liye capital update karo." : "Update capital for Paper Mode and Backtest."}
+        </Text>
+
+        <TextInput style={[st.input, { marginBottom: 12 }]}
+          value={paperCapital}
+          onChangeText={(v) => { setPaperCapital(v); setCapital(v); }}
+          keyboardType="numeric"
+          placeholder="100000"
+          placeholderTextColor={C.muted} />
+
+        <Row style={{ gap: 10 }}>
+          <Btn label={hi ? "Update" : "Update"} icon="💾" color={C.green}
+            loading={loading} onPress={savePaperCapital} style={{ flex: 1 }} />
+          <Btn label={hi ? "Reset P&L" : "Reset P&L"} icon="♻️" color={C.gold}
+            onPress={resetPaperCapital} style={{ flex: 1 }} />
+        </Row>
+
+        {!!capitalMsg && (
+          <Text style={{ color: capitalMsg.includes("✅") ? C.green : C.red,
+            marginTop: 10, fontWeight: "900", fontSize: 12 }}>{capitalMsg}</Text>
+        )}
+      </Card>
+
+      <Card glow={C.purple}>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
+          🧪 {hi ? "Backtest Strategy" : "Backtest Strategy"}
+        </Text>
+
+        <Row style={{ gap: 8, marginBottom: 10 }}>
+          {["NIFTY", "BANKNIFTY", "SENSEX"].map(x => (
+            <TouchableOpacity key={x} onPress={() => setInstrument(x)}
+              style={{ flex: 1, padding: 12, borderRadius: 12,
+                backgroundColor: instrument===x ? C.accentLo : C.s2,
+                borderWidth: 1,
+                borderColor: instrument===x ? C.accent : C.border,
+                alignItems: "center" }}>
+              <Text style={{ color: instrument===x ? C.accent : C.muted,
+                fontWeight: "900", fontSize: 11 }}>{x}</Text>
+            </TouchableOpacity>
+          ))}
+        </Row>
+
+        {[
+          [hi ? "Date YYYY-MM-DD" : "Date YYYY-MM-DD", date, setDate, "default"],
+          [hi ? "Backtest Capital" : "Backtest Capital", capital, setCapital, "numeric"],
+          [hi ? "Entry Score" : "Entry Score", entryScore, setEntryScore, "numeric"],
+          [hi ? "SL %" : "SL %", sl, setSl, "numeric"],
+          [hi ? "Target %" : "Target %", target, setTarget, "numeric"],
+        ].map(([label, val, setter, kb]) => (
+          <View key={label} style={{ marginBottom: 10 }}>
+            <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>{label}</Text>
+            <TextInput style={st.input} value={val} onChangeText={setter}
+              keyboardType={kb} placeholderTextColor={C.muted} />
+          </View>
+        ))}
+
+        <Btn label={hi ? "Run Backtest" : "Run Backtest"} icon="▶️" color={C.green}
+          loading={loading} onPress={runBacktest} />
+      </Card>
+
+      {summary && (
+        <Card glow={summary.net_pnl >= 0 ? C.green : C.red}>
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: "900", marginBottom: 12 }}>
+            📌 {hi ? "Backtest Result" : "Backtest Result"}
+          </Text>
+          {[
+            ["Trades", summary.trades],
+            ["Wins", summary.wins],
+            ["Losses", summary.losses],
+            ["Win Rate", `${summary.win_rate}%`],
+            ["Capital", `₹${summary.capital}`],
+            ["Net P&L", `₹${summary.net_pnl}`],
+          ].map(([k, v]) => (
+            <Row key={k} style={{ justifyContent: "space-between",
+              paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <Text style={{ color: C.muted, fontSize: 12 }}>{k}</Text>
+              <Text style={{ color: k==="Net P&L" ? (summary.net_pnl>=0?C.green:C.red) : C.text,
+                fontWeight: "900", fontSize: 13 }}>{v}</Text>
+            </Row>
+          ))}
+          <Text style={{ color: C.gold, fontSize: 11, marginTop: 10 }}>{summary.note}</Text>
+        </Card>
+      )}
+
+      {result?.trades?.length > 0 && (
+        <Card>
+          <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
+            textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>
+            {hi ? "Trade List" : "Trade List"}
+          </Text>
+          {result.trades.map((t, i) => (
+            <View key={i} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <Row style={{ justifyContent: "space-between" }}>
+                <Text style={{ color: C.text, fontWeight: "900", fontSize: 12 }}>
+                  {t.time} • {t.instrument} {t.side}
+                </Text>
+                <Text style={{ color: t.result==="WIN"?C.green:C.red, fontWeight: "900" }}>{t.result}</Text>
+              </Row>
+              <Text style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
+                Score {t.score} • Entry {t.entry} → Exit {t.exit}
+              </Text>
+              <Text style={{ color: t.pnl>=0?C.green:C.red,
+                fontSize: 12, fontWeight: "900", marginTop: 3 }}>
+                P&L ₹{t.pnl} • {t.reason}
+              </Text>
+            </View>
+          ))}
+        </Card>
+      )}
+    </ScrollView>
+  );
+}
+
+
+
+// ── More Tab: Profile, History, Reports, Payment, Reset ─────────────────────
+function MoreTab({ token, user, lang, setLang, isAdmin }) {
+  const hi = lang === "hi";
+  const [profile, setProfile] = useState(null);
+  const [report, setReport] = useState(null);
+  const [trades, setTrades] = useState([]);
+  const [paperTrades, setPaperTrades] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [planName, setPlanName] = useState("monthly");
+  const [amount, setAmount] = useState("999");
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function changeLang(next) {
+    setLang(next);
+    try { await AsyncStorage.setItem("okai_lang", next); } catch {}
+  }
+
+  async function loadAll() {
+    setLoading(true);
+    try {
+      const p = await apiGet("/user/profile", token);
+      setProfile(p.profile || null);
+    } catch {}
+    try {
+      const r = await apiGet("/reports/daily", token);
+      setReport(r.report || null);
+    } catch {}
+    try {
+      const h = await apiGet("/history/trades", token);
+      setTrades(h.trades || []);
+    } catch {}
+    try {
+      const ph = await apiGet("/history/paper", token);
+      setPaperTrades(ph.paper_trades || []);
+    } catch {}
+    if (isAdmin) {
+      try {
+        const u = await apiGet("/admin/users-lite", token);
+        setUsers(u.users || []);
+      } catch {}
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => { loadAll(); }, []);
+
+  async function submitPlan() {
+    setMsg("");
+    setLoading(true);
+    try {
+      const d = await apiPostAuth("/billing/purchase-request", {
+        plan_name: planName,
+        amount: Number(amount || 0),
+        note: "Mobile app request"
+      }, token);
+      setMsg(d.message || "Request submitted");
+    } catch {
+      setMsg(hi ? "Plan request failed" : "Plan request failed");
+    }
+    setLoading(false);
+  }
+
+  async function resetAll() {
+    Alert.alert(
+      hi ? "Reset All Settings?" : "Reset All Settings?",
+      hi ? "Strategy, paper P&L aur bot status reset hoga. Broker credentials delete nahi honge." : "Strategy, paper P&L and bot status will reset. Broker credentials will not be removed.",
+      [
+        { text: hi ? "Cancel" : "Cancel", style: "cancel" },
+        {
+          text: hi ? "Reset" : "Reset",
+          style: "destructive",
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const d = await apiPostAuth("/settings/reset-all", { paper_capital: 100000 }, token);
+              setMsg(d.message || "Reset done");
+              await loadAll();
+            } catch {
+              setMsg(hi ? "Reset failed" : "Reset failed");
+            }
+            setLoading(false);
+          }
+        }
+      ]
+    );
+  }
+
+  const profileRows = profile ? [
+    ["Name", profile.name || "--"],
+    ["Email", profile.email || "--"],
+    ["Subscription", profile.subscription_status || "--"],
+    ["Trial Ends", profile.trial_ends_at || "--"],
+    ["Mode", String(profile.trading_mode || "paper").toUpperCase()],
+    ["Paper Capital", `₹${profile.paper_capital || 0}`],
+  ] : [];
+
+  const reportRows = report ? [
+    ["Date", report.date],
+    ["Mode", String(report.trading_mode || "paper").toUpperCase()],
+    ["Paper Capital", `₹${report.paper_capital}`],
+    ["Paper Equity", `₹${report.paper_equity}`],
+    ["Live Trades", report.live_trade_count],
+    ["Paper Trades", report.paper_trade_count],
+    ["Backtests", report.backtest_count],
+    ["Total P&L", `₹${report.total_pnl}`],
+  ] : [];
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+
+      <Card glow={C.blue}>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
+          🌐 {hi ? "Language / भाषा" : "Language"}
+        </Text>
+        <Row style={{ gap: 10 }}>
+          <Btn label="Hindi" icon="🇮🇳" color={lang==="hi"?C.green:C.muted}
+            onPress={() => changeLang("hi")} style={{ flex: 1 }} />
+          <Btn label="English" icon="🇬🇧" color={lang==="en"?C.blue:C.muted}
+            onPress={() => changeLang("en")} style={{ flex: 1 }} />
+        </Row>
+      </Card>
+
+      <Card glow={C.green}>
+        <Row style={{ justifyContent: "space-between", marginBottom: 10 }}>
+          <Text style={{ color: C.text, fontSize: 18, fontWeight: "900" }}>
+            👤 {hi ? "Profile / Subscription" : "Profile / Subscription"}
+          </Text>
+          <TouchableOpacity onPress={loadAll}>
+            <Text style={{ color: C.blue, fontWeight: "900" }}>{hi ? "Refresh" : "Refresh"}</Text>
+          </TouchableOpacity>
+        </Row>
+        {profileRows.map(([k, v]) => (
+          <Row key={k} style={{ justifyContent: "space-between", paddingVertical: 6,
+            borderBottomWidth: 1, borderBottomColor: C.border }}>
+            <Text style={{ color: C.muted, fontSize: 12 }}>{k}</Text>
+            <Text style={{ color: C.text, fontWeight: "900", fontSize: 12, maxWidth: "58%", textAlign: "right" }}>{String(v)}</Text>
+          </Row>
+        ))}
+      </Card>
+
+      <Card glow={report?.total_pnl >= 0 ? C.green : C.red}>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
+          📊 {hi ? "Daily P&L Report" : "Daily P&L Report"}
+        </Text>
+        {reportRows.map(([k, v]) => (
+          <Row key={k} style={{ justifyContent: "space-between", paddingVertical: 6,
+            borderBottomWidth: 1, borderBottomColor: C.border }}>
+            <Text style={{ color: C.muted, fontSize: 12 }}>{k}</Text>
+            <Text style={{ color: k==="Total P&L" ? (report?.total_pnl>=0?C.green:C.red) : C.text,
+              fontWeight: "900", fontSize: 12 }}>{String(v)}</Text>
+          </Row>
+        ))}
+      </Card>
+
+      <Card>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
+          📜 {hi ? "Live Trade History" : "Live Trade History"}
+        </Text>
+        {trades.length === 0 && <Text style={{ color: C.muted }}>{hi ? "Abhi live trade history nahi hai." : "No live trade history yet."}</Text>}
+        {trades.slice(0, 8).map((t, i) => (
+          <View key={i} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border }}>
+            <Text style={{ color: C.text, fontWeight: "900" }}>{t.symbol || t.instrument || t.trading_symbol || "TRADE"}</Text>
+            <Text style={{ color: C.muted, fontSize: 11 }}>{JSON.stringify(t).slice(0, 160)}</Text>
+          </View>
+        ))}
+      </Card>
+
+      <Card>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
+          📝 {hi ? "Paper Trade History" : "Paper Trade History"}
+        </Text>
+        {paperTrades.length === 0 && <Text style={{ color: C.muted }}>{hi ? "Abhi paper trade history nahi hai." : "No paper trade history yet."}</Text>}
+        {paperTrades.slice(0, 8).map((t, i) => (
+          <View key={i} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border }}>
+            <Row style={{ justifyContent: "space-between" }}>
+              <Text style={{ color: C.text, fontWeight: "900" }}>{t.symbol || "PAPER"}</Text>
+              <Text style={{ color: Number(t.pnl || 0) >= 0 ? C.green : C.red, fontWeight: "900" }}>₹{t.pnl || 0}</Text>
+            </Row>
+            <Text style={{ color: C.muted, fontSize: 11 }}>{t.reason || t.status || "--"}</Text>
+          </View>
+        ))}
+      </Card>
+
+      <Card glow={C.gold}>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
+          💳 {hi ? "Plan Purchase / Payment" : "Plan Purchase / Payment"}
+        </Text>
+
+        <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>Plan</Text>
+        <TextInput style={[st.input, { marginBottom: 10 }]} value={planName}
+          onChangeText={setPlanName} placeholder="monthly / yearly" placeholderTextColor={C.muted} />
+
+        <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>Amount</Text>
+        <TextInput style={[st.input, { marginBottom: 12 }]} value={amount}
+          onChangeText={setAmount} keyboardType="numeric" placeholder="999" placeholderTextColor={C.muted} />
+
+        <Btn label={hi ? "Submit Payment Request" : "Submit Payment Request"} icon="💳" color={C.green}
+          loading={loading} onPress={submitPlan} />
+        <Text style={{ color: C.muted, fontSize: 11, marginTop: 8 }}>
+          {hi ? "Abhi manual approval flow hai. Razorpay/PhonePe gateway baad me connect karenge." : "Manual approval flow. Razorpay/PhonePe gateway can be connected later."}
+        </Text>
+      </Card>
+
+      {isAdmin && (
+        <Card glow={C.purple}>
+          <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
+            👑 {hi ? "Admin User List" : "Admin User List"}
+          </Text>
+          {users.slice(0, 20).map((u, i) => (
+            <View key={i} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <Text style={{ color: C.text, fontWeight: "900" }}>{u.name || "User"} • #{u.id}</Text>
+              <Text style={{ color: C.muted, fontSize: 11 }}>{u.email || "--"} • {u.subscription_status || "--"}</Text>
+            </View>
+          ))}
+        </Card>
+      )}
+
+      <Card glow={C.red}>
+        <Text style={{ color: C.red, fontSize: 18, fontWeight: "900", marginBottom: 8 }}>
+          ⚠️ {hi ? "Live Mode Warning" : "Live Mode Warning"}
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12, lineHeight: 19, marginBottom: 12 }}>
+          {hi ? "Live mode real orders place kar sakta hai. Pehle Paper Mode aur Backtest se test karo." : "Live mode can place real orders. Test with Paper Mode and Backtest first."}
+        </Text>
+        <Btn label={hi ? "Reset All Settings" : "Reset All Settings"} icon="♻️" color={C.red}
+          loading={loading} onPress={resetAll} />
+      </Card>
+
+      {!!msg && (
+        <Card glow={msg.includes("failed") ? C.red : C.green}>
+          <Text style={{ color: msg.includes("failed") ? C.red : C.green, fontWeight: "900" }}>{msg}</Text>
+        </Card>
+      )}
+    </ScrollView>
+  );
+}
+
+
 // ── Guide + Language Tab ────────────────────────────────────────
 function GuideTab({ lang, setLang }) {
   const isHi = lang === "hi";
@@ -1235,7 +1682,18 @@ function HomeTab({ user, subStatus, onSubscribe }) {
     <ScrollView style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
 
-      <Card glow={C.purple}>
+      
+      <Card glow={C.blue}>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
+          🤖 Bot Status
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12 }}>
+          Bot ON/OFF status Score/Bot tab aur Admin dashboard me refresh karke check karein.
+          Paper Mode default safe hai. Live Mode real orders place kar sakta hai.
+        </Text>
+      </Card>
+
+<Card glow={C.purple}>
         <Row style={{ justifyContent: "space-between", marginBottom: 12 }}>
           <View>
             <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800",
@@ -1269,7 +1727,7 @@ function HomeTab({ user, subStatus, onSubscribe }) {
         <Row style={{ gap: 12 }}>
           {[
             { label: "Market", val: "NSE F&O", color: C.blue },
-            { label: "Broker", val: "Multi", color: C.green },
+            { label: lang === "hi" ? "Broker" : "Broker", val: "Multi", color: C.green },
           ].map(item => (
             <Card key={item.label} style={{ flex: 1 }}>
               <Text style={{ color: C.muted, fontSize: 10,
@@ -1408,15 +1866,17 @@ function DashboardScreen({ token, user, onLogout }) {
   const isAdmin = userFresh?.role==="admin" || userFresh?.is_admin;
 
   const tabs = [
-    { id: "home",   icon: "🏠", label: "Home" },
-    { id: "score",  icon: "📊", label: "Score" },
+    { id: "home",   icon: "🏠", label: lang === "hi" ? "Home" : "Home" },
+    { id: "score",  icon: "📊", label: lang === "hi" ? "Score" : "Score" },
+    { id: "backtest", icon: "🧪", label: lang === "hi" ? "BT" : "BT" },
     { id: "guide", icon: "📘", label: lang === "hi" ? "Guide" : "Guide" },
-    { id: "hero",   icon: "🔴", label: "Hero" },
-    { id: "broker", icon: "🔗", label: "Broker" },
-    { id: "telegram", icon: "📲", label: "TG" },
-    { id: "plans",  icon: "💎", label: "Plans" },
-    ...(isAdmin ? [{ id: "admin", icon: "👑", label: "Admin" }] : []),
-    { id: "account",icon: "👤", label: "Account" },
+    { id: "more", icon: "⚙️", label: lang === "hi" ? "More" : "More" },
+    { id: "hero",   icon: "🔴", label: lang === "hi" ? "Bot" : "Bot" },
+    { id: "broker", icon: "🔗", label: lang === "hi" ? "Broker" : "Broker" },
+    { id: "telegram", icon: "📲", label: lang === "hi" ? "TG" : "TG" },
+    { id: "plans",  icon: "💎", label: lang === "hi" ? "Plans" : "Plans" },
+    ...(isAdmin ? [{ id: "admin", icon: "👑", label: lang === "hi" ? "Admin" : "Admin" }] : []),
+    { id: "account",icon: "👤", label: lang === "hi" ? "Account" : "Account" },
   ];
 
   return (
@@ -1470,6 +1930,8 @@ function DashboardScreen({ token, user, onLogout }) {
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
         {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
+        {activeTab === "more" && <MoreTab token={token} user={user} lang={lang} setLang={setLang} isAdmin={isAdmin} />}
+        {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
         {activeTab === "hero" && <HeroTab token={token} />}
         {activeTab === "broker" && <BrokerTab token={token} />}
         {activeTab === "telegram" && <TelegramTab token={token} />}
