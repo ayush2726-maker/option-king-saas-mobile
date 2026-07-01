@@ -14,7 +14,8 @@
         "backgroundColor": "#040d18"
       },
       "package": "com.optionkingai.saas",
-      "versionCode": 1
+      "versionCode": 1,
+      "jsEngine": "jsc"
     },
     "ios": {
       "bundleIdentifier": "com.optionkingai.saas",
@@ -25,6 +26,13 @@
       "eas": {
         "projectId": "53c0c5ce-07e1-4036-9bda-62c8cf063d62"
       }
+    },
+    "jsEngine": "jsc",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/53c0c5ce-07e1-4036-9bda-62c8cf063d62"
     }
   }
 }
