@@ -700,6 +700,193 @@ function BrokerTab({ token }) {
 }
 
 // ── Plans Tab ────────────────────────────────────────────
+
+// ── Markets / Instruments Tab ────────────────────────────────────────
+function MarketsTab({ token, lang }) {
+  const hi = lang === "hi";
+  const [settings, setSettings] = useState(null);
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function loadSettings() {
+    setLoading(true);
+    try {
+      const d = await apiGet("/strategy/settings", token);
+      setSettings(d.settings || {});
+    } catch {
+      setMsg(hi ? "Settings load failed" : "Settings load failed");
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => { loadSettings(); }, []);
+
+  function toggleInstrument(ins) {
+    setSettings(prev => {
+      const old = prev?.enabled_instruments || ["NIFTY"];
+      const enabled = old.includes(ins);
+      let next = enabled ? old.filter(x => x !== ins) : [...old, ins];
+
+      if (next.length === 0) next = ["NIFTY"];
+
+      return {
+        ...(prev || {}),
+        enabled_instruments: next,
+        primary_instrument: next.includes(prev?.primary_instrument) ? prev?.primary_instrument : next[0],
+      };
+    });
+  }
+
+  function setPrimary(ins) {
+    setSettings(prev => {
+      const old = prev?.enabled_instruments || ["NIFTY"];
+      const next = old.includes(ins) ? old : [...old, ins];
+
+      return {
+        ...(prev || {}),
+        enabled_instruments: next,
+        primary_instrument: ins,
+      };
+    });
+  }
+
+  async function saveMarkets() {
+    if (!settings) return;
+    setMsg("");
+    setLoading(true);
+    try {
+      const d = await apiPostAuth("/strategy/settings", {
+        ...settings,
+        enabled_instruments: settings.enabled_instruments || ["NIFTY"],
+        primary_instrument: settings.primary_instrument || "NIFTY",
+      }, token);
+
+      setSettings(d.settings || settings);
+      setMsg("✅ " + (hi ? "Markets save ho gaye" : "Markets saved"));
+    } catch {
+      setMsg(hi ? "Markets save failed" : "Markets save failed");
+    }
+    setLoading(false);
+  }
+
+  if (!settings) {
+    return (
+      <ScrollView style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+        <Card glow={C.blue}>
+          <Text style={{ color: C.text, fontSize: 18, fontWeight: "900" }}>
+            {loading ? "Loading..." : "Markets"}
+          </Text>
+        </Card>
+      </ScrollView>
+    );
+  }
+
+  const enabled = settings.enabled_instruments || ["NIFTY"];
+  const primary = settings.primary_instrument || enabled[0] || "NIFTY";
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+
+      <Card glow={C.blue}>
+        <Text style={{ color: C.text, fontSize: 20, fontWeight: "900", marginBottom: 6 }}>
+          📈 {hi ? "Markets / Instruments" : "Markets / Instruments"}
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
+          {hi
+            ? "Bot, strategy aur backtest ke liye market select karo."
+            : "Select markets for bot, strategy, and backtest."}
+        </Text>
+
+        {["NIFTY", "BANKNIFTY", "SENSEX"].map(ins => {
+          const isOn = enabled.includes(ins);
+          return (
+            <TouchableOpacity key={ins}
+              onPress={() => toggleInstrument(ins)}
+              style={{
+                padding: 14,
+                borderRadius: 14,
+                backgroundColor: isOn ? C.greenLo : C.s2,
+                borderWidth: 1,
+                borderColor: isOn ? C.green : C.border,
+                marginBottom: 10
+              }}>
+              <Row style={{ justifyContent: "space-between" }}>
+                <Text style={{ color: isOn ? C.green : C.muted, fontWeight: "900", fontSize: 15 }}>
+                  {isOn ? "✅" : "⬜"} {ins}
+                </Text>
+                <Text style={{ color: primary === ins ? C.gold : C.muted, fontWeight: "900", fontSize: 11 }}>
+                  {primary === ins ? "PRIMARY" : ""}
+                </Text>
+              </Row>
+            </TouchableOpacity>
+          );
+        })}
+
+        <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800", marginBottom: 6 }}>
+          {hi ? "Primary Instrument" : "Primary Instrument"}
+        </Text>
+
+        <Row style={{ gap: 8, marginBottom: 12 }}>
+          {["NIFTY", "BANKNIFTY", "SENSEX"].map(ins => (
+            <TouchableOpacity key={ins}
+              onPress={() => setPrimary(ins)}
+              style={{
+                flex: 1,
+                padding: 10,
+                borderRadius: 10,
+                backgroundColor: primary === ins ? C.blueLo : C.s2,
+                borderWidth: 1,
+                borderColor: primary === ins ? C.blue : C.border,
+                alignItems: "center"
+              }}>
+              <Text style={{
+                color: primary === ins ? C.blue : C.muted,
+                fontWeight: "900",
+                fontSize: 10
+              }}>
+                {ins}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </Row>
+
+        <Btn
+          label={hi ? "Save Markets" : "Save Markets"}
+          icon="💾"
+          color={C.green}
+          loading={loading}
+          onPress={saveMarkets}
+        />
+
+        {!!msg && (
+          <Text style={{
+            color: msg.includes("✅") ? C.green : C.red,
+            marginTop: 12,
+            fontWeight: "900",
+            fontSize: 12
+          }}>
+            {msg}
+          </Text>
+        )}
+      </Card>
+
+      <Card glow={C.gold}>
+        <Text style={{ color: C.gold, fontSize: 14, fontWeight: "900", marginBottom: 6 }}>
+          ⚠️ {hi ? "Live Trading Note" : "Live Trading Note"}
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12, lineHeight: 19 }}>
+          {hi
+            ? "Backtest aur paper mode me NIFTY, BANKNIFTY, SENSEX ready hai. Live orders ke liye broker symbol/token mapping bhi properly connected honi chahiye."
+            : "NIFTY, BANKNIFTY, and SENSEX are ready for backtest and paper mode. Live orders also need proper broker symbol/token mapping."}
+        </Text>
+      </Card>
+    </ScrollView>
+  );
+}
+
+
 function PlansTab({ token, user, onSuccess }) {
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState("");
@@ -1868,6 +2055,7 @@ function DashboardScreen({ token, user, onLogout }) {
   const tabs = [
     { id: "home",   icon: "🏠", label: lang === "hi" ? "Home" : "Home" },
     { id: "score",  icon: "📊", label: lang === "hi" ? "Score" : "Score" },
+    { id: "markets", icon: "📈", label: lang === "hi" ? "Market" : "Market" },
     { id: "backtest", icon: "🧪", label: lang === "hi" ? "BT" : "BT" },
     { id: "guide", icon: "📘", label: lang === "hi" ? "Guide" : "Guide" },
     { id: "more", icon: "⚙️", label: lang === "hi" ? "More" : "More" },
@@ -1929,6 +2117,7 @@ function DashboardScreen({ token, user, onLogout }) {
             onSubscribe={() => setActiveTab("plans")} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
+        {activeTab === "markets" && <MarketsTab token={token} lang={lang} />}
         {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
         {activeTab === "more" && <MoreTab token={token} user={user} lang={lang} setLang={setLang} isAdmin={isAdmin} />}
         {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
