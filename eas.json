@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 5.9.3"
+    "appVersionSource": "local"
   },
   "build": {
     "preview": {
@@ -10,11 +10,8 @@
     },
     "production": {
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       }
     }
-  },
-  "submit": {
-    "production": {}
   }
 }

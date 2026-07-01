@@ -609,9 +609,12 @@ function BrokerTab({ token }) {
   async function saveBroker() {
     setError(""); setSuccess(""); setLoading(true);
     try {
-      const d = await apiPostAuth("/broker/save", {
-        broker, client_id: clientId, api_key: apiKey,
-        api_secret: apiSecret, mpin, totp_key: totpKey
+      const d = await apiPostAuth("/broker/connect", {
+        broker_name: broker,
+        client_id: clientId.trim().toUpperCase(),
+        api_key: apiKey.trim(),
+        api_secret: apiSecret.trim(),
+        totp_secret: broker === "angelone" ? totpKey.trim() : ""
       }, token);
       if (d.success || d.message) {
         setSuccess("✅ Broker credentials save ho gaye!");
@@ -928,12 +931,12 @@ function AdminTab({ token, user }) {
         <Row style={{ gap: 10 }}>
           <Btn label="Bot Start" icon="▶️" color={C.green}
             onPress={async () => {
-              await apiPostAuth("/admin/bot/start", {}, token);
+              await apiPostAuth("/bot/start", {}, token);
               load(false);
             }} style={{ flex: 1 }} />
           <Btn label="Bot Stop" icon="⏹️" color={C.red}
             onPress={async () => {
-              await apiPostAuth("/admin/bot/stop", {}, token);
+              await apiPostAuth("/bot/stop", {}, token);
               load(false);
             }} style={{ flex: 1 }} />
         </Row>
@@ -941,6 +944,137 @@ function AdminTab({ token, user }) {
     </ScrollView>
   );
 }
+
+
+// ── Telegram Tab ────────────────────────────────────────
+function TelegramTab({ token }) {
+  const [botToken, setBotToken] = useState("");
+  const [chatId, setChatId] = useState("");
+  const [enabled, setEnabled] = useState(true);
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function load() {
+    try {
+      const d = await apiGet("/telegram/settings", token);
+      const stg = d.settings || {};
+      setBotToken(stg.bot_token || "");
+      setChatId(stg.chat_id || "");
+      setEnabled(!!stg.enabled);
+    } catch {}
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function save() {
+    setMsg("");
+    setLoading(true);
+    try {
+      const d = await apiPostAuth("/telegram/settings", {
+        enabled,
+        bot_token: botToken.trim(),
+        chat_id: chatId.trim(),
+        send_bot_alerts: true,
+        send_trade_alerts: true,
+        send_backtest_alerts: true
+      }, token);
+
+      setMsg(d.message || "Telegram saved");
+    } catch {
+      setMsg("Telegram save failed");
+    }
+    setLoading(false);
+  }
+
+  async function test() {
+    setMsg("");
+    setLoading(true);
+    try {
+      const d = await apiPostAuth("/telegram/test", {}, token);
+      setMsg(d.success ? "✅ Test message sent" : (d.message || "Test failed"));
+    } catch {
+      setMsg("Telegram test failed");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+
+      <Card glow={C.blue}>
+        <Text style={{ color: C.text, fontSize: 18,
+          fontWeight: "900", marginBottom: 6 }}>📲 Telegram Updates</Text>
+        <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
+          Bot start/stop, signal, strategy save aur backtest result Telegram par bhejo.
+        </Text>
+
+        <TouchableOpacity
+          onPress={() => setEnabled(!enabled)}
+          style={{ padding: 12, borderRadius: 12,
+            backgroundColor: enabled ? C.greenLo : C.redLo,
+            borderWidth: 1,
+            borderColor: enabled ? C.green : C.red,
+            marginBottom: 12 }}>
+          <Text style={{ color: enabled ? C.green : C.red,
+            fontWeight: "900", textAlign: "center" }}>
+            {enabled ? "✅ Telegram Enabled" : "❌ Telegram Disabled"}
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={{ color: C.muted, fontSize: 11,
+          fontWeight: "800", marginBottom: 5 }}>Bot Token</Text>
+        <TextInput style={[st.input, { marginBottom: 10 }]}
+          value={botToken}
+          onChangeText={setBotToken}
+          placeholder="123456:ABC..."
+          placeholderTextColor={C.muted}
+          secureTextEntry />
+
+        <Text style={{ color: C.muted, fontSize: 11,
+          fontWeight: "800", marginBottom: 5 }}>Chat ID</Text>
+        <TextInput style={[st.input, { marginBottom: 12 }]}
+          value={chatId}
+          onChangeText={setChatId}
+          placeholder="Telegram chat id"
+          placeholderTextColor={C.muted}
+          keyboardType="numeric" />
+
+        <Row style={{ gap: 10 }}>
+          <Btn label="Save" icon="💾" color={C.green}
+            loading={loading}
+            onPress={save}
+            style={{ flex: 1 }} />
+          <Btn label="Test" icon="📨" color={C.gold}
+            onPress={test}
+            style={{ flex: 1 }} />
+        </Row>
+
+        {!!msg && (
+          <Text style={{ color: msg.includes("✅") ? C.green : C.gold,
+            marginTop: 12, fontWeight: "800", fontSize: 12 }}>
+            {msg}
+          </Text>
+        )}
+      </Card>
+
+      <Card>
+        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
+          textTransform: "uppercase", letterSpacing: 1.2,
+          marginBottom: 10 }}>Setup Guide</Text>
+        <Text style={{ color: C.muted, fontSize: 12, lineHeight: 20 }}>
+          1. Telegram me @BotFather open karo{"\n"}
+          2. /newbot se bot banao{"\n"}
+          3. Bot token copy karo{"\n"}
+          4. Apne bot ko message bhejo{"\n"}
+          5. Chat ID nikal kar yahan save karo{"\n"}
+          6. Test dabao, message aa jaye to setup complete
+        </Text>
+      </Card>
+    </ScrollView>
+  );
+}
+
 
 // ── Home Tab ─────────────────────────────────────────────
 function HomeTab({ user, subStatus, onSubscribe }) {
@@ -1117,6 +1251,7 @@ function DashboardScreen({ token, user, onLogout }) {
     { id: "score",  icon: "📊", label: "Score" },
     { id: "hero",   icon: "🔴", label: "Hero" },
     { id: "broker", icon: "🔗", label: "Broker" },
+    { id: "telegram", icon: "📲", label: "TG" },
     { id: "plans",  icon: "💎", label: "Plans" },
     ...(isAdmin ? [{ id: "admin", icon: "👑", label: "Admin" }] : []),
     { id: "account",icon: "👤", label: "Account" },
@@ -1174,6 +1309,7 @@ function DashboardScreen({ token, user, onLogout }) {
         {activeTab === "score" && <ScoreTab token={token} />}
         {activeTab === "hero" && <HeroTab token={token} />}
         {activeTab === "broker" && <BrokerTab token={token} />}
+        {activeTab === "telegram" && <TelegramTab token={token} />}
         {activeTab === "plans" && (
           <PlansTab token={token} user={userFresh}
             onSuccess={refreshUser} />
