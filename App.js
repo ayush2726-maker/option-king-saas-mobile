@@ -860,6 +860,44 @@ function AdminTab({ token, user }) {
       refreshControl={<RefreshControl refreshing={refreshing}
         onRefresh={() => load(true)} tintColor={C.purple} />}>
 
+
+      <Card glow={C.green}>
+        <Text style={{ color: C.text, fontSize: 18,
+          fontWeight: "900", marginBottom: 6 }}>💰 Paper Capital</Text>
+        <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
+          Paper mode aur Backtest dono ke liye capital update karo.
+        </Text>
+
+        <Text style={{ color: C.muted, fontSize: 11,
+          fontWeight: "800", marginBottom: 5 }}>Paper Capital</Text>
+        <TextInput style={[st.input, { marginBottom: 12 }]}
+          value={paperCapital}
+          onChangeText={(v) => {
+            setPaperCapital(v);
+            setCapital(v);
+          }}
+          keyboardType="numeric"
+          placeholder="100000"
+          placeholderTextColor={C.muted} />
+
+        <Row style={{ gap: 10 }}>
+          <Btn label="Update" icon="💾" color={C.green}
+            loading={loading}
+            onPress={savePaperCapital}
+            style={{ flex: 1 }} />
+          <Btn label="Reset P&L" icon="♻️" color={C.gold}
+            onPress={resetPaperCapital}
+            style={{ flex: 1 }} />
+        </Row>
+
+        {!!capitalMsg && (
+          <Text style={{ color: capitalMsg.includes("✅") ? C.green : C.red,
+            marginTop: 10, fontWeight: "900", fontSize: 12 }}>
+            {capitalMsg}
+          </Text>
+        )}
+      </Card>
+
       <Card glow={C.purple}>
         <Text style={{ color: C.purple, fontSize: 16,
           fontWeight: "900", marginBottom: 4 }}>👑 Admin Dashboard</Text>
