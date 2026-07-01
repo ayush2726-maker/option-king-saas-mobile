@@ -1114,6 +1114,119 @@ function TelegramTab({ token }) {
 }
 
 
+
+// ── Guide + Language Tab ────────────────────────────────────────
+function GuideTab({ lang, setLang }) {
+  const isHi = lang === "hi";
+
+  async function changeLang(next) {
+    setLang(next);
+    try { await AsyncStorage.setItem("okai_lang", next); } catch {}
+  }
+
+  const guideHi = [
+    ["1. Login", "Apne email/password se app me login karo."],
+    ["2. Broker Connect", "Broker tab me Angel One / Zerodha / Upstox credentials save karo. Paper mode ke liye broker optional hai, Live ke liye broker required hai."],
+    ["3. Paper Mode", "Default mode Paper hai. Isme real order nahi lagega. Practice aur testing ke liye safe hai."],
+    ["4. Paper Capital", "Backtest tab me Paper Capital update karo. Ye paper trading aur backtest dono me use hoga."],
+    ["5. Score Customize", "Score tab me Safe / Default / Aggressive / Custom strategy select karo. Entry score, SL, Target, Max Trades change kar sakte ho."],
+    ["6. Backtest", "Backtest tab me NIFTY / BANKNIFTY / SENSEX select karke strategy result check karo."],
+    ["7. Telegram", "Telegram tab me Bot Token aur Chat ID save karo. Bot start/stop, strategy save aur backtest updates Telegram par aayenge."],
+    ["8. Live Mode", "Live mode sirf tab ON karo jab broker connected ho aur strategy paper mode me test ho chuki ho. Live mode real order place karega."]
+  ];
+
+  const guideEn = [
+    ["1. Login", "Login with your app email and password."],
+    ["2. Broker Connect", "Save Angel One / Zerodha / Upstox credentials in the Broker tab. Broker is optional for Paper mode, required for Live mode."],
+    ["3. Paper Mode", "Paper mode is the default safe mode. It does not place real orders."],
+    ["4. Paper Capital", "Update Paper Capital in the Backtest tab. The same capital is used for paper trading and backtesting."],
+    ["5. Score Customize", "Use the Score tab to choose Safe / Default / Aggressive / Custom strategy. You can change entry score, SL, target, and max trades."],
+    ["6. Backtest", "Use the Backtest tab to test strategy results for NIFTY / BANKNIFTY / SENSEX."],
+    ["7. Telegram", "Save Bot Token and Chat ID in the Telegram tab. Bot alerts, strategy updates, and backtest results will be sent to Telegram."],
+    ["8. Live Mode", "Enable Live mode only after broker connection and paper testing. Live mode can place real orders."]
+  ];
+
+  const list = isHi ? guideHi : guideEn;
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+
+      <Card glow={C.blue}>
+        <Text style={{ color: C.text, fontSize: 20, fontWeight: "900", marginBottom: 6 }}>
+          🌐 {isHi ? "Language / भाषा" : "Language"}
+        </Text>
+
+        <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
+          {isHi ? "App guide Hindi aur English dono me dekh sakte ho." : "You can view the app guide in Hindi or English."}
+        </Text>
+
+        <Row style={{ gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => changeLang("hi")}
+            style={{ flex: 1, padding: 14, borderRadius: 12,
+              backgroundColor: lang==="hi" ? C.greenLo : C.s2,
+              borderWidth: 1,
+              borderColor: lang==="hi" ? C.green : C.border,
+              alignItems: "center" }}>
+            <Text style={{ color: lang==="hi" ? C.green : C.muted, fontWeight: "900" }}>
+              🇮🇳 Hindi
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => changeLang("en")}
+            style={{ flex: 1, padding: 14, borderRadius: 12,
+              backgroundColor: lang==="en" ? C.blueLo : C.s2,
+              borderWidth: 1,
+              borderColor: lang==="en" ? C.blue : C.border,
+              alignItems: "center" }}>
+            <Text style={{ color: lang==="en" ? C.blue : C.muted, fontWeight: "900" }}>
+              🇬🇧 English
+            </Text>
+          </TouchableOpacity>
+        </Row>
+      </Card>
+
+      <Card glow={C.gold}>
+        <Text style={{ color: C.text, fontSize: 20, fontWeight: "900", marginBottom: 6 }}>
+          📘 {isHi ? "App Guide" : "App Guide"}
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
+          {isHi ? "Option King AI use karne ka simple step-by-step guide." : "Simple step-by-step guide to use Option King AI."}
+        </Text>
+
+        {list.map(([title, desc], i) => (
+          <View key={i} style={{
+            paddingVertical: 12,
+            borderBottomWidth: i === list.length - 1 ? 0 : 1,
+            borderBottomColor: C.border
+          }}>
+            <Text style={{ color: C.text, fontSize: 14, fontWeight: "900", marginBottom: 4 }}>
+              {title}
+            </Text>
+            <Text style={{ color: C.muted, fontSize: 12, lineHeight: 19 }}>
+              {desc}
+            </Text>
+          </View>
+        ))}
+      </Card>
+
+      <Card glow={C.red}>
+        <Text style={{ color: C.red, fontSize: 14, fontWeight: "900", marginBottom: 6 }}>
+          ⚠️ {isHi ? "Risk Warning" : "Risk Warning"}
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12, lineHeight: 19 }}>
+          {isHi
+            ? "Options trading me loss ho sakta hai. Pehle Paper Mode aur Backtest se strategy test karo. Live mode me real order lag sakta hai."
+            : "Options trading can cause losses. Test your strategy using Paper Mode and Backtest first. Live mode can place real orders."}
+        </Text>
+      </Card>
+    </ScrollView>
+  );
+}
+
+
 // ── Home Tab ─────────────────────────────────────────────
 function HomeTab({ user, subStatus, onSubscribe }) {
   const daysLeft = subStatus?.days_remaining ?? null;
@@ -1268,6 +1381,16 @@ function AccountTab({ user, subStatus, onLogout, onRefresh }) {
 // ── Dashboard Screen ──────────────────────────────────────
 function DashboardScreen({ token, user, onLogout }) {
   const [activeTab, setActiveTab] = useState("home");
+  const [lang, setLang] = useState("hi");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const savedLang = await AsyncStorage.getItem("okai_lang");
+        if (savedLang === "hi" || savedLang === "en") setLang(savedLang);
+      } catch {}
+    })();
+  }, []);
   const [subStatus, setSubStatus] = useState(null);
   const [userFresh, setUserFresh] = useState(user);
 
@@ -1287,6 +1410,7 @@ function DashboardScreen({ token, user, onLogout }) {
   const tabs = [
     { id: "home",   icon: "🏠", label: "Home" },
     { id: "score",  icon: "📊", label: "Score" },
+    { id: "guide", icon: "📘", label: lang === "hi" ? "Guide" : "Guide" },
     { id: "hero",   icon: "🔴", label: "Hero" },
     { id: "broker", icon: "🔗", label: "Broker" },
     { id: "telegram", icon: "📲", label: "TG" },
@@ -1345,6 +1469,7 @@ function DashboardScreen({ token, user, onLogout }) {
             onSubscribe={() => setActiveTab("plans")} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
+        {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
         {activeTab === "hero" && <HeroTab token={token} />}
         {activeTab === "broker" && <BrokerTab token={token} />}
         {activeTab === "telegram" && <TelegramTab token={token} />}
