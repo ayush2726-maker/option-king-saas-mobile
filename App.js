@@ -1078,6 +1078,9 @@ function AdminTab({ token, user }) {
   const isAdmin = user?.role === "admin" || user?.is_admin;
 
   async function load(isRefresh) {
+  const [capitalMsg, setCapitalMsg] = useState("");
+  async function savePaperCapital() { setCapitalMsg && setCapitalMsg("Paper capital save available in BT/More tab"); }
+  async function resetPaperCapital() { setCapitalMsg && setCapitalMsg("Paper reset available in BT/More tab"); }
   const [paperCapital, setPaperCapital] = useState("100000");
     if (!isAdmin) return;
     if (isRefresh) setRefreshing(true); else setLoading(true);
@@ -1430,6 +1433,9 @@ function BacktestTab({ token, lang }) {
   }
 
   async function runBacktest() {
+  const [capitalMsg, setCapitalMsg] = useState("");
+  async function savePaperCapital() { setCapitalMsg && setCapitalMsg("Paper capital save available in BT/More tab"); }
+  async function resetPaperCapital() { setCapitalMsg && setCapitalMsg("Paper reset available in BT/More tab"); }
   const [paperCapital, setPaperCapital] = useState("100000");
     setLoading(true);
     setResult(null);
