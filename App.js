@@ -7,6 +7,68 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ── Colors ──────────────────────────────────────────────
+
+// ── App Error Boundary ─────────────────────────────
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, info) {
+    console.log("APP_RUNTIME_ERROR", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{
+          flex: 1,
+          backgroundColor: "#080812",
+          padding: 18,
+          justifyContent: "center"
+        }}>
+          <Text style={{
+            color: "#ff5a36",
+            fontSize: 22,
+            fontWeight: "900",
+            marginBottom: 12
+          }}>
+            App Error
+          </Text>
+
+          <Text style={{
+            color: "#e9eef7",
+            fontSize: 14,
+            lineHeight: 22,
+            marginBottom: 16
+          }}>
+            Login ke baad dashboard me error aaya. Is error ka screenshot bhejo:
+          </Text>
+
+          <Text style={{
+            color: "#ffb13b",
+            fontSize: 12,
+            lineHeight: 18,
+            backgroundColor: "#1a1a2e",
+            padding: 12,
+            borderRadius: 10
+          }}>
+            {String(this.state.error?.message || this.state.error || "Unknown error")}
+          </Text>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+
 const C = {
   bg:"#0a0a0f", s1:"#0f0f1a", s2:"#13131f", s3:"#1a1a2e",
   border:"#1e1e30", border2:"#252540",
@@ -2157,7 +2219,7 @@ function DashboardScreen({ token, user, onLogout }) {
 }
 
 // ── Main App ──────────────────────────────────────────────
-export default function App() {
+function InnerApp() {
   const [screen, setScreen] = useState("loading");
   const [token, setToken]   = useState(null);
   const [user, setUser]     = useState(null);
@@ -2225,3 +2287,12 @@ const st = StyleSheet.create({
     marginBottom: 12,
   },
 });
+
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <InnerApp />
+    </ErrorBoundary>
+  );
+}
