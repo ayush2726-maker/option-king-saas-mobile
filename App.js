@@ -1078,6 +1078,7 @@ function AdminTab({ token, user }) {
   const isAdmin = user?.role === "admin" || user?.is_admin;
 
   async function load(isRefresh) {
+  const [paperCapital, setPaperCapital] = useState("100000");
     if (!isAdmin) return;
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
@@ -1392,11 +1393,12 @@ function BacktestTab({ token, lang }) {
   useEffect(() => { loadPaperCapital(); }, []);
 
   async function savePaperCapital() {
+  const [paperCapital, setPaperCapital] = useState("100000");
     setCapitalMsg("");
     setLoading(true);
     try {
       const d = await apiPostAuth("/paper/capital", {
-        capital: Number(paperCapital || 100000),
+        capital: Number((paperCapital || 100000)),
         make_paper_mode: true
       }, token);
       const cap = String(d.paper_capital || paperCapital || 100000);
@@ -1410,11 +1412,12 @@ function BacktestTab({ token, lang }) {
   }
 
   async function resetPaperCapital() {
+  const [paperCapital, setPaperCapital] = useState("100000");
     setCapitalMsg("");
     setLoading(true);
     try {
       const d = await apiPostAuth("/paper/reset", {
-        capital: Number(paperCapital || 100000)
+        capital: Number((paperCapital || 100000))
       }, token);
       const cap = String(d.paper_capital || paperCapital || 100000);
       setPaperCapital(cap);
@@ -1427,6 +1430,7 @@ function BacktestTab({ token, lang }) {
   }
 
   async function runBacktest() {
+  const [paperCapital, setPaperCapital] = useState("100000");
     setLoading(true);
     setResult(null);
     try {
