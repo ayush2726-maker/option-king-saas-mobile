@@ -1121,7 +1121,7 @@ function AdminTab({ token, user }) {
         <Text style={{ color: C.muted, fontSize: 11,
           fontWeight: "800", marginBottom: 5 }}>Paper Capital</Text>
         <TextInput style={[st.input, { marginBottom: 12 }]}
-          value={paperCapital}
+          value={"100000"}
           onChangeText={(v) => {
             setPaperCapital(v);
             setCapital(v);
@@ -1464,7 +1464,7 @@ function BacktestTab({ token, lang }) {
         </Text>
 
         <TextInput style={[st.input, { marginBottom: 12 }]}
-          value={paperCapital}
+          value={"100000"}
           onChangeText={(v) => { setPaperCapital(v); setCapital(v); }}
           keyboardType="numeric"
           placeholder="100000"
