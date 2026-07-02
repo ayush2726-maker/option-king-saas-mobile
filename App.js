@@ -992,6 +992,32 @@ function TradeTab({ token }) {
 
   const trade = signal?.active_trade || signal?.latest_trade || null;
 
+  async function startHeroZero(side) {
+    setLoading(true);
+    setMsg("");
+    try {
+      const d = await apiPostAuth("/bot/hero-zero/start", { side }, token);
+      setMsg(d?.message || `Hero Zero ${side} started`);
+      await loadTrade();
+    } catch (e) {
+      setMsg("Hero Zero start failed");
+    }
+    setLoading(false);
+  }
+
+  async function forceCloseHeroZero() {
+    setLoading(true);
+    setMsg("");
+    try {
+      const d = await apiPostAuth("/bot/hero-zero/force-close", {}, token);
+      setMsg(d?.message || "Hero Zero closed");
+      await loadTrade();
+    } catch (e) {
+      setMsg("Hero Zero close failed");
+    }
+    setLoading(false);
+  }
+
   return (
     <ScrollView style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
@@ -1007,6 +1033,59 @@ function TradeTab({ token }) {
             </Text>
           </TouchableOpacity>
         </Row>
+
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: "900", marginBottom: 8 }}>
+            🚀 Expiry Hero Zero
+          </Text>
+
+          <Row style={{ justifyContent: "space-between", marginBottom: 8 }}>
+            <TouchableOpacity
+              onPress={() => startHeroZero("CE")}
+              style={{
+                flex: 1,
+                marginRight: 6,
+                backgroundColor: C.green,
+                paddingVertical: 12,
+                borderRadius: 12,
+                alignItems: "center"
+              }}>
+              <Text style={{ color: "#fff", fontWeight: "900" }}>Hero Zero CE</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => startHeroZero("PE")}
+              style={{
+                flex: 1,
+                marginLeft: 6,
+                backgroundColor: C.red,
+                paddingVertical: 12,
+                borderRadius: 12,
+                alignItems: "center"
+              }}>
+              <Text style={{ color: "#fff", fontWeight: "900" }}>Hero Zero PE</Text>
+            </TouchableOpacity>
+          </Row>
+
+          <TouchableOpacity
+            onPress={forceCloseHeroZero}
+            style={{
+              backgroundColor: C.card2 || C.border,
+              borderWidth: 1,
+              borderColor: C.border,
+              paddingVertical: 11,
+              borderRadius: 12,
+              alignItems: "center"
+            }}>
+            <Text style={{ color: C.gold, fontWeight: "900" }}>
+              Force Close Open Trade
+            </Text>
+          </TouchableOpacity>
+
+          <Text style={{ color: C.muted, fontSize: 11, marginTop: 8 }}>
+            Hero Zero high risk paper mode hai. Real broker orders OFF.
+          </Text>
+        </View>
 
         {!trade && (
           <Text style={{ color: C.muted, fontSize: 13 }}>
