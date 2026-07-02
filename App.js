@@ -1976,7 +1976,7 @@ function HomeTab({ user, subStatus, onSubscribe }) {
         <Row style={{ gap: 12 }}>
           {[
             { label: "Market", val: "NSE F&O", color: C.blue },
-            { label: lang === "hi" ? "Broker" : "Broker", val: "Multi", color: C.green },
+            { label: "Broker", val: "Multi", color: C.green },
           ].map(item => (
             <Card key={item.label} style={{ flex: 1 }}>
               <Text style={{ color: C.muted, fontSize: 10,
@@ -2115,18 +2115,18 @@ function DashboardScreen({ token, user, onLogout }) {
   const isAdmin = userFresh?.role==="admin" || userFresh?.is_admin;
 
   const tabs = [
-    { id: "home",   icon: "🏠", label: lang === "hi" ? "Home" : "Home" },
-    { id: "score",  icon: "📊", label: lang === "hi" ? "Score" : "Score" },
-    { id: "markets", icon: "📈", label: lang === "hi" ? "Market" : "Market" },
-    { id: "backtest", icon: "🧪", label: lang === "hi" ? "BT" : "BT" },
-    { id: "guide", icon: "📘", label: lang === "hi" ? "Guide" : "Guide" },
-    { id: "more", icon: "⚙️", label: lang === "hi" ? "More" : "More" },
-    { id: "hero",   icon: "🔴", label: lang === "hi" ? "Bot" : "Bot" },
-    { id: "broker", icon: "🔗", label: lang === "hi" ? "Broker" : "Broker" },
-    { id: "telegram", icon: "📲", label: lang === "hi" ? "TG" : "TG" },
-    { id: "plans",  icon: "💎", label: lang === "hi" ? "Plans" : "Plans" },
-    ...(isAdmin ? [{ id: "admin", icon: "👑", label: lang === "hi" ? "Admin" : "Admin" }] : []),
-    { id: "account",icon: "👤", label: lang === "hi" ? "Account" : "Account" },
+    { id: "home",   icon: "🏠", label: "Home" },
+    { id: "score",  icon: "📊", label: "Score" },
+    { id: "markets", icon: "📈", label: "Market" },
+    { id: "backtest", icon: "🧪", label: "BT" },
+    { id: "guide", icon: "📘", label: "Guide" },
+    { id: "more", icon: "⚙️", label: "More" },
+    { id: "hero",   icon: "🔴", label: "Bot" },
+    { id: "broker", icon: "🔗", label: "Broker" },
+    { id: "telegram", icon: "📲", label: "TG" },
+    { id: "plans",  icon: "💎", label: "Plans" },
+    ...(isAdmin ? [{ id: "admin", icon: "👑", label: "Admin" }] : []),
+    { id: "account",icon: "👤", label: "Account" },
   ];
 
   return (
@@ -2179,10 +2179,10 @@ function DashboardScreen({ token, user, onLogout }) {
             onSubscribe={() => setActiveTab("plans")} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
-        {activeTab === "markets" && <MarketsTab token={token} lang={lang || "hi"} />}
-        {activeTab === "guide" && <GuideTab lang={lang || "hi"} setLang={setLang} />}
-        {activeTab === "more" && <MoreTab token={token} user={user} lang={lang || "hi"} setLang={setLang} isAdmin={isAdmin} />}
-        {activeTab === "backtest" && <BacktestTab token={token} lang={lang || "hi"} />}
+        {activeTab === "markets" && <MarketsTab token={token} lang={"hi"} />}
+        {activeTab === "guide" && <GuideTab lang={"hi"} setLang={() => {}} />}
+        {activeTab === "more" && <MoreTab token={token} user={user} lang={"hi"} setLang={() => {}} isAdmin={isAdmin} />}
+        {activeTab === "backtest" && <BacktestTab token={token} lang={"hi"} />}
         {activeTab === "hero" && <HeroTab token={token} />}
         {activeTab === "broker" && <BrokerTab token={token} />}
         {activeTab === "telegram" && <TelegramTab token={token} />}
