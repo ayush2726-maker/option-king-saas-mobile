@@ -2179,10 +2179,10 @@ function DashboardScreen({ token, user, onLogout }) {
             onSubscribe={() => setActiveTab("plans")} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
-        {activeTab === "markets" && <MarketsTab token={token} lang={lang} />}
-        {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
-        {activeTab === "more" && <MoreTab token={token} user={user} lang={lang} setLang={setLang} isAdmin={isAdmin} />}
-        {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
+        {activeTab === "markets" && <MarketsTab token={token} lang={lang || "hi"} />}
+        {activeTab === "guide" && <GuideTab lang={lang || "hi"} setLang={setLang} />}
+        {activeTab === "more" && <MoreTab token={token} user={user} lang={lang || "hi"} setLang={setLang} isAdmin={isAdmin} />}
+        {activeTab === "backtest" && <BacktestTab token={token} lang={lang || "hi"} />}
         {activeTab === "hero" && <HeroTab token={token} />}
         {activeTab === "broker" && <BrokerTab token={token} />}
         {activeTab === "telegram" && <TelegramTab token={token} />}
