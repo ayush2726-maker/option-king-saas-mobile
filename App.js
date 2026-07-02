@@ -675,7 +675,7 @@ function BrokerTab({ token }) {
         broker_name: broker,
         client_id: clientId.trim().toUpperCase(),
         api_key: apiKey.trim(),
-        api_secret: apiSecret.trim(),
+        api_secret: broker === "angelone" ? (apiSecret.trim() || mpin.trim()) : apiSecret.trim(),
         totp_secret: broker === "angelone" ? totpKey.trim() : ""
       }, token);
       if (d.success || d.message) {
