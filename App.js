@@ -961,6 +961,166 @@ function MarketsTab({ token, lang }) {
 }
 
 
+
+// ── Trade Tab ────────────────────────────────────────
+function TradeTab({ token }) {
+  const [signal, setSignal] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function loadTrade() {
+    setLoading(true);
+    setMsg("");
+    try {
+      const sig = await apiGet("/bot/signal", token);
+      setSignal(sig || {});
+
+      const hist = await apiGet("/history/paper", token);
+      setHistory(hist.paper_trades || []);
+    } catch {
+      setMsg("Trade data load failed");
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadTrade();
+    const t = setInterval(loadTrade, 15000);
+    return () => clearInterval(t);
+  }, []);
+
+  const trade = signal?.active_trade || signal?.latest_trade || null;
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+
+      <Card glow={trade?.status === "OPEN" ? C.green : C.blue}>
+        <Row style={{ justifyContent: "space-between", marginBottom: 10 }}>
+          <Text style={{ color: C.text, fontSize: 20, fontWeight: "900" }}>
+            🧾 Active Paper Trade
+          </Text>
+          <TouchableOpacity onPress={loadTrade}>
+            <Text style={{ color: C.blue, fontWeight: "900" }}>
+              {loading ? "Loading..." : "Refresh"}
+            </Text>
+          </TouchableOpacity>
+        </Row>
+
+        {!trade && (
+          <Text style={{ color: C.muted, fontSize: 13 }}>
+            Abhi koi active paper trade nahi hai. Score 82+ hone par trade create hogi.
+          </Text>
+        )}
+
+        {trade && (
+          <View>
+            <Row style={{ justifyContent: "space-between", paddingVertical: 8 }}>
+              <Text style={{ color: C.muted }}>Symbol</Text>
+              <Text style={{ color: C.text, fontWeight: "900" }}>{trade.symbol}</Text>
+            </Row>
+
+            <Row style={{ justifyContent: "space-between", paddingVertical: 8 }}>
+              <Text style={{ color: C.muted }}>Side / Qty</Text>
+              <Text style={{ color: C.text, fontWeight: "900" }}>{trade.side} / {trade.qty}</Text>
+            </Row>
+
+            <Row style={{ justifyContent: "space-between", paddingVertical: 8 }}>
+              <Text style={{ color: C.muted }}>Entry</Text>
+              <Text style={{ color: C.text, fontWeight: "900" }}>₹{trade.entry_price}</Text>
+            </Row>
+
+            <Row style={{ justifyContent: "space-between", paddingVertical: 8 }}>
+              <Text style={{ color: C.muted }}>Current</Text>
+              <Text style={{ color: C.gold, fontWeight: "900" }}>
+                {trade.current_price ? `₹${trade.current_price}` : "--"}
+              </Text>
+            </Row>
+
+            <Row style={{ justifyContent: "space-between", paddingVertical: 8 }}>
+              <Text style={{ color: C.muted }}>SL</Text>
+              <Text style={{ color: C.red, fontWeight: "900" }}>₹{trade.sl_price}</Text>
+            </Row>
+
+            <Row style={{ justifyContent: "space-between", paddingVertical: 8 }}>
+              <Text style={{ color: C.muted }}>Target</Text>
+              <Text style={{ color: C.green, fontWeight: "900" }}>₹{trade.target_price}</Text>
+            </Row>
+
+            <Row style={{ justifyContent: "space-between", paddingVertical: 8 }}>
+              <Text style={{ color: C.muted }}>Exit</Text>
+              <Text style={{ color: C.text, fontWeight: "900" }}>
+                {trade.exit_price ? `₹${trade.exit_price}` : "--"}
+              </Text>
+            </Row>
+
+            <Row style={{ justifyContent: "space-between", paddingVertical: 8 }}>
+              <Text style={{ color: C.muted }}>P&L</Text>
+              <Text style={{
+                color: Number(trade.unrealized_pnl || trade.pnl || 0) >= 0 ? C.green : C.red,
+                fontWeight: "900"
+              }}>
+                ₹{trade.unrealized_pnl ?? trade.pnl ?? 0}
+              </Text>
+            </Row>
+
+            <Row style={{ justifyContent: "space-between", paddingVertical: 8 }}>
+              <Text style={{ color: C.muted }}>Status</Text>
+              <Text style={{
+                color: trade.status === "OPEN" ? C.green : C.gold,
+                fontWeight: "900"
+              }}>
+                {trade.status}
+              </Text>
+            </Row>
+
+            <Text style={{ color: C.muted, fontSize: 12, marginTop: 10 }}>
+              {trade.reason || ""}
+            </Text>
+          </View>
+        )}
+
+        {!!msg && (
+          <Text style={{ color: C.red, marginTop: 10, fontWeight: "900" }}>{msg}</Text>
+        )}
+      </Card>
+
+      <Card>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
+          📜 Paper Trade History
+        </Text>
+
+        {history.length === 0 && (
+          <Text style={{ color: C.muted }}>Abhi paper trade history nahi hai.</Text>
+        )}
+
+        {history.slice(0, 20).map((t, i) => (
+          <View key={i} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
+            <Row style={{ justifyContent: "space-between" }}>
+              <Text style={{ color: C.text, fontWeight: "900" }}>{t.symbol}</Text>
+              <Text style={{ color: t.status === "OPEN" ? C.green : C.gold, fontWeight: "900" }}>{t.status}</Text>
+            </Row>
+
+            <Text style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>
+              {t.side} • Qty {t.qty} • Entry ₹{t.entry_price} • Exit {t.exit_price ? `₹${t.exit_price}` : "--"}
+            </Text>
+
+            <Text style={{
+              color: Number(t.pnl || 0) >= 0 ? C.green : C.red,
+              fontWeight: "900",
+              marginTop: 4
+            }}>
+              P&L ₹{t.pnl || 0} • {t.reason || ""}
+            </Text>
+          </View>
+        ))}
+      </Card>
+    </ScrollView>
+  );
+}
+
+
 function PlansTab({ token, user, onSuccess }) {
   const [loading, setLoading] = useState(null);
   const [error, setError] = useState("");
@@ -2140,6 +2300,7 @@ function DashboardScreen({ token, user, onLogout }) {
     { id: "home",   icon: "🏠", label: "Home" },
     { id: "score",  icon: "📊", label: "Score" },
     { id: "markets", icon: "📈", label: "Market" },
+    { id: "trade", icon: "🧾", label: "Trade" },
     { id: "backtest", icon: "🧪", label: "BT" },
     { id: "guide", icon: "📘", label: "Guide" },
     { id: "more", icon: "⚙️", label: "More" },
@@ -2202,6 +2363,7 @@ function DashboardScreen({ token, user, onLogout }) {
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
         {activeTab === "markets" && <MarketsTab token={token} lang={"hi"} />}
+        {activeTab === "trade" && <TradeTab token={token} />}
         {activeTab === "guide" && <GuideTab lang={"hi"} setLang={() => {}} />}
         {activeTab === "more" && <MoreTab token={token} user={user} lang={"hi"} setLang={() => {}} isAdmin={isAdmin} />}
         {activeTab === "backtest" && <BacktestTab token={token} lang={"hi"} />}
