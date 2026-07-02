@@ -1218,26 +1218,6 @@ function PlansTab({ token, user, onSuccess }) {
   }
 
   const plans = [
-    {
-      id: "monthly", icon: "⚡", name: "Monthly Pro",
-      price: "₹999", period: "/month", color: C.accent,
-      features: ["Unlimited Signals", "All Strategies",
-        "HERO Zero Expiry", "WhatsApp Alerts", "Priority Support"],
-    },
-    {
-      id: "quarterly", icon: "🌟", name: "Quarterly Pro",
-      price: "₹2499", period: "/3 months", color: C.gold,
-      badge: "SAVE 17%",
-      features: ["Sab Monthly wala", "Backtest Reports",
-        "Custom SL/TP", "Dedicated Support"],
-    },
-    {
-      id: "yearly", icon: "👑", name: "Annual Pro",
-      price: "₹7999", period: "/year", color: C.green,
-      badge: "BEST VALUE",
-      features: ["Sab Quarterly wala", "API Access",
-        "Admin Dashboard", "1-on-1 Onboarding"],
-    },
   ];
 
   return (
@@ -2377,18 +2357,9 @@ function DashboardScreen({ token, user, onLogout }) {
 
   const tabs = [
     { id: "home",   icon: "🏠", label: "Home" },
-    { id: "score",  icon: "📊", label: "Score" },
-    { id: "markets", icon: "📈", label: "Market" },
     { id: "trade", icon: "🧾", label: "Trade" },
-    { id: "backtest", icon: "🧪", label: "BT" },
-    { id: "guide", icon: "📘", label: "Guide" },
     { id: "more", icon: "⚙️", label: "More" },
-    { id: "hero",   icon: "🔴", label: "Bot" },
-    { id: "broker", icon: "🔗", label: "Broker" },
-    { id: "telegram", icon: "📲", label: "TG" },
-    { id: "plans",  icon: "💎", label: "Plans" },
-    ...(isAdmin ? [{ id: "admin", icon: "👑", label: "Admin" }] : []),
-    { id: "account",icon: "👤", label: "Account" },
+    ...(isAdmin ? [
   ];
 
   return (
