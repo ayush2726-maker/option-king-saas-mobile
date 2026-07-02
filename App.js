@@ -8,6 +8,18 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // ── Colors ──────────────────────────────────────────────
 
+
+// ── Global Safe Fallbacks for OTA hotfix ─────────────────────
+// These prevent dashboard crashes if older UI code references missing variables.
+const lang = "hi";
+const setLang = () => {};
+const paperCapital = "100000";
+const setPaperCapital = () => {};
+const capitalMsg = "";
+const setCapitalMsg = () => {};
+const savePaperCapital = async () => {};
+const resetPaperCapital = async () => {};
+
 // ── App Error Boundary ─────────────────────────────
 class ErrorBoundary extends React.Component {
   constructor(props) {
