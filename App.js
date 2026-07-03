@@ -1618,6 +1618,241 @@ function TelegramTab({ token }) {
   );
 }
 
+// =====================================================================
+// BotTab - paste this into App.js, ABOVE the line: function MoreTab(...)
+// (i.e. somewhere between TelegramTab and MoreTab, around line ~1837)
+// Uses existing helpers already defined in App.js: apiGet, apiPostAuth,
+// Card, Row, Label, Tag, Btn, ErrorBox
+// =====================================================================
+
+function BotTab({ token }) {
+  const [signal, setSignal] = useState(null);
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const sig = await apiGet("/bot/signal", token);
+      setSignal(sig);
+      const strat = await apiGet("/strategy/settings", token);
+      if (strat && strat.settings) setSettings(strat.settings);
+    } catch (e) {
+      setError("Status load nahi ho paya. Refresh try karein.");
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  async function saveSettings(partial) {
+    if (!settings) return;
+    setSaving(true);
+    setError("");
+    try {
+      const merged = { ...settings, ...partial };
+      const res = await apiPostAuth("/strategy/settings", merged, token);
+      if (res && res.success && res.settings) {
+        setSettings(res.settings);
+      }
+      await load();
+    } catch (e) {
+      setError("Settings save nahi hui.");
+    }
+    setSaving(false);
+  }
+
+  async function handleStart() {
+    setSaving(true);
+    setError("");
+    try {
+      await apiPostAuth("/bot/start", {}, token);
+      await load();
+    } catch (e) {
+      setError("Bot start nahi ho paya.");
+    }
+    setSaving(false);
+  }
+
+  async function handleStop() {
+    setSaving(true);
+    setError("");
+    try {
+      await apiPostAuth("/bot/stop", {}, token);
+      await load();
+    } catch (e) {
+      setError("Bot stop nahi ho paya.");
+    }
+    setSaving(false);
+  }
+
+  function handleModeSelect(mode) {
+    if (mode === "live") {
+      Alert.alert(
+        "Live Mode",
+        "Live mode can place real broker orders. Continue?",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Continue", style: "destructive", onPress: () => saveSettings({ trading_mode: "live" }) }
+        ]
+      );
+    } else {
+      saveSettings({ trading_mode: "paper" });
+    }
+  }
+
+  function toggleInstrument(sym) {
+    if (!settings) return;
+    let enabled = settings.enabled_instruments || [];
+    if (enabled.includes(sym)) {
+      if (enabled.length === 1) return; // keep at least one
+      enabled = enabled.filter(x => x !== sym);
+    } else {
+      enabled = [...enabled, sym];
+    }
+    let primary = settings.primary_instrument;
+    if (!enabled.includes(primary)) primary = enabled[0];
+    saveSettings({ enabled_instruments: enabled, primary_instrument: primary });
+  }
+
+  function setPrimary(sym) {
+    if (!settings) return;
+    if (!(settings.enabled_instruments || []).includes(sym)) return;
+    saveSettings({ primary_instrument: sym });
+  }
+
+  const [capitalInput, setCapitalInput] = useState("");
+  useEffect(() => {
+    if (settings?.paper_capital != null) setCapitalInput(String(settings.paper_capital));
+  }, [settings?.paper_capital]);
+
+  const isRunning = !!signal?.running;
+  const mode = signal?.trading_mode || settings?.trading_mode || "paper";
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor="#fff" />}>
+
+      {error ? <ErrorBox msg={error} /> : null}
+
+      {/* Status Card */}
+      <Card glow={isRunning ? C.green : C.red}>
+        <Row style={{ justifyContent: "space-between", marginBottom: 10 }}>
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: "900" }}>Bot Status</Text>
+          <Tag label={isRunning ? "RUNNING" : "STOPPED"} color={isRunning ? C.green : C.red} />
+        </Row>
+        {[
+          ["Mode", mode.toUpperCase()],
+          ["Signal", signal?.signal || "--"],
+          ["Score", `${signal?.score ?? "--"} / ${signal?.min_score ?? "--"}`],
+          ["Total Trades", signal?.total_trades ?? "--"],
+          ["Total P&L", signal?.total_pnl != null ? `₹${signal.total_pnl}` : "--"],
+        ].map(([l, v]) => (
+          <Row key={l} style={{ justifyContent: "space-between", paddingVertical: 8,
+            borderBottomWidth: 1, borderBottomColor: C.border }}>
+            <Text style={{ color: C.muted, fontSize: 13 }}>{l}</Text>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: "800" }}>{v}</Text>
+          </Row>
+        ))}
+      </Card>
+
+      {/* Start/Stop/Refresh */}
+      <Row style={{ gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Btn label="Start Bot" icon="▶️" color={C.green} loading={saving}
+            onPress={handleStart} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Btn label="Stop Bot" icon="⏹️" color={C.red} loading={saving}
+            onPress={handleStop} />
+        </View>
+      </Row>
+      <Btn label="Refresh Status" icon="🔄" color={C.blue} loading={loading} onPress={load} />
+
+      {/* Paper/Live Mode Switch */}
+      <Card>
+        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Trading Mode</Text>
+        <Row style={{ gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Btn label="PAPER MODE" color={mode === "paper" ? C.accent : C.muted}
+              loading={saving} onPress={() => handleModeSelect("paper")} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Btn label="LIVE MODE" color={mode === "live" ? C.red : C.muted}
+              loading={saving} onPress={() => handleModeSelect("live")} />
+          </View>
+        </Row>
+      </Card>
+
+      {/* Instrument selection */}
+      <Card>
+        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Instruments</Text>
+        {["NIFTY", "BANKNIFTY", "SENSEX"].map(sym => {
+          const enabled = (settings?.enabled_instruments || []).includes(sym);
+          const isPrimary = settings?.primary_instrument === sym;
+          return (
+            <Row key={sym} style={{ justifyContent: "space-between", alignItems: "center",
+              paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <Row style={{ gap: 8 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: "800" }}>{sym}</Text>
+                {isPrimary && <Tag label="PRIMARY" color={C.accent} />}
+              </Row>
+              <Row style={{ gap: 8 }}>
+                {enabled && !isPrimary && (
+                  <TouchableOpacity onPress={() => setPrimary(sym)}
+                    style={{ paddingHorizontal: 10, paddingVertical: 6,
+                      borderRadius: 8, borderWidth: 1, borderColor: C.border }}>
+                    <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800" }}>Set Primary</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => toggleInstrument(sym)}
+                  style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
+                    backgroundColor: enabled ? C.green + "22" : C.redLo,
+                    borderWidth: 1, borderColor: enabled ? C.green + "55" : C.red + "55" }}>
+                  <Text style={{ color: enabled ? C.green : C.red, fontSize: 11, fontWeight: "800" }}>
+                    {enabled ? "ON" : "OFF"}
+                  </Text>
+                </TouchableOpacity>
+              </Row>
+            </Row>
+          );
+        })}
+      </Card>
+
+      {/* Paper capital */}
+      <Card>
+        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Paper Capital</Text>
+        <TextInput
+          value={capitalInput}
+          onChangeText={setCapitalInput}
+          keyboardType="numeric"
+          placeholder="100000"
+          placeholderTextColor={C.muted}
+          style={{ backgroundColor: C.s2, borderRadius: 10, padding: 12,
+            color: C.text, fontSize: 14, borderWidth: 1, borderColor: C.border, marginBottom: 10 }}
+        />
+        <Btn label="Save Capital" icon="💾" color={C.blue} loading={saving}
+          onPress={() => {
+            const val = parseFloat(capitalInput);
+            if (!val || val < 1000) {
+              setError("Paper capital kam se kam ₹1000 hona chahiye.");
+              return;
+            }
+            saveSettings({ paper_capital: val });
+          }} />
+      </Card>
+    </ScrollView>
+  );
+}
+
+
 
 
 
@@ -2510,7 +2745,7 @@ function DashboardScreen({ token, user, onLogout }) {
         {activeTab === "guide" && <GuideTab lang={"hi"} setLang={() => {}} />}
         {activeTab === "more" && <MoreTab token={token} user={user} lang={"hi"} setLang={() => {}} isAdmin={isAdmin} />}
         {activeTab === "backtest" && <BacktestTab token={token} lang={"hi"} />}
-        {activeTab === "bot" && <HeroTab token={token} />}
+        {activeTab === "bot" && <BotTab token={token} />}
         {activeTab === "broker" && <BrokerTab token={token} />}
         {activeTab === "telegram" && <TelegramTab token={token} />}
         {activeTab === "plans" && (
