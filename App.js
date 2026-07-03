@@ -2811,7 +2811,7 @@ function DashboardScreen({ token, user, onLogout }) {
           <AdminTab token={token} user={userFresh} />
         )}
         {activeTab === "account" && (
-          <TabErrorBoundary><AccountTab user={userFresh} subStatus={subStatus} onLogout={onLogout} onRefresh={refreshUser} /></TabErrorBoundary>
+          <TabErrorBoundary><View style={{padding:20}}><Text style={{color:"#fff"}}>Account Test</Text></View></TabErrorBoundary>
         )}
       </ScrollView>
 
