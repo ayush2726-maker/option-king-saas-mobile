@@ -2438,7 +2438,7 @@ function DashboardScreen({ token, user, onLogout }) {
         {activeTab === "guide" && <GuideTab lang={"hi"} setLang={() => {}} />}
         {activeTab === "more" && <MoreTab token={token} user={user} lang={"hi"} setLang={() => {}} isAdmin={isAdmin} />}
         {activeTab === "backtest" && <BacktestTab token={token} lang={"hi"} />}
-        {activeTab === "hero" && <HeroTab token={token} />}
+        {activeTab === "bot" && <HeroTab token={token} />}
         {activeTab === "broker" && <BrokerTab token={token} />}
         {activeTab === "telegram" && <TelegramTab token={token} />}
         {activeTab === "plans" && (
