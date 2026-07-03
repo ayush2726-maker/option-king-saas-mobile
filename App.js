@@ -2574,6 +2574,22 @@ class TabErrorBoundary extends React.Component {
 
 
 
+
+function formatDateSafe(isoString) {
+  if (!isoString) return "--";
+  try {
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return "--";
+    const day = String(d.getDate()).padStart(2, "0");
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch (e) {
+    return "--";
+  }
+}
+
 function AccountTab({ user, subStatus, onLogout, onRefresh }) {
   return (
     <ScrollView style={{ flex: 1 }}
@@ -2611,10 +2627,8 @@ function AccountTab({ user, subStatus, onLogout, onRefresh }) {
           ["Status", user?.subscription_status?.toUpperCase() || "--"],
           ["Bacha hua time", subStatus?.days_remaining != null
             ? `${subStatus.days_remaining} din` : "--"],
-          ["Trial ends", user?.trial_ends_at
-            ? new Date(user.trial_ends_at).toLocaleDateString("en-IN") : "--"],
-          ["Member since", user?.created_at
-            ? new Date(user.created_at).toLocaleDateString("en-IN") : "--"],
+          ["Trial ends", formatDateSafe(user?.trial_ends_at)],
+          ["Member since", formatDateSafe(user?.created_at)],
         ].map(([l, v]) => (
           <Row key={l} style={{ justifyContent: "space-between",
             paddingVertical: 10, borderBottomWidth: 1,
@@ -2636,6 +2650,7 @@ function AccountTab({ user, subStatus, onLogout, onRefresh }) {
     </ScrollView>
   );
 }
+
 
 
 function OtaStatusBanner() {
@@ -2811,7 +2826,7 @@ function DashboardScreen({ token, user, onLogout }) {
           <AdminTab token={token} user={userFresh} />
         )}
         {activeTab === "account" && (
-          <TabErrorBoundary><View style={{padding:20}}><Text style={{color:"#fff"}}>Account Test</Text></View></TabErrorBoundary>
+          <TabErrorBoundary><AccountTab user={userFresh} subStatus={subStatus} onLogout={onLogout} onRefresh={refreshUser} /></TabErrorBoundary>
         )}
       </ScrollView>
 
