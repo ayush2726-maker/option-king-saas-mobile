@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import * as Updates from "expo-updates";
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator, StatusBar, Alert,
@@ -2346,6 +2347,75 @@ function AccountTab({ user, subStatus, onLogout, onRefresh }) {
   );
 }
 
+
+function OtaStatusBanner() {
+  const [msg, setMsg] = useState("Checking app update...");
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function checkOta() {
+      try {
+        if (__DEV__) {
+          if (alive) setVisible(false);
+          return;
+        }
+
+        if (alive) setMsg("Checking app update...");
+        const update = await Updates.checkForUpdateAsync();
+
+        if (!update.isAvailable) {
+          if (alive) {
+            setMsg("App is up to date");
+            setTimeout(() => setVisible(false), 1200);
+          }
+          return;
+        }
+
+        if (alive) setMsg("Downloading new update...");
+        await Updates.fetchUpdateAsync();
+
+        if (alive) setMsg("Update ready. Restarting app...");
+        setTimeout(() => Updates.reloadAsync(), 800);
+      } catch (e) {
+        if (alive) {
+          setMsg("Update check skipped");
+          setTimeout(() => setVisible(false), 1200);
+        }
+      }
+    }
+
+    checkOta();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <View style={{
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: C.s2 || "#151522",
+      borderBottomWidth: 1,
+      borderBottomColor: C.border
+    }}>
+      <Text style={{
+        color: C.gold || "#facc15",
+        fontSize: 12,
+        fontWeight: "900",
+        textAlign: "center"
+      }}>
+        🔄 {msg}
+      </Text>
+    </View>
+  );
+}
+
+
 // ── Dashboard Screen ──────────────────────────────────────
 function DashboardScreen({ token, user, onLogout }) {
   const [activeTab, setActiveTab] = useState("home");
@@ -2428,6 +2498,8 @@ function DashboardScreen({ token, user, onLogout }) {
       {/* Content */}
       <ScrollView style={{ flex: 1 }}
         contentContainerStyle={{ flexGrow: 1 }}>
+        <OtaStatusBanner />
+
         {activeTab === "home" && (
           <HomeTab user={userFresh} subStatus={subStatus}
             onSubscribe={() => setActiveTab("more")} />
