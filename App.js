@@ -1218,6 +1218,26 @@ function PlansTab({ token, user, onSuccess }) {
   }
 
   const plans = [
+    {
+      id: "monthly", icon: "⚡", name: "Monthly Pro",
+      price: "₹999", period: "/month", color: C.accent,
+      features: ["Unlimited Signals", "All Strategies",
+        "HERO Zero Expiry", "WhatsApp Alerts", "Priority Support"],
+    },
+    {
+      id: "quarterly", icon: "🌟", name: "Quarterly Pro",
+      price: "₹2499", period: "/3 months", color: C.gold,
+      badge: "SAVE 17%",
+      features: ["Sab Monthly wala", "Backtest Reports",
+        "Custom SL/TP", "Dedicated Support"],
+    },
+    {
+      id: "yearly", icon: "👑", name: "Annual Pro",
+      price: "₹7999", period: "/year", color: C.green,
+      badge: "BEST VALUE",
+      features: ["Sab Quarterly wala", "API Access",
+        "Admin Dashboard", "1-on-1 Onboarding"],
+    },
   ];
 
   return (
@@ -2356,10 +2376,11 @@ function DashboardScreen({ token, user, onLogout }) {
   const isAdmin = userFresh?.role==="admin" || userFresh?.is_admin;
 
   const tabs = [
-    { id: "home",   icon: "🏠", label: "Home" },
+    { id: "home", icon: "🏠", label: "Home" },
     { id: "trade", icon: "🧾", label: "Trade" },
+    { id: "bot", icon: "🤖", label: "Bot" },
     { id: "more", icon: "⚙️", label: "More" },
-    ...(isAdmin ? [
+    { id: "account", icon: "👤", label: "Account" },
   ];
 
   return (
@@ -2395,7 +2416,7 @@ function DashboardScreen({ token, user, onLogout }) {
       {/* Subscription warning */}
       {userFresh?.subscription_status !== "active" && (
         <TouchableOpacity
-          onPress={() => setActiveTab("plans")}
+          onPress={() => setActiveTab("more")}
           style={{ backgroundColor: C.redLo, borderRadius: 12,
             padding: 14, margin: 16, marginBottom: 0,
             borderWidth: 1, borderColor: C.red+"55" }}>
@@ -2409,7 +2430,7 @@ function DashboardScreen({ token, user, onLogout }) {
         contentContainerStyle={{ flexGrow: 1 }}>
         {activeTab === "home" && (
           <HomeTab user={userFresh} subStatus={subStatus}
-            onSubscribe={() => setActiveTab("plans")} />
+            onSubscribe={() => setActiveTab("more")} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
         {activeTab === "markets" && <MarketsTab token={token} lang={"hi"} />}
