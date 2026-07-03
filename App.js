@@ -2519,6 +2519,44 @@ function HomeTab({ user, subStatus, onSubscribe }) {
 }
 
 // ── Account Tab ──────────────────────────────────────────
+
+class TabErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, errorMsg: "", errorStack: "" };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, errorMsg: String(error?.message || error) };
+  }
+
+  componentDidCatch(error, info) {
+    this.setState({ errorStack: String(info?.componentStack || "") });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <ScrollView style={{ flex: 1, backgroundColor: "#0a0a0f" }}
+          contentContainerStyle={{ padding: 20 }}>
+          <Text style={{ color: "#ff4d6d", fontSize: 16, fontWeight: "900", marginBottom: 12 }}>
+            Tab Crash Caught
+          </Text>
+          <Text style={{ color: "#e8e8f0", fontSize: 13, marginBottom: 12 }}>
+            {this.state.errorMsg}
+          </Text>
+          <Text style={{ color: "#a0a0c0", fontSize: 11 }}>
+            {this.state.errorStack}
+          </Text>
+        </ScrollView>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+
+
 function AccountTab({ user, subStatus, onLogout, onRefresh }) {
   return (
     <ScrollView style={{ flex: 1 }}
@@ -2756,8 +2794,7 @@ function DashboardScreen({ token, user, onLogout }) {
           <AdminTab token={token} user={userFresh} />
         )}
         {activeTab === "account" && (
-          <AccountTab user={userFresh} subStatus={subStatus}
-            onLogout={onLogout} onRefresh={refreshUser} />
+          <TabErrorBoundary><AccountTab user={userFresh} subStatus={subStatus} onLogout={onLogout} onRefresh={refreshUser} /></TabErrorBoundary>
         )}
       </ScrollView>
 
