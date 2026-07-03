@@ -7,6 +7,23 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+
+// ── Global crash catcher (temporary debug tool) ──────────────
+if (typeof ErrorUtils !== "undefined" && ErrorUtils.setGlobalHandler) {
+  const __defaultHandler = ErrorUtils.getGlobalHandler ? ErrorUtils.getGlobalHandler() : null;
+  ErrorUtils.setGlobalHandler((error, isFatal) => {
+    try {
+      Alert.alert(
+        isFatal ? "Fatal Crash Caught" : "Error Caught",
+        String(error && error.message ? error.message : error) +
+          "\n\n" +
+          String(error && error.stack ? error.stack : "").slice(0, 600)
+      );
+    } catch (e) {}
+    if (__defaultHandler) __defaultHandler(error, isFatal);
+  });
+}
+
 // ── Colors ──────────────────────────────────────────────
 
 
