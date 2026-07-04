@@ -1642,9 +1642,52 @@ function TelegramTab({ token }) {
 // Card, Row, Label, Tag, Btn, ErrorBox
 // =====================================================================
 
+
+function MiniBarChart({ data, color, negativeColor, height = 80, formatLabel }) {
+  if (!data || data.length === 0) {
+    return (
+      <View style={{ height, alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ color: C.muted, fontSize: 11 }}>Not enough data yet</Text>
+      </View>
+    );
+  }
+
+  const max = Math.max(...data.map(v => Math.abs(v)), 1);
+  const hasNegative = data.some(v => v < 0);
+
+  return (
+    <View style={{ height, flexDirection: "row", alignItems: hasNegative ? "center" : "flex-end", gap: 3 }}>
+      {data.map((v, i) => {
+        const barHeight = Math.max(2, (Math.abs(v) / max) * (hasNegative ? height / 2 : height));
+        const isNeg = v < 0;
+        return (
+          <View key={i} style={{ flex: 1, alignItems: "center", justifyContent: hasNegative ? "center" : "flex-end", height }}>
+            <View style={{
+              width: "100%",
+              height: barHeight,
+              backgroundColor: isNeg ? (negativeColor || C.red) : color,
+              borderRadius: 2,
+            }} />
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const BOT_STATUS_MESSAGES = {
+  PAPER_RUNNING: "Paper mode running — real TQU data",
+  LIVE_RUNNING: "Live mode running — real TQU data",
+  CONNECT_BROKER_FOR_REAL_SIGNAL: "Broker connect karein real signal ke liye",
+  PAPER_STOPPED: "Bot stopped (Paper mode)",
+  LIVE_WAITING: "Waiting for live data...",
+};
+
 function BotTab({ token }) {
   const [signal, setSignal] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [paperTrades, setPaperTrades] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -1657,6 +1700,10 @@ function BotTab({ token }) {
       setSignal(sig);
       const strat = await apiGet("/strategy/settings", token);
       if (strat && strat.settings) setSettings(strat.settings);
+      const hist = await apiGet("/bot/signal-history", token);
+      if (hist && hist.points) setHistory(hist.points);
+      const trades = await apiGet("/history/paper", token);
+      if (trades && trades.paper_trades) setPaperTrades(trades.paper_trades);
     } catch (e) {
       setError("Status load nahi ho paya. Refresh try karein.");
     }
@@ -1725,7 +1772,7 @@ function BotTab({ token }) {
     if (!settings) return;
     let enabled = settings.enabled_instruments || [];
     if (enabled.includes(sym)) {
-      if (enabled.length === 1) return; // keep at least one
+      if (enabled.length === 1) return;
       enabled = enabled.filter(x => x !== sym);
     } else {
       enabled = [...enabled, sym];
@@ -1748,6 +1795,13 @@ function BotTab({ token }) {
 
   const isRunning = !!signal?.running;
   const mode = signal?.trading_mode || settings?.trading_mode || "paper";
+  const rawStatus = signal?.status || "";
+  const friendlyStatus = BOT_STATUS_MESSAGES[rawStatus] || rawStatus || "--";
+  const noRealData = rawStatus === "CONNECT_BROKER_FOR_REAL_SIGNAL" || signal?.signal === "NO_DATA";
+
+  const scoreData = history.map(p => p.score || 0);
+  const priceData = history.map(p => p.price || 0);
+  const pnlData = paperTrades.slice(0, 20).reverse().map(t => Number(t.pnl) || 0);
 
   return (
     <ScrollView style={{ flex: 1 }}
@@ -1762,9 +1816,19 @@ function BotTab({ token }) {
           <Text style={{ color: C.text, fontSize: 16, fontWeight: "900" }}>Bot Status</Text>
           <Tag label={isRunning ? "RUNNING" : "STOPPED"} color={isRunning ? C.green : C.red} />
         </Row>
+
+        {noRealData && (
+          <View style={{ backgroundColor: C.goldLo, borderRadius: 10, padding: 10,
+            borderWidth: 1, borderColor: C.gold+"55", marginBottom: 10 }}>
+            <Text style={{ color: C.gold, fontSize: 12, fontWeight: "800" }}>
+              ⚠️ {friendlyStatus}
+            </Text>
+          </View>
+        )}
+
         {[
           ["Mode", mode.toUpperCase()],
-          ["Signal", signal?.signal || "--"],
+          ["Signal", signal?.signal === "NO_DATA" ? "No live data" : (signal?.signal || "--")],
           ["Score", `${signal?.score ?? "--"} / ${signal?.min_score ?? "--"}`],
           ["Total Trades", signal?.total_trades ?? "--"],
           ["Total P&L", signal?.total_pnl != null ? `₹${signal.total_pnl}` : "--"],
@@ -1789,6 +1853,25 @@ function BotTab({ token }) {
         </View>
       </Row>
       <Btn label="Refresh Status" icon="🔄" color={C.blue} loading={loading} onPress={load} />
+
+      {/* Charts */}
+      <Card>
+        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Score History</Text>
+        <MiniBarChart data={scoreData} color={C.accent} />
+      </Card>
+
+      <Card>
+        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Price Movement</Text>
+        <MiniBarChart data={priceData} color={C.blue} />
+      </Card>
+
+      <Card>
+        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Paper Trade P&L</Text>
+        <MiniBarChart data={pnlData} color={C.green} negativeColor={C.red} />
+      </Card>
 
       {/* Paper/Live Mode Switch */}
       <Card>
@@ -1868,6 +1951,7 @@ function BotTab({ token }) {
     </ScrollView>
   );
 }
+
 
 
 
