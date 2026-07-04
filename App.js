@@ -2438,25 +2438,40 @@ function GuideTab({ lang, setLang }) {
 
 
 // ── Home Tab ─────────────────────────────────────────────
-function HomeTab({ user, subStatus, onSubscribe }) {
+
+function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
   const daysLeft = subStatus?.days_remaining ?? null;
+
+  const [signal, setSignal] = useState(null);
+  const [market, setMarket] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const sig = await apiGet("/bot/signal", token);
+      setSignal(sig);
+    } catch (e) {}
+    try {
+      const mkt = await apiGet("/market/status", token);
+      setMarket(mkt);
+    } catch (e) {}
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  const isRunning = !!signal?.running;
+  const mode = signal?.trading_mode || "paper";
+  const todayPnl = signal?.total_pnl;
+  const paperEquity = signal?.paper_capital;
 
   return (
     <ScrollView style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor="#fff" />}>
 
-      
-      <Card glow={C.blue}>
-        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
-          🤖 Bot Status
-        </Text>
-        <Text style={{ color: C.muted, fontSize: 12 }}>
-          Bot ON/OFF status Score/Bot tab aur Admin dashboard me refresh karke check karein.
-          Paper Mode default safe hai. Live Mode real orders place kar sakta hai.
-        </Text>
-      </Card>
-
-<Card glow={C.purple}>
+      <Card glow={C.purple}>
         <Row style={{ justifyContent: "space-between", marginBottom: 12 }}>
           <View>
             <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800",
@@ -2483,48 +2498,100 @@ function HomeTab({ user, subStatus, onSubscribe }) {
         </View>
       </Card>
 
+      {/* Summary cards */}
+      <Row style={{ gap: 10 }}>
+        <Card style={{ flex: 1 }} glow={isRunning ? C.green : C.red}>
+          <Text style={{ color: C.muted, fontSize: 10, fontWeight: "800",
+            textTransform: "uppercase" }}>Bot</Text>
+          <Text style={{ color: isRunning ? C.green : C.red, fontSize: 16,
+            fontWeight: "900", marginTop: 4 }}>{isRunning ? "RUNNING" : "STOPPED"}</Text>
+        </Card>
+        <Card style={{ flex: 1 }}>
+          <Text style={{ color: C.muted, fontSize: 10, fontWeight: "800",
+            textTransform: "uppercase" }}>Mode</Text>
+          <Text style={{ color: mode === "live" ? C.red : C.accent, fontSize: 16,
+            fontWeight: "900", marginTop: 4 }}>{mode.toUpperCase()}</Text>
+        </Card>
+      </Row>
+      <Row style={{ gap: 10 }}>
+        <Card style={{ flex: 1 }}>
+          <Text style={{ color: C.muted, fontSize: 10, fontWeight: "800",
+            textTransform: "uppercase" }}>Today P&L</Text>
+          <Text style={{ color: (todayPnl ?? 0) >= 0 ? C.green : C.red, fontSize: 16,
+            fontWeight: "900", marginTop: 4 }}>
+            {todayPnl != null ? `₹${todayPnl}` : "--"}
+          </Text>
+        </Card>
+        <Card style={{ flex: 1 }}>
+          <Text style={{ color: C.muted, fontSize: 10, fontWeight: "800",
+            textTransform: "uppercase" }}>Paper Capital</Text>
+          <Text style={{ color: C.text, fontSize: 16,
+            fontWeight: "900", marginTop: 4 }}>
+            {paperEquity != null ? `₹${paperEquity}` : "--"}
+          </Text>
+        </Card>
+      </Row>
+
+      {/* Market cards */}
+      <Card>
+        <Row style={{ justifyContent: "space-between", marginBottom: 12 }}>
+          <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
+            textTransform: "uppercase", letterSpacing: 1.2 }}>Market</Text>
+          <Text style={{ color: market?.feed_connected ? C.green : C.muted,
+            fontSize: 10, fontWeight: "800" }}>
+            {market ? (market.feed_connected ? "🟢 Connected" : "⚪ Live feed not connected") : "--"}
+          </Text>
+        </Row>
+        {(market?.indices || [
+          { symbol: "NIFTY", ltp: null, status: "not_connected" },
+          { symbol: "BANKNIFTY", ltp: null, status: "not_connected" },
+          { symbol: "SENSEX", ltp: null, status: "not_connected" },
+        ]).map(idx => (
+          <Row key={idx.symbol} style={{ justifyContent: "space-between",
+            paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
+            <Text style={{ color: C.text, fontSize: 14, fontWeight: "800" }}>{idx.symbol}</Text>
+            {idx.ltp != null ? (
+              <Row style={{ gap: 8 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: "900" }}>{idx.ltp}</Text>
+                {idx.change_percent != null && (
+                  <Text style={{ color: idx.change_percent >= 0 ? C.green : C.red,
+                    fontSize: 12, fontWeight: "800" }}>
+                    {idx.change_percent >= 0 ? "+" : ""}{idx.change_percent}%
+                  </Text>
+                )}
+              </Row>
+            ) : (
+              <Text style={{ color: C.muted, fontSize: 11 }}>Live feed not connected</Text>
+            )}
+          </Row>
+        ))}
+      </Card>
+
+      {/* Quick actions */}
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2,
-          marginBottom: 14 }}>Platform Info</Text>
-        <Row style={{ gap: 12 }}>
-          {[
-            { label: "Market", val: "NSE F&O", color: C.blue },
-            { label: "Broker", val: "Multi", color: C.green },
-          ].map(item => (
-            <Card key={item.label} style={{ flex: 1 }}>
-              <Text style={{ color: C.muted, fontSize: 10,
-                fontWeight: "800", textTransform: "uppercase" }}>{item.label}</Text>
-              <Text style={{ color: item.color, fontSize: 20,
-                fontWeight: "900", marginTop: 4 }}>{item.val}</Text>
-            </Card>
-          ))}
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Quick Actions</Text>
+        <Row style={{ gap: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Btn label="Trade" icon="🧾" color={C.accent}
+              onPress={() => setActiveTab && setActiveTab("trade")} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Btn label="Bot" icon="🤖" color={C.blue}
+              onPress={() => setActiveTab && setActiveTab("bot")} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Btn label="More" icon="⚙️" color={C.muted}
+              onPress={() => setActiveTab && setActiveTab("more")} />
+          </View>
         </Row>
       </Card>
 
-      <Card>
-        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2,
-          marginBottom: 14 }}>Features</Text>
-        {[
-          ["🤖", "Automatic F&O Trading", "AI-powered signals"],
-          ["📊", "Real-time Signals", "NIFTY & BANKNIFTY"],
-          ["🔔", "Telegram Alerts", "Instant notifications"],
-          ["🔗", "Multi-broker Support", "Angel One, Zerodha, Upstox"],
-          ["🔴", "HERO Zero Expiry", "Expiry day strategy"],
-          ["📈", "TQU Score System", "ADX + Volume + MTF"],
-        ].map(([icon, title, sub]) => (
-          <Row key={title} style={{ paddingVertical: 10,
-            borderBottomWidth: 1, borderBottomColor: C.border, gap: 12 }}>
-            <Text style={{ fontSize: 20, width: 32 }}>{icon}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: C.text, fontSize: 13,
-                fontWeight: "800" }}>{title}</Text>
-              <Text style={{ color: C.muted, fontSize: 11,
-                marginTop: 2 }}>{sub}</Text>
-            </View>
-          </Row>
-        ))}
+      {/* Warning */}
+      <Card style={{ borderColor: C.red+"55", borderWidth: 1 }}>
+        <Text style={{ color: C.red, fontSize: 12, fontWeight: "800" }}>
+          ⚠️ Live mode can place real orders. Paper mode is safe.
+        </Text>
       </Card>
 
       {user?.subscription_status !== "active" && (
@@ -2806,8 +2873,8 @@ function DashboardScreen({ token, user, onLogout }) {
         <OtaStatusBanner />
 
         {activeTab === "home" && (
-          <HomeTab user={userFresh} subStatus={subStatus}
-            onSubscribe={() => setActiveTab("more")} />
+          <HomeTab user={userFresh} subStatus={subStatus} token={token}
+            setActiveTab={setActiveTab} onSubscribe={() => setActiveTab("more")} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
         {activeTab === "markets" && <MarketsTab token={token} lang={"hi"} />}
