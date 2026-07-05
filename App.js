@@ -29,7 +29,7 @@ if (typeof ErrorUtils !== "undefined" && ErrorUtils.setGlobalHandler) {
 
 // ── Global Safe Fallbacks for OTA hotfix ─────────────────────
 // These prevent dashboard crashes if older UI code references missing variables.
-const lang = "hi";
+const lang = "en";
 const setLang = () => {};
 const paperCapital = "100000";
 const setPaperCapital = () => {};
@@ -1347,10 +1347,6 @@ function AdminTab({ token, user }) {
   const isAdmin = user?.role === "admin" || user?.is_admin;
 
   async function load(isRefresh) {
-  const [capitalMsg, setCapitalMsg] = useState("");
-  async function savePaperCapital() { setCapitalMsg && setCapitalMsg("Paper capital save available in BT/More tab"); }
-  async function resetPaperCapital() { setCapitalMsg && setCapitalMsg("Paper reset available in BT/More tab"); }
-  const [paperCapital, setPaperCapital] = useState("100000");
     if (!isAdmin) return;
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
@@ -1958,6 +1954,7 @@ function BotTab({ token }) {
 
 
 // ── Backtest Tab ────────────────────────────────────────
+
 function BacktestTab({ token, lang }) {
   const hi = lang === "hi";
   const today = new Date().toISOString().slice(0, 10);
@@ -1984,7 +1981,6 @@ function BacktestTab({ token, lang }) {
   useEffect(() => { loadPaperCapital(); }, []);
 
   async function savePaperCapital() {
-  const [paperCapital, setPaperCapital] = useState("100000");
     setCapitalMsg("");
     setLoading(true);
     try {
@@ -2003,7 +1999,6 @@ function BacktestTab({ token, lang }) {
   }
 
   async function resetPaperCapital() {
-  const [paperCapital, setPaperCapital] = useState("100000");
     setCapitalMsg("");
     setLoading(true);
     try {
@@ -2021,10 +2016,6 @@ function BacktestTab({ token, lang }) {
   }
 
   async function runBacktest() {
-  const [capitalMsg, setCapitalMsg] = useState("");
-  async function savePaperCapital() { setCapitalMsg && setCapitalMsg("Paper capital save available in BT/More tab"); }
-  async function resetPaperCapital() { setCapitalMsg && setCapitalMsg("Paper reset available in BT/More tab"); }
-  const [paperCapital, setPaperCapital] = useState("100000");
     setLoading(true);
     setResult(null);
     try {
@@ -2058,7 +2049,7 @@ function BacktestTab({ token, lang }) {
         </Text>
 
         <TextInput style={[st.input, { marginBottom: 12 }]}
-          value={"100000"}
+          value={paperCapital}
           onChangeText={(v) => { setPaperCapital(v); setCapital(v); }}
           keyboardType="numeric"
           placeholder="100000"
@@ -2167,9 +2158,6 @@ function BacktestTab({ token, lang }) {
   );
 }
 
-
-
-// ── More Tab: Profile, History, Reports, Payment, Reset ─────────────────────
 function MoreTab({ token, user, lang, setLang, isAdmin }) {
   const hi = lang === "hi";
   const [profile, setProfile] = useState(null);
@@ -2283,12 +2271,12 @@ function MoreTab({ token, user, lang, setLang, isAdmin }) {
 
       <Card glow={C.blue}>
         <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
-          🌐 {hi ? "Language / भाषा" : "Language"}
+          🌐 {hi ? "भाषा" : "Language"}
         </Text>
         <Row style={{ gap: 10 }}>
-          <Btn label="Hindi" icon="🇮🇳" color={lang==="hi"?C.green:C.muted}
+          <Btn label={hi ? "हिंदी" : "Hindi"} icon="🇮🇳" color={lang==="hi"?C.green:C.muted}
             onPress={() => changeLang("hi")} style={{ flex: 1 }} />
-          <Btn label="English" icon="🇬🇧" color={lang==="en"?C.blue:C.muted}
+          <Btn label={hi ? "अंग्रेज़ी" : "English"} icon="🇬🇧" color={lang==="en"?C.blue:C.muted}
             onPress={() => changeLang("en")} style={{ flex: 1 }} />
         </Row>
       </Card>
@@ -2296,10 +2284,10 @@ function MoreTab({ token, user, lang, setLang, isAdmin }) {
       <Card glow={C.green}>
         <Row style={{ justifyContent: "space-between", marginBottom: 10 }}>
           <Text style={{ color: C.text, fontSize: 18, fontWeight: "900" }}>
-            👤 {hi ? "Profile / Subscription" : "Profile / Subscription"}
+            👤 {hi ? "प्रोफ़ाइल / सदस्यता" : "Profile / Subscription"}
           </Text>
           <TouchableOpacity onPress={loadAll}>
-            <Text style={{ color: C.blue, fontWeight: "900" }}>{hi ? "Refresh" : "Refresh"}</Text>
+            <Text style={{ color: C.blue, fontWeight: "900" }}>{hi ? "रीफ़्रेश करें" : "Refresh"}</Text>
           </TouchableOpacity>
         </Row>
         {profileRows.map(([k, v]) => (
@@ -2313,7 +2301,7 @@ function MoreTab({ token, user, lang, setLang, isAdmin }) {
 
       <Card glow={report?.total_pnl >= 0 ? C.green : C.red}>
         <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
-          📊 {hi ? "Daily P&L Report" : "Daily P&L Report"}
+          📊 {hi ? "दैनिक लाभ/हानि रिपोर्ट" : "Daily P&L Report"}
         </Text>
         {reportRows.map(([k, v]) => (
           <Row key={k} style={{ justifyContent: "space-between", paddingVertical: 6,
@@ -2327,9 +2315,9 @@ function MoreTab({ token, user, lang, setLang, isAdmin }) {
 
       <Card>
         <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
-          📜 {hi ? "Live Trade History" : "Live Trade History"}
+          📜 {hi ? "वास्तविक ट्रेड इतिहास" : "Live Trade History"}
         </Text>
-        {trades.length === 0 && <Text style={{ color: C.muted }}>{hi ? "Abhi live trade history nahi hai." : "No live trade history yet."}</Text>}
+        {trades.length === 0 && <Text style={{ color: C.muted }}>{hi ? "अभी वास्तविक ट्रेड इतिहास उपलब्ध नहीं है।" : "No live trade history yet."}</Text>}
         {trades.slice(0, 8).map((t, i) => (
           <View key={i} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border }}>
             <Text style={{ color: C.text, fontWeight: "900" }}>{t.symbol || t.instrument || t.trading_symbol || "TRADE"}</Text>
@@ -2340,9 +2328,9 @@ function MoreTab({ token, user, lang, setLang, isAdmin }) {
 
       <Card>
         <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
-          📝 {hi ? "Paper Trade History" : "Paper Trade History"}
+          📝 {hi ? "पेपर ट्रेड इतिहास" : "Paper Trade History"}
         </Text>
-        {paperTrades.length === 0 && <Text style={{ color: C.muted }}>{hi ? "Abhi paper trade history nahi hai." : "No paper trade history yet."}</Text>}
+        {paperTrades.length === 0 && <Text style={{ color: C.muted }}>{hi ? "अभी पेपर ट्रेड इतिहास उपलब्ध नहीं है।" : "No paper trade history yet."}</Text>}
         {paperTrades.slice(0, 8).map((t, i) => (
           <View key={i} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border }}>
             <Row style={{ justifyContent: "space-between" }}>
@@ -2390,12 +2378,12 @@ function MoreTab({ token, user, lang, setLang, isAdmin }) {
 
       <Card glow={C.red}>
         <Text style={{ color: C.red, fontSize: 18, fontWeight: "900", marginBottom: 8 }}>
-          ⚠️ {hi ? "Live Mode Warning" : "Live Mode Warning"}
+          ⚠️ {hi ? "वास्तविक मोड चेतावनी" : "Live Mode Warning"}
         </Text>
         <Text style={{ color: C.muted, fontSize: 12, lineHeight: 19, marginBottom: 12 }}>
-          {hi ? "Live mode real orders place kar sakta hai. Pehle Paper Mode aur Backtest se test karo." : "Live mode can place real orders. Test with Paper Mode and Backtest first."}
+          {hi ? "वास्तविक मोड में असली ऑर्डर लग सकते हैं। पहले पेपर मोड और बैकटेस्ट से परीक्षण करें।" : "Live mode can place real orders. Test with Paper Mode and Backtest first."}
         </Text>
-        <Btn label={hi ? "Reset All Settings" : "Reset All Settings"} icon="♻️" color={C.red}
+        <Btn label={hi ? "सभी सेटिंग्स रीसेट करें" : "Reset All Settings"} icon="♻️" color={C.red}
           loading={loading} onPress={resetAll} />
       </Card>
 
@@ -2419,14 +2407,14 @@ function GuideTab({ lang, setLang }) {
   }
 
   const guideHi = [
-    ["1. Login", "Apne email/password se app me login karo."],
-    ["2. Broker Connect", "Broker tab me Angel One / Zerodha / Upstox credentials save karo. Paper mode ke liye broker optional hai, Live ke liye broker required hai."],
-    ["3. Paper Mode", "Default mode Paper hai. Isme real order nahi lagega. Practice aur testing ke liye safe hai."],
-    ["4. Paper Capital", "Backtest tab me Paper Capital update karo. Ye paper trading aur backtest dono me use hoga."],
-    ["5. Score Customize", "Score tab me Safe / Default / Aggressive / Custom strategy select karo. Entry score, SL, Target, Max Trades change kar sakte ho."],
-    ["6. Backtest", "Backtest tab me NIFTY / BANKNIFTY / SENSEX select karke strategy result check karo."],
-    ["7. Telegram", "Telegram tab me Bot Token aur Chat ID save karo. Bot start/stop, strategy save aur backtest updates Telegram par aayenge."],
-    ["8. Live Mode", "Live mode sirf tab ON karo jab broker connected ho aur strategy paper mode me test ho chuki ho. Live mode real order place karega."]
+    ["1. लॉगिन", "अपने ईमेल और पासवर्ड से ऐप में लॉगिन करें।"],
+    ["2. ब्रोकर कनेक्ट", "ब्रोकर टैब में Angel One / Zerodha / Upstox की जानकारी सेव करें। पेपर मोड के लिए ब्रोकर वैकल्पिक है, लेकिन वास्तविक मोड के लिए ब्रोकर आवश्यक है।"],
+    ["3. पेपर मोड", "डिफ़ॉल्ट मोड पेपर है। इसमें वास्तविक ऑर्डर नहीं लगता। अभ्यास और परीक्षण के लिए यह सुरक्षित है।"],
+    ["4. पेपर कैपिटल", "बैकटेस्ट टैब में पेपर कैपिटल अपडेट करें। यही राशि पेपर ट्रेडिंग और बैकटेस्ट दोनों में उपयोग होगी।"],
+    ["5. स्कोर सेटिंग", "स्कोर टैब में Safe / Default / Aggressive / Custom रणनीति चुनें। एंट्री स्कोर, हानि सीमा, लक्ष्य और अधिकतम ट्रेड बदल सकते हैं।"],
+    ["6. बैकटेस्ट", "बैकटेस्ट टैब में NIFTY / BANKNIFTY / SENSEX चुनकर रणनीति का परिणाम देखें।"],
+    ["7. टेलीग्राम", "टेलीग्राम टैब में Bot Token और Chat ID सेव करें। बॉट अलर्ट, रणनीति अपडेट और बैकटेस्ट परिणाम टेलीग्राम पर मिलेंगे।"],
+    ["8. वास्तविक मोड", "वास्तविक मोड केवल तब चालू करें जब ब्रोकर कनेक्ट हो और रणनीति पेपर मोड में परीक्षण हो चुकी हो। वास्तविक मोड में असली ऑर्डर लग सकता है।"]
   ];
 
   const guideEn = [
@@ -2448,11 +2436,11 @@ function GuideTab({ lang, setLang }) {
 
       <Card glow={C.blue}>
         <Text style={{ color: C.text, fontSize: 20, fontWeight: "900", marginBottom: 6 }}>
-          🌐 {isHi ? "Language / भाषा" : "Language"}
+          🌐 {isHi ? "भाषा" : "Language"}
         </Text>
 
         <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
-          {isHi ? "App guide Hindi aur English dono me dekh sakte ho." : "You can view the app guide in Hindi or English."}
+          {isHi ? "ऐप गाइड हिंदी और अंग्रेज़ी दोनों में देख सकते हैं।" : "You can view the app guide in Hindi or English."}
         </Text>
 
         <Row style={{ gap: 10 }}>
@@ -2464,7 +2452,7 @@ function GuideTab({ lang, setLang }) {
               borderColor: lang==="hi" ? C.green : C.border,
               alignItems: "center" }}>
             <Text style={{ color: lang==="hi" ? C.green : C.muted, fontWeight: "900" }}>
-              🇮🇳 Hindi
+              🇮🇳 हिंदी
             </Text>
           </TouchableOpacity>
 
@@ -2484,10 +2472,10 @@ function GuideTab({ lang, setLang }) {
 
       <Card glow={C.gold}>
         <Text style={{ color: C.text, fontSize: 20, fontWeight: "900", marginBottom: 6 }}>
-          📘 {isHi ? "App Guide" : "App Guide"}
+          📘 {isHi ? "ऐप गाइड" : "App Guide"}
         </Text>
         <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
-          {isHi ? "Option King AI use karne ka simple step-by-step guide." : "Simple step-by-step guide to use Option King AI."}
+          {isHi ? "Option King AI उपयोग करने की सरल चरण-दर-चरण गाइड।" : "Simple step-by-step guide to use Option King AI."}
         </Text>
 
         {list.map(([title, desc], i) => (
@@ -2508,11 +2496,11 @@ function GuideTab({ lang, setLang }) {
 
       <Card glow={C.red}>
         <Text style={{ color: C.red, fontSize: 14, fontWeight: "900", marginBottom: 6 }}>
-          ⚠️ {isHi ? "Risk Warning" : "Risk Warning"}
+          ⚠️ {isHi ? "जोखिम चेतावनी" : "Risk Warning"}
         </Text>
         <Text style={{ color: C.muted, fontSize: 12, lineHeight: 19 }}>
           {isHi
-            ? "Options trading me loss ho sakta hai. Pehle Paper Mode aur Backtest se strategy test karo. Live mode me real order lag sakta hai."
+            ? "ऑप्शन ट्रेडिंग में नुकसान हो सकता है। पहले पेपर मोड और बैकटेस्ट से रणनीति का परीक्षण करें। वास्तविक मोड में असली ऑर्डर लग सकता है।"
             : "Options trading can cause losses. Test your strategy using Paper Mode and Backtest first. Live mode can place real orders."}
         </Text>
       </Card>
@@ -2875,7 +2863,7 @@ function OtaStatusBanner() {
 // ── Dashboard Screen ──────────────────────────────────────
 function DashboardScreen({ token, user, onLogout }) {
   const [activeTab, setActiveTab] = useState("home");
-  const [lang, setLang] = useState("hi");
+  const [lang, setLang] = useState("en");
 
   useEffect(() => {
     (async () => {
@@ -2902,11 +2890,11 @@ function DashboardScreen({ token, user, onLogout }) {
   const isAdmin = userFresh?.role==="admin" || userFresh?.is_admin;
 
   const tabs = [
-    { id: "home", icon: "🏠", label: "Home" },
-    { id: "trade", icon: "🧾", label: "Trade" },
-    { id: "bot", icon: "🤖", label: "Bot" },
-    { id: "more", icon: "⚙️", label: "More" },
-    { id: "account", icon: "👤", label: "Account" },
+    { id: "home", icon: "🏠", label: lang === "hi" ? "होम" : "Home" },
+    { id: "trade", icon: "🧾", label: lang === "hi" ? "ट्रेड" : "Trade" },
+    { id: "bot", icon: "🤖", label: lang === "hi" ? "बॉट" : "Bot" },
+    { id: "more", icon: "⚙️", label: lang === "hi" ? "अधिक" : "More" },
+    { id: "account", icon: "👤", label: lang === "hi" ? "खाता" : "Account" },
   ];
 
   return (
@@ -2961,11 +2949,11 @@ function DashboardScreen({ token, user, onLogout }) {
             setActiveTab={setActiveTab} onSubscribe={() => setActiveTab("more")} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
-        {activeTab === "markets" && <MarketsTab token={token} lang={"hi"} />}
+        {activeTab === "markets" && <MarketsTab token={token} lang={lang} />}
         {activeTab === "trade" && <TradeTab token={token} />}
-        {activeTab === "guide" && <GuideTab lang={"hi"} setLang={() => {}} />}
-        {activeTab === "more" && <MoreTab token={token} user={user} lang={"hi"} setLang={() => {}} isAdmin={isAdmin} />}
-        {activeTab === "backtest" && <BacktestTab token={token} lang={"hi"} />}
+        {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
+        {activeTab === "more" && <MoreTab token={token} user={userFresh} lang={lang} setLang={setLang} isAdmin={isAdmin} />}
+        {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
         {activeTab === "bot" && <BotTab token={token} />}
         {activeTab === "broker" && <BrokerTab token={token} />}
         {activeTab === "telegram" && <TelegramTab token={token} />}
