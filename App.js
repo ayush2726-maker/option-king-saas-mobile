@@ -661,6 +661,8 @@ function BrokerTab({ token }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [testResult, setTestResult] = useState(null);
+  const [testing, setTesting] = useState(false);
 
   const brokerList = ["angelone", "zerodha", "upstox"];
   const brokerFields = {
@@ -697,6 +699,18 @@ function BrokerTab({ token }) {
         set: setTotpKey, placeholder: "TOTP Secret" },
     ],
   };
+
+  async function testBroker() {
+    setTestResult(null);
+    setTesting(true);
+    try {
+      const d = await apiGet(`/broker/test/${broker}`, token);
+      setTestResult(d);
+    } catch (e) {
+      setTestResult({ success: false, message: "Broker settings endpoint missing" });
+    }
+    setTesting(false);
+  }
 
   async function saveBroker() {
     setError(""); setSuccess(""); setLoading(true);
@@ -763,6 +777,25 @@ function BrokerTab({ token }) {
         <Btn label="Credentials Save Karo" icon="💾"
           color={C.blue} onPress={saveBroker} loading={loading}
           style={{ marginTop: 8 }} />
+
+        <Btn label="Test Broker Connection" icon="🧪"
+          color={C.gold} onPress={testBroker} loading={testing}
+          style={{ marginTop: 10 }} />
+
+        {testResult && (
+          <View style={{ backgroundColor: testResult.success ? C.greenLo : C.redLo,
+            borderRadius: 10, padding: 10, marginTop: 10, borderWidth: 1,
+            borderColor: (testResult.success ? C.green : C.red) + "44" }}>
+            <Text style={{ color: testResult.success ? C.green : C.red,
+              fontSize: 13, fontWeight: "800" }}>
+              {testResult.success
+                ? `✅ ${broker} connected. Status: ${testResult.status || "connected"}`
+                : (broker === "zerodha" && testResult.status === "auth_failed"
+                    ? "Zerodha token missing or expired. Please generate new access token."
+                    : `❌ ${testResult.message || "Connection test failed"}`)}
+            </Text>
+          </View>
+        )}
       </Card>
 
       <Card>
