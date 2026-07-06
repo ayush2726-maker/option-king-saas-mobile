@@ -1009,32 +1009,7 @@ function TradeTab({ token }) {
   }, []);
 
   const trade = signal?.active_trade || signal?.latest_trade || null;
-
-  async function startHeroZero(side) {
-    setLoading(true);
-    setMsg("");
-    try {
-      const d = await apiPostAuth("/bot/hero-zero/start", { side }, token);
-      setMsg(d?.message || `Hero Zero ${side} started`);
-      await loadTrade();
-    } catch (e) {
-      setMsg("Hero Zero start failed");
-    }
-    setLoading(false);
-  }
-
-  async function forceCloseHeroZero() {
-    setLoading(true);
-    setMsg("");
-    try {
-      const d = await apiPostAuth("/bot/hero-zero/force-close", {}, token);
-      setMsg(d?.message || "Hero Zero closed");
-      await loadTrade();
-    } catch (e) {
-      setMsg("Hero Zero close failed");
-    }
-    setLoading(false);
-  }
+  const isLiveMode = (signal?.trading_mode || "paper") === "live";
 
   return (
     <ScrollView style={{ flex: 1 }}
@@ -1043,7 +1018,7 @@ function TradeTab({ token }) {
       <Card glow={trade?.status === "OPEN" ? C.green : C.blue}>
         <Row style={{ justifyContent: "space-between", marginBottom: 10 }}>
           <Text style={{ color: C.text, fontSize: 20, fontWeight: "900" }}>
-            🧾 Active Paper Trade
+            🧾 {isLiveMode ? "Active Live Trade" : "Active Paper Trade"}
           </Text>
           <TouchableOpacity onPress={loadTrade}>
             <Text style={{ color: C.blue, fontWeight: "900" }}>
@@ -1052,62 +1027,9 @@ function TradeTab({ token }) {
           </TouchableOpacity>
         </Row>
 
-        <View style={{ marginBottom: 12 }}>
-          <Text style={{ color: C.text, fontSize: 16, fontWeight: "900", marginBottom: 8 }}>
-            🚀 Expiry Hero Zero
-          </Text>
-
-          <Row style={{ justifyContent: "space-between", marginBottom: 8 }}>
-            <TouchableOpacity
-              onPress={() => startHeroZero("CE")}
-              style={{
-                flex: 1,
-                marginRight: 6,
-                backgroundColor: C.green,
-                paddingVertical: 12,
-                borderRadius: 12,
-                alignItems: "center"
-              }}>
-              <Text style={{ color: "#fff", fontWeight: "900" }}>Hero Zero CE</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => startHeroZero("PE")}
-              style={{
-                flex: 1,
-                marginLeft: 6,
-                backgroundColor: C.red,
-                paddingVertical: 12,
-                borderRadius: 12,
-                alignItems: "center"
-              }}>
-              <Text style={{ color: "#fff", fontWeight: "900" }}>Hero Zero PE</Text>
-            </TouchableOpacity>
-          </Row>
-
-          <TouchableOpacity
-            onPress={forceCloseHeroZero}
-            style={{
-              backgroundColor: C.card2 || C.border,
-              borderWidth: 1,
-              borderColor: C.border,
-              paddingVertical: 11,
-              borderRadius: 12,
-              alignItems: "center"
-            }}>
-            <Text style={{ color: C.gold, fontWeight: "900" }}>
-              Force Close Open Trade
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={{ color: C.muted, fontSize: 11, marginTop: 8 }}>
-            Hero Zero high risk paper mode hai. Real broker orders OFF.
-          </Text>
-        </View>
-
         {!trade && (
           <Text style={{ color: C.muted, fontSize: 13 }}>
-            Abhi koi active paper trade nahi hai. Score 82+ hone par trade create hogi.
+            Abhi koi active trade nahi hai. Score 82+ hone par real signal ke basis par trade create hogi.
           </Text>
         )}
 
@@ -1185,11 +1107,11 @@ function TradeTab({ token }) {
 
       <Card>
         <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
-          📜 Paper Trade History
+          📜 Trade History
         </Text>
 
         {history.length === 0 && (
-          <Text style={{ color: C.muted }}>Abhi paper trade history nahi hai.</Text>
+          <Text style={{ color: C.muted }}>Abhi trade history nahi hai.</Text>
         )}
 
         {history.slice(0, 20).map((t, i) => (
@@ -1213,6 +1135,274 @@ function TradeTab({ token }) {
           </View>
         ))}
       </Card>
+    </ScrollView>
+  );
+}
+
+
+function HeroZeroTab({ token }) {
+  const [signal, setSignal] = useState(null);
+  const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [marketOpen, setMarketOpen] = useState(true);
+
+  function checkMarketWindow() {
+    const now = new Date();
+    const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+    const istMinutes = (utcMinutes + 5 * 60 + 30) % (24 * 60);
+    const day = new Date(now.getTime() + (5 * 60 + 30) * 60000).getUTCDay();
+    const isWeekday = day >= 1 && day <= 5;
+    const isMarketHours = istMinutes >= (9 * 60 + 15) && istMinutes <= (15 * 60 + 30);
+    return isWeekday && isMarketHours;
+  }
+
+  async function loadTrade() {
+    setLoading(true);
+    try {
+      const sig = await apiGet("/bot/signal", token);
+      setSignal(sig || {});
+    } catch {}
+    setMarketOpen(checkMarketWindow());
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadTrade();
+    const t = setInterval(loadTrade, 15000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function startHeroZero(side) {
+    setLoading(true);
+    setMsg("");
+    try {
+      const d = await apiPostAuth("/bot/hero-zero/start", { side }, token);
+      setMsg(d?.message || `Hero Zero ${side} started`);
+      await loadTrade();
+    } catch (e) {
+      setMsg("Hero Zero start failed");
+    }
+    setLoading(false);
+  }
+
+  async function forceCloseHeroZero() {
+    setLoading(true);
+    setMsg("");
+    try {
+      const d = await apiPostAuth("/bot/hero-zero/force-close", {}, token);
+      setMsg(d?.message || "Hero Zero closed");
+      await loadTrade();
+    } catch (e) {
+      setMsg("Hero Zero close failed");
+    }
+    setLoading(false);
+  }
+
+  const trade = signal?.active_trade || null;
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+
+      <Card glow={C.red}>
+        <Text style={{ color: C.red, fontSize: 18, fontWeight: "900", marginBottom: 8 }}>
+          🚀 Expiry Hero Zero
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12, lineHeight: 18 }}>
+          High risk paper mode. Real broker orders OFF. Real option premium tracking.
+        </Text>
+      </Card>
+
+      {!marketOpen && (
+        <Card glow={C.gold}>
+          <Text style={{ color: C.gold, fontWeight: "900", fontSize: 13 }}>
+            ⚠️ Market closed. Hero Zero available only during market hours (Mon-Fri 09:15-15:30 IST).
+          </Text>
+        </Card>
+      )}
+
+      <Card>
+        <Row style={{ justifyContent: "space-between", marginBottom: 8 }}>
+          <TouchableOpacity
+            disabled={!marketOpen || loading}
+            onPress={() => startHeroZero("CE")}
+            style={{
+              flex: 1,
+              marginRight: 6,
+              backgroundColor: marketOpen ? C.green : C.muted,
+              paddingVertical: 14,
+              borderRadius: 12,
+              alignItems: "center",
+              opacity: marketOpen ? 1 : 0.5,
+            }}>
+            <Text style={{ color: "#fff", fontWeight: "900" }}>Hero Zero CE</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            disabled={!marketOpen || loading}
+            onPress={() => startHeroZero("PE")}
+            style={{
+              flex: 1,
+              marginLeft: 6,
+              backgroundColor: marketOpen ? C.red : C.muted,
+              paddingVertical: 14,
+              borderRadius: 12,
+              alignItems: "center",
+              opacity: marketOpen ? 1 : 0.5,
+            }}>
+            <Text style={{ color: "#fff", fontWeight: "900" }}>Hero Zero PE</Text>
+          </TouchableOpacity>
+        </Row>
+
+        <TouchableOpacity
+          onPress={forceCloseHeroZero}
+          style={{
+            backgroundColor: C.s2,
+            borderWidth: 1,
+            borderColor: C.border,
+            paddingVertical: 11,
+            borderRadius: 12,
+            alignItems: "center"
+          }}>
+          <Text style={{ color: C.gold, fontWeight: "900" }}>Force Close Open Trade</Text>
+        </TouchableOpacity>
+
+        {!!msg && (
+          <Text style={{ color: C.red, marginTop: 10, fontWeight: "900" }}>{msg}</Text>
+        )}
+      </Card>
+
+      {trade && (
+        <Card glow={trade.status === "OPEN" ? C.green : C.blue}>
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: "900", marginBottom: 10 }}>
+            Active Hero Zero Trade
+          </Text>
+          {[
+            ["Symbol", trade.symbol],
+            ["Side / Qty", `${trade.side} / ${trade.qty}`],
+            ["Entry", `₹${trade.entry_price}`],
+            ["SL", `₹${trade.sl_price}`],
+            ["Target", `₹${trade.target_price}`],
+            ["Status", trade.status],
+          ].map(([l, v]) => (
+            <Row key={l} style={{ justifyContent: "space-between", paddingVertical: 6,
+              borderBottomWidth: 1, borderBottomColor: C.border }}>
+              <Text style={{ color: C.muted, fontSize: 12 }}>{l}</Text>
+              <Text style={{ color: C.text, fontWeight: "900", fontSize: 12 }}>{v}</Text>
+            </Row>
+          ))}
+        </Card>
+      )}
+    </ScrollView>
+  );
+}
+
+function LiveFeedTab({ token }) {
+  const [market, setMarket] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const m = await apiGet("/market/status", token);
+      setMarket(m);
+      setLastUpdate(new Date());
+    } catch {}
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+
+      <Card glow={market?.feed_connected ? C.green : C.red}>
+        <Row style={{ justifyContent: "space-between", marginBottom: 10 }}>
+          <Text style={{ color: C.text, fontSize: 18, fontWeight: "900" }}>Live Feed Status</Text>
+          <Tag label={market?.feed_connected ? "CONNECTED" : "NOT CONNECTED"}
+            color={market?.feed_connected ? C.green : C.red} />
+        </Row>
+        <Text style={{ color: C.muted, fontSize: 12 }}>
+          {market?.message || "Checking..."}
+        </Text>
+        {lastUpdate && (
+          <Text style={{ color: C.muted, fontSize: 11, marginTop: 8 }}>
+            Last checked: {lastUpdate.toLocaleTimeString()}
+          </Text>
+        )}
+      </Card>
+
+      <Card>
+        {(market?.indices || [
+          { symbol: "NIFTY", ltp: null },
+          { symbol: "BANKNIFTY", ltp: null },
+          { symbol: "SENSEX", ltp: null },
+        ]).map(idx => (
+          <Row key={idx.symbol} style={{ justifyContent: "space-between",
+            paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
+            <Text style={{ color: C.text, fontSize: 14, fontWeight: "800" }}>{idx.symbol}</Text>
+            <Text style={{ color: idx.ltp != null ? C.text : C.muted, fontSize: 13, fontWeight: "800" }}>
+              {idx.ltp != null ? idx.ltp : "Live feed not connected"}
+            </Text>
+          </Row>
+        ))}
+      </Card>
+
+      <Btn label="Test Live Price / Reconnect" icon="🔄" color={C.blue} loading={loading} onPress={load} />
+    </ScrollView>
+  );
+}
+
+function ServerTestTab({ token }) {
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function runTest() {
+    setLoading(true);
+    const start = Date.now();
+    try {
+      const r = await apiGet("/market/status", token);
+      const ms = Date.now() - start;
+      setResult({ ok: true, ms, detail: r?.message || "Server responded" });
+    } catch (e) {
+      const ms = Date.now() - start;
+      setResult({ ok: false, ms, detail: "Server unreachable" });
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => { runTest(); }, []);
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+
+      <Card glow={result?.ok ? C.green : C.red}>
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
+          Server Connection Test
+        </Text>
+        {result ? (
+          <>
+            <Row style={{ justifyContent: "space-between", paddingVertical: 6 }}>
+              <Text style={{ color: C.muted, fontSize: 12 }}>Status</Text>
+              <Text style={{ color: result.ok ? C.green : C.red, fontWeight: "900" }}>
+                {result.ok ? "REACHABLE" : "UNREACHABLE"}
+              </Text>
+            </Row>
+            <Row style={{ justifyContent: "space-between", paddingVertical: 6 }}>
+              <Text style={{ color: C.muted, fontSize: 12 }}>Response time</Text>
+              <Text style={{ color: C.text, fontWeight: "900" }}>{result.ms} ms</Text>
+            </Row>
+            <Text style={{ color: C.muted, fontSize: 12, marginTop: 8 }}>{result.detail}</Text>
+          </>
+        ) : (
+          <Text style={{ color: C.muted }}>Testing...</Text>
+        )}
+      </Card>
+
+      <Btn label="Run Test Again" icon="🔄" color={C.blue} loading={loading} onPress={runTest} />
     </ScrollView>
   );
 }
@@ -2158,7 +2348,7 @@ function BacktestTab({ token, lang }) {
   );
 }
 
-function MoreTab({ token, user, lang, setLang, isAdmin }) {
+function MoreTab({ token, user, lang, setLang, isAdmin, setActiveTab }) {
   const hi = lang === "hi";
   const [profile, setProfile] = useState(null);
   const [report, setReport] = useState(null);
@@ -2269,7 +2459,28 @@ function MoreTab({ token, user, lang, setLang, isAdmin }) {
     <ScrollView style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
 
-      <Card glow={C.blue}>
+            <Card glow={C.accent}>
+        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Tools</Text>
+        {[
+          ["Broker Credentials", "🔗", "broker"],
+          ["Telegram Settings", "🔔", "telegram"],
+          ["Backtest", "🧪", "backtest"],
+          ["Live Price / Feed", "📡", "livefeed"],
+          ["Server Test", "🖥️", "servertest"],
+          ["Hero Zero Mode", "🚀", "herozero"],
+        ].map(([label, icon, tab]) => (
+          <TouchableOpacity key={tab} onPress={() => setActiveTab && setActiveTab(tab)}
+            style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12,
+              borderBottomWidth: 1, borderBottomColor: C.border }}>
+            <Text style={{ fontSize: 18, width: 30 }}>{icon}</Text>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: "800", flex: 1 }}>{label}</Text>
+            <Text style={{ color: C.muted, fontSize: 16 }}>›</Text>
+          </TouchableOpacity>
+        ))}
+      </Card>
+
+<Card glow={C.blue}>
         <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
           🌐 {hi ? "भाषा" : "Language"}
         </Text>
@@ -2952,11 +3163,14 @@ function DashboardScreen({ token, user, onLogout }) {
         {activeTab === "markets" && <MarketsTab token={token} lang={lang} />}
         {activeTab === "trade" && <TradeTab token={token} />}
         {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
-        {activeTab === "more" && <MoreTab token={token} user={userFresh} lang={lang} setLang={setLang} isAdmin={isAdmin} />}
+        {activeTab === "more" && <MoreTab token={token} user={userFresh} lang={lang} setLang={setLang} isAdmin={isAdmin} setActiveTab={setActiveTab} />}
         {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
         {activeTab === "bot" && <BotTab token={token} />}
         {activeTab === "broker" && <BrokerTab token={token} />}
         {activeTab === "telegram" && <TelegramTab token={token} />}
+        {activeTab === "livefeed" && <LiveFeedTab token={token} />}
+        {activeTab === "servertest" && <ServerTestTab token={token} />}
+        {activeTab === "herozero" && <HeroZeroTab token={token} />}
         {activeTab === "plans" && (
           <PlansTab token={token} user={userFresh}
             onSuccess={refreshUser} />
