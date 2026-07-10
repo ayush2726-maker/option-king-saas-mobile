@@ -1,0 +1,30 @@
+name: SaaS Mobile AI Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/ai/**"
+      - "src/components/AiDecisionCard.js"
+      - "scripts/test-ai-engine.js"
+      - "package.json"
+      - ".github/workflows/app-ai-check.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run local AI smoke tests
+        run: npm run ai:test
+
+      - name: Parse AI card source
+        run: node --check src/components/AiDecisionCard.js
