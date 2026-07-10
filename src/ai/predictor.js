@@ -6,6 +6,11 @@ function add(score, condition, points) {
   return condition ? score + points : score;
 }
 
+function addDirectional(scores, direction, points) {
+  if (direction > 0) scores.ce += points;
+  if (direction < 0) scores.pe += points;
+}
+
 function roundProbabilities(values) {
   const ce = Math.round(values.CE);
   const pe = Math.round(values.PE);
@@ -21,8 +26,6 @@ function softmax3(ceScore, peScore, noTradeScore) {
   const nt = Math.exp((noTradeScore - maxScore) / temperature);
   const total = ce + pe + nt;
 
-  // Blend with a small neutral prior so a directional model never claims
-  // impossible 100% certainty. Hard safety blocks can still return 100%.
   const modelWeight = 0.9;
   const prior = (1 - modelWeight) / 3;
 
@@ -47,41 +50,56 @@ function predictTrade(features, config = AI_CONFIG) {
     });
   }
 
-  let ce = 20;
-  let pe = 20;
+  const scores = { ce: 20, pe: 20 };
   let noTrade = 30;
   const reasons = [];
 
-  ce = add(ce, features.ema20Vs50Percent > 0, 14);
-  pe = add(pe, features.ema20Vs50Percent < 0, 14);
-  ce = add(ce, features.priceVsVwapPercent > 0, 12);
-  pe = add(pe, features.priceVsVwapPercent < 0, 12);
-  ce = add(ce, features.supertrendDirection > 0, 12);
-  pe = add(pe, features.supertrendDirection < 0, 12);
-  ce = add(ce, features.structureDirection > 0, 12);
-  pe = add(pe, features.structureDirection < 0, 12);
-  ce = add(ce, features.mtfDirection > 0, 10);
-  pe = add(pe, features.mtfDirection < 0, 10);
-  ce = add(ce, features.rsi >= config.rsiBullMin && features.rsi < 75, 8);
-  pe = add(pe, features.rsi <= config.rsiBearMax && features.rsi > 25, 8);
+  scores.ce = add(scores.ce, features.ema20Vs50Percent > 0, 14);
+  scores.pe = add(scores.pe, features.ema20Vs50Percent < 0, 14);
+  scores.ce = add(scores.ce, features.priceVsVwapPercent > 0, 12);
+  scores.pe = add(scores.pe, features.priceVsVwapPercent < 0, 12);
+  addDirectional(scores, features.signalDirection, 14);
+  addDirectional(scores, features.supertrendDirection, 12);
+  addDirectional(scores, features.structureDirection, 12);
+  addDirectional(scores, features.mtfDirection, 10);
+  scores.ce = add(scores.ce, features.rsi >= config.rsiBullMin && features.rsi < 75, 8);
+  scores.pe = add(scores.pe, features.rsi <= config.rsiBearMax && features.rsi > 25, 8);
+
+  const scoreRatio = features.strategyScore / Math.max(1, features.minStrategyScore);
+  if (features.signalDirection !== 0 && features.serverTradeAllowed && scoreRatio >= 1) {
+    addDirectional(scores, features.signalDirection, 24);
+  } else if (features.signalDirection !== 0 && scoreRatio >= 0.9) {
+    addDirectional(scores, features.signalDirection, 12);
+    noTrade += 6;
+    reasons.push("STRATEGY_SCORE_NEAR_THRESHOLD");
+  } else if (features.strategyScore > 0) {
+    noTrade += 18;
+    reasons.push("STRATEGY_SCORE_BELOW_THRESHOLD");
+  }
 
   if (features.adx >= config.strongAdx) {
-    ce = add(ce, features.ema20Vs50Percent > 0, 8);
-    pe = add(pe, features.ema20Vs50Percent < 0, 8);
+    const adxDirection = features.ema20Vs50Percent !== 0
+      ? Math.sign(features.ema20Vs50Percent)
+      : features.signalDirection;
+    addDirectional(scores, adxDirection, 8);
   } else if (features.adx < config.minAdxForTrade) {
     noTrade += 24;
     reasons.push("ADX_WEAK");
   }
 
   if (features.volumeRatio >= config.strongVolumeRatio) {
-    ce = add(ce, features.priceVsVwapPercent > 0, 7);
-    pe = add(pe, features.priceVsVwapPercent < 0, 7);
+    const volumeDirection = features.priceVsVwapPercent !== 0
+      ? Math.sign(features.priceVsVwapPercent)
+      : features.signalDirection;
+    addDirectional(scores, volumeDirection, 7);
   } else if (features.volumeRatio < config.minVolumeRatio) {
     noTrade += 16;
     reasons.push("VOLUME_WEAK");
   }
 
-  if (!features.mtfConfirmed) {
+  if (features.mtfConfirmed) {
+    addDirectional(scores, features.signalDirection, 10);
+  } else {
     noTrade += 15;
     reasons.push("MTF_NOT_CONFIRMED");
   }
@@ -97,8 +115,8 @@ function predictTrade(features, config = AI_CONFIG) {
     reasons.push("DIRECTION_CONFLICT");
   }
 
-  ce = clamp(ce, 0, 100);
-  pe = clamp(pe, 0, 100);
+  const ce = clamp(scores.ce, 0, 100);
+  const pe = clamp(scores.pe, 0, 100);
   noTrade = clamp(noTrade, 0, 100);
 
   const probabilities = softmax3(ce, pe, noTrade);
