@@ -8,7 +8,8 @@
     "ios": "expo run:ios",
     "build": "eas build",
     "ai:test": "node scripts/test-ai-engine.js",
-    "ai:apply-ui": "node scripts/apply-ai-ui.js"
+    "ai:apply-ui": "node scripts/apply-ai-ui.js",
+    "ai:health": "node scripts/check-shared-ai.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
