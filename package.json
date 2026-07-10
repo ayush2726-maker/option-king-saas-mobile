@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "build": "eas build"
+    "build": "eas build",
+    "ai:test": "node scripts/test-ai-engine.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
