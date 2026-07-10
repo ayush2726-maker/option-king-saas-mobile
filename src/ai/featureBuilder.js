@@ -5,8 +5,8 @@ function toNumber(value, fallback = 0) {
 
 function normalizeDirection(value) {
   const v = String(value || "").trim().toUpperCase();
-  if (["BULLISH", "UP", "BUY", "CE", "LONG"].includes(v)) return 1;
-  if (["BEARISH", "DOWN", "SELL", "PE", "SHORT"].includes(v)) return -1;
+  if (["BULLISH", "UP", "BUY", "CE", "LONG", "UPTREND"].includes(v) || v.endsWith("_CE")) return 1;
+  if (["BEARISH", "DOWN", "SELL", "PE", "SHORT", "DOWNTREND"].includes(v) || v.endsWith("_PE")) return -1;
   return 0;
 }
 
@@ -23,13 +23,15 @@ function clamp(value, min, max) {
 
 function buildAiFeatures(snapshot = {}) {
   const price = toNumber(snapshot.price ?? snapshot.ltp ?? snapshot.close, 0);
-  const ema20 = toNumber(snapshot.ema20, price);
-  const ema50 = toNumber(snapshot.ema50, price);
+  const ema20 = toNumber(snapshot.ema20 ?? snapshot.ema9, price);
+  const ema50 = toNumber(snapshot.ema50 ?? snapshot.ema21, price);
   const vwap = toNumber(snapshot.vwap, price);
   const atr = toNumber(snapshot.atr, 0);
   const atrPercent = snapshot.atrPercent != null
     ? toNumber(snapshot.atrPercent, 0)
     : (price > 0 ? (atr / price) * 100 : 0);
+  const strategyScore = clamp(toNumber(snapshot.strategyScore ?? snapshot.strategy_score ?? snapshot.score, 0), 0, 100);
+  const minStrategyScore = clamp(toNumber(snapshot.minStrategyScore ?? snapshot.min_strategy_score ?? snapshot.min_score, 75), 1, 100);
 
   return Object.freeze({
     timestamp: snapshot.timestamp || new Date().toISOString(),
@@ -48,10 +50,14 @@ function buildAiFeatures(snapshot = {}) {
     atrPercent: Math.max(0, atrPercent),
     volumeRatio: Math.max(0, toNumber(snapshot.volumeRatio ?? snapshot.volume_ratio, 0)),
     spreadPercent: Math.max(0, toNumber(snapshot.spreadPercent ?? snapshot.spread_percent, 0)),
+    signalDirection: normalizeDirection(snapshot.signalDirection ?? snapshot.signal_direction ?? snapshot.signal),
     supertrendDirection: normalizeDirection(snapshot.supertrend ?? snapshot.supertrendDirection),
     structureDirection: normalizeDirection(snapshot.structure ?? snapshot.structureDirection),
     mtfDirection: normalizeDirection(snapshot.mtfDirection ?? snapshot.mtf_direction),
     mtfConfirmed: Boolean(snapshot.mtfConfirmed ?? snapshot.mtf_confirmed),
+    strategyScore,
+    minStrategyScore,
+    serverTradeAllowed: Boolean(snapshot.serverTradeAllowed ?? snapshot.server_trade_allowed ?? snapshot.trade_allowed),
     dailyLossPercent: Math.max(0, toNumber(snapshot.dailyLossPercent ?? snapshot.daily_loss_percent, 0)),
     consecutiveLosses: Math.max(0, Math.trunc(toNumber(snapshot.consecutiveLosses ?? snapshot.consecutive_losses, 0))),
     marketOpen: snapshot.marketOpen == null ? true : Boolean(snapshot.marketOpen),
