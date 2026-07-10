@@ -2,6 +2,8 @@ const React = require("react");
 const { View, Text } = require("react-native");
 const { evaluateMarket } = require("../ai");
 
+const SAAS_URL = "https://option-king-saas-production.up.railway.app";
+
 const COLORS = {
   surface: "#13131f",
   border: "#252540",
@@ -26,29 +28,38 @@ function ageFromTimestamp(timestamp) {
 
 function directionHint(signal) {
   return firstValue(
+    signal?.signal_direction,
+    signal?.trade_side,
     signal?.option_type,
     signal?.optionType,
     signal?.direction,
     signal?.side,
     signal?.trend_direction,
-    signal?.trend
+    signal?.trend,
+    signal?.signal
   );
 }
 
 function signalToSnapshot(signal = {}) {
   const hint = directionHint(signal);
   const explicitFeedAge = firstValue(signal.feed_age_ms, signal.feedAgeMs);
-  const timestamp = firstValue(signal.data_timestamp, signal.updated_at, signal.timestamp, signal.candle_time);
+  const timestamp = firstValue(
+    signal.engine_updated_at,
+    signal.data_timestamp,
+    signal.updated_at,
+    signal.timestamp,
+    signal.candle_time
+  );
   const noData = String(signal.signal || "").toUpperCase() === "NO_DATA";
 
   return {
-    symbol: firstValue(signal.symbol, signal.instrument, "NIFTY"),
+    symbol: firstValue(signal.symbol, signal.underlying, signal.instrument, "NIFTY"),
     timestamp,
     feedConnected: Boolean(firstValue(signal.feed_connected, signal.data_live, !noData)),
     feedAgeMs: explicitFeedAge != null ? Number(explicitFeedAge) : ageFromTimestamp(timestamp),
     price: firstValue(signal.price, signal.ltp, signal.spot_price, signal.close),
-    ema20: firstValue(signal.ema20, signal.ema_20),
-    ema50: firstValue(signal.ema50, signal.ema_50),
+    ema20: firstValue(signal.ema20, signal.ema_20, signal.ema9, signal.ema_9),
+    ema50: firstValue(signal.ema50, signal.ema_50, signal.ema21, signal.ema_21),
     vwap: signal.vwap,
     adx: signal.adx,
     rsi: signal.rsi,
@@ -56,10 +67,14 @@ function signalToSnapshot(signal = {}) {
     atrPercent: firstValue(signal.atr_percent, signal.atrPercent),
     volumeRatio: firstValue(signal.volume_ratio, signal.volumeRatio),
     spreadPercent: firstValue(signal.spread_percent, signal.spreadPercent, 0),
-    supertrend: firstValue(signal.supertrend_direction, signal.supertrend, signal.trend),
-    structure: firstValue(signal.structure_direction, signal.market_structure, hint),
-    mtfDirection: firstValue(signal.mtf_direction, signal.mtf_trend, hint),
+    signalDirection: hint,
+    supertrend: firstValue(signal.supertrend_direction, signal.supertrend_dir, signal.supertrend),
+    structure: firstValue(signal.structure_direction, signal.market_structure),
+    mtfDirection: firstValue(signal.mtf_direction, signal.mtf_trend, signal.mtf_confirmed ? hint : null),
     mtfConfirmed: Boolean(firstValue(signal.mtf_confirmed, signal.mtfConfirmed, false)),
+    strategyScore: firstValue(signal.strategy_score, signal.score, 0),
+    minStrategyScore: firstValue(signal.min_strategy_score, signal.min_score, 75),
+    serverTradeAllowed: Boolean(firstValue(signal.server_trade_allowed, signal.trade_allowed, false)),
     dailyLossPercent: firstValue(signal.daily_loss_percent, signal.dailyLossPercent, 0),
     consecutiveLosses: firstValue(signal.consecutive_losses, signal.consecutiveLosses, 0),
     marketOpen: signal.market_open == null ? true : Boolean(signal.market_open),
@@ -87,9 +102,65 @@ function probabilityRow(label, value, color) {
   );
 }
 
-function AiDecisionCard({ signal }) {
-  const result = React.useMemo(() => evaluateMarket(signalToSnapshot(signal || {})), [signal]);
-  const prediction = result.prediction;
+function normalizeRemotePrediction(data) {
+  if (!data || !["CE", "PE", "NO_TRADE"].includes(data.decision)) return null;
+  return {
+    engineVersion: data.model_version || "railway-shared",
+    decision: data.decision,
+    confidence: Number(data.confidence || 0),
+    probabilities: data.probabilities || { CE: 0, PE: 0, NO_TRADE: 100 },
+    riskAllowed: Boolean(data.risk_allowed),
+    reasons: Array.isArray(data.reasons) ? data.reasons : [],
+    mode: "RAILWAY_SHARED_AI",
+  };
+}
+
+function AiDecisionCard({ signal, token }) {
+  const [remotePrediction, setRemotePrediction] = React.useState(null);
+  const [remoteError, setRemoteError] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    let active = true;
+    let timer = null;
+
+    async function loadRailwayDecision() {
+      if (!token) return;
+      if (active) setLoading(true);
+      try {
+        const response = await fetch(`${SAAS_URL}/bot/ai-decision`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        const normalized = normalizeRemotePrediction(data);
+        if (!response.ok || !normalized) {
+          throw new Error(data?.detail || data?.message || `HTTP ${response.status}`);
+        }
+        if (active) {
+          setRemotePrediction(normalized);
+          setRemoteError("");
+        }
+      } catch (error) {
+        if (active) setRemoteError(String(error?.message || "Railway AI unavailable"));
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    loadRailwayDecision();
+    timer = setInterval(loadRailwayDecision, 15000);
+    return () => {
+      active = false;
+      if (timer) clearInterval(timer);
+    };
+  }, [token]);
+
+  const localFallback = React.useMemo(
+    () => evaluateMarket(signalToSnapshot(signal || {})).prediction,
+    [signal]
+  );
+  const prediction = remotePrediction || localFallback;
+  const usingRailway = Boolean(remotePrediction);
   const decisionColor = prediction.decision === "CE"
     ? COLORS.green
     : prediction.decision === "PE"
@@ -113,8 +184,12 @@ function AiDecisionCard({ signal }) {
       React.createElement(
         View,
         null,
-        React.createElement(Text, { style: { color: COLORS.text, fontSize: 16, fontWeight: "900" } }, "🧠 App AI Decision"),
-        React.createElement(Text, { style: { color: COLORS.muted, fontSize: 10, marginTop: 3 } }, `Local engine v${prediction.engineVersion}`)
+        React.createElement(Text, { style: { color: COLORS.text, fontSize: 16, fontWeight: "900" } }, "🧠 Shared AI Decision"),
+        React.createElement(
+          Text,
+          { style: { color: COLORS.muted, fontSize: 10, marginTop: 3 } },
+          `${usingRailway ? "Railway" : "Local fallback"} • ${prediction.engineVersion}`
+        )
       ),
       React.createElement(
         View,
@@ -149,8 +224,12 @@ function AiDecisionCard({ signal }) {
       ),
       React.createElement(
         Text,
-        { style: { color: COLORS.blue, fontSize: 10, lineHeight: 15, marginTop: 8 } },
-        "Decision app phone par calculate hua. Abhi order placement se connected nahi hai."
+        { style: { color: remoteError ? COLORS.gold : COLORS.blue, fontSize: 10, lineHeight: 15, marginTop: 8 } },
+        remoteError
+          ? `Railway fallback active: ${remoteError}`
+          : loading
+            ? "Railway AI refreshing..."
+            : "Same Railway AI model personal bot aur SaaS dono ke liye. Order execution OFF."
       )
     )
   );
