@@ -1,5 +1,6 @@
 const React = require("react");
 const { View, Text } = require("react-native");
+const AsyncStorage = require("@react-native-async-storage/async-storage").default;
 const { evaluateMarket } = require("../ai");
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
@@ -116,20 +117,35 @@ function normalizeRemotePrediction(data) {
 }
 
 function AiDecisionCard({ signal, token }) {
+  const [storedToken, setStoredToken] = React.useState(token || "");
   const [remotePrediction, setRemotePrediction] = React.useState(null);
   const [remoteError, setRemoteError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
+    if (token) {
+      setStoredToken(token);
+      return () => { active = false; };
+    }
+    AsyncStorage.getItem("saas_token")
+      .then((value) => {
+        if (active && value) setStoredToken(value);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [token]);
+
+  React.useEffect(() => {
+    let active = true;
     let timer = null;
 
     async function loadRailwayDecision() {
-      if (!token) return;
+      if (!storedToken) return;
       if (active) setLoading(true);
       try {
         const response = await fetch(`${SAAS_URL}/bot/ai-decision`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${storedToken}` },
         });
         const data = await response.json();
         const normalized = normalizeRemotePrediction(data);
@@ -153,7 +169,7 @@ function AiDecisionCard({ signal, token }) {
       active = false;
       if (timer) clearInterval(timer);
     };
-  }, [token]);
+  }, [storedToken]);
 
   const localFallback = React.useMemo(
     () => evaluateMarket(signalToSnapshot(signal || {})).prediction,
