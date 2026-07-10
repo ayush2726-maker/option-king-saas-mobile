@@ -6,17 +6,31 @@ function add(score, condition, points) {
   return condition ? score + points : score;
 }
 
+function roundProbabilities(values) {
+  const ce = Math.round(values.CE);
+  const pe = Math.round(values.PE);
+  const noTrade = Math.max(0, 100 - ce - pe);
+  return { CE: ce, PE: pe, NO_TRADE: noTrade };
+}
+
 function softmax3(ceScore, peScore, noTradeScore) {
   const maxScore = Math.max(ceScore, peScore, noTradeScore);
-  const ce = Math.exp((ceScore - maxScore) / 12);
-  const pe = Math.exp((peScore - maxScore) / 12);
-  const nt = Math.exp((noTradeScore - maxScore) / 12);
+  const temperature = 22;
+  const ce = Math.exp((ceScore - maxScore) / temperature);
+  const pe = Math.exp((peScore - maxScore) / temperature);
+  const nt = Math.exp((noTradeScore - maxScore) / temperature);
   const total = ce + pe + nt;
-  return {
-    CE: Math.round((ce / total) * 100),
-    PE: Math.round((pe / total) * 100),
-    NO_TRADE: Math.round((nt / total) * 100),
-  };
+
+  // Blend with a small neutral prior so a directional model never claims
+  // impossible 100% certainty. Hard safety blocks can still return 100%.
+  const modelWeight = 0.9;
+  const prior = (1 - modelWeight) / 3;
+
+  return roundProbabilities({
+    CE: ((ce / total) * modelWeight + prior) * 100,
+    PE: ((pe / total) * modelWeight + prior) * 100,
+    NO_TRADE: ((nt / total) * modelWeight + prior) * 100,
+  });
 }
 
 function predictTrade(features, config = AI_CONFIG) {
