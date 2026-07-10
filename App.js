@@ -6,6 +6,7 @@ import {
   Platform, KeyboardAvoidingView, RefreshControl
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+const AiDecisionCard = require("./src/components/AiDecisionCard");
 
 
 // ── Global crash catcher (temporary debug tool) ──────────────
@@ -2059,6 +2060,8 @@ function BotTab({ token }) {
           </Row>
         ))}
       </Card>
+
+      <AiDecisionCard signal={signal} />
 
       {/* Start/Stop/Refresh */}
       <Row style={{ gap: 10 }}>
