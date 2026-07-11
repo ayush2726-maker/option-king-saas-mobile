@@ -1899,6 +1899,7 @@ const BOT_STATUS_MESSAGES = {
   PAPER_RUNNING: "Paper mode running — real TQU data",
   LIVE_RUNNING: "Live mode running — real TQU data",
   CONNECT_BROKER_FOR_REAL_SIGNAL: "Broker connect karein real signal ke liye",
+  ENGINE_WARMING_UP: "Broker connected — candles load ho rahi hain (market band ho sakta hai)",
   PAPER_STOPPED: "Bot stopped (Paper mode)",
   LIVE_WAITING: "Waiting for live data...",
 };
@@ -2017,7 +2018,9 @@ function BotTab({ token }) {
   const mode = signal?.trading_mode || settings?.trading_mode || "paper";
   const rawStatus = signal?.status || "";
   const friendlyStatus = BOT_STATUS_MESSAGES[rawStatus] || rawStatus || "--";
-  const noRealData = rawStatus === "CONNECT_BROKER_FOR_REAL_SIGNAL" || signal?.signal === "NO_DATA";
+  const brokerNotConnected = rawStatus === "CONNECT_BROKER_FOR_REAL_SIGNAL";
+  const engineWarmingUp = rawStatus === "ENGINE_WARMING_UP";
+  const noRealData = brokerNotConnected || engineWarmingUp || signal?.signal === "NO_DATA";
 
   const scoreData = history.map(p => p.score || 0);
   const priceData = history.map(p => p.price || 0);
@@ -2038,10 +2041,10 @@ function BotTab({ token }) {
         </Row>
 
         {noRealData && (
-          <View style={{ backgroundColor: C.goldLo, borderRadius: 10, padding: 10,
-            borderWidth: 1, borderColor: C.gold+"55", marginBottom: 10 }}>
-            <Text style={{ color: C.gold, fontSize: 12, fontWeight: "800" }}>
-              ⚠️ {friendlyStatus}
+          <View style={{ backgroundColor: brokerNotConnected ? C.goldLo : C.blueLo, borderRadius: 10, padding: 10,
+            borderWidth: 1, borderColor: (brokerNotConnected ? C.gold : C.blue)+"55", marginBottom: 10 }}>
+            <Text style={{ color: brokerNotConnected ? C.gold : C.blue, fontSize: 12, fontWeight: "800" }}>
+              {brokerNotConnected ? "⚠️ " : "⏳ "}{friendlyStatus}
             </Text>
           </View>
         )}
