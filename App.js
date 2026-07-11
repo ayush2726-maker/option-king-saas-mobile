@@ -208,7 +208,8 @@ function ProgressBar({ value, max, color }) {
 }
 
 // ── Login Screen ─────────────────────────────────────────
-function LoginScreen({ onLogin, onRegister }) {
+function LoginScreen({ onLogin, onRegister, lang, setLang }) {
+  const hi = lang === "hi";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -219,39 +220,53 @@ function LoginScreen({ onLogin, onRegister }) {
     try {
       const d = await apiPost("/auth/login", { email, password });
       if (d.token) { onLogin(d.token, d.user); }
-      else setError(d.detail || "Login failed");
-    } catch { setError("Server se connect nahi ho paya"); }
+      else setError(d.detail || (hi ? "Login fail ho gaya" : "Login failed"));
+    } catch { setError(hi ? "Server se connect nahi ho paya" : "Could not connect to server"); }
     setLoading(false);
   }
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 80 }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 60 }}>
+        <Row style={{ justifyContent: "flex-end", gap: 8, marginBottom: 12 }}>
+          <TouchableOpacity onPress={() => setLang && setLang("hi")}
+            style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+              backgroundColor: hi ? C.greenLo : C.s2, borderWidth: 1,
+              borderColor: hi ? C.green : C.border }}>
+            <Text style={{ color: hi ? C.green : C.muted, fontSize: 11, fontWeight: "900" }}>हिंदी</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setLang && setLang("en")}
+            style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
+              backgroundColor: !hi ? C.blueLo : C.s2, borderWidth: 1,
+              borderColor: !hi ? C.blue : C.border }}>
+            <Text style={{ color: !hi ? C.blue : C.muted, fontSize: 11, fontWeight: "900" }}>English</Text>
+          </TouchableOpacity>
+        </Row>
         <Text style={{ fontSize: 40, textAlign: "center",
           marginBottom: 4 }}>👑</Text>
         <Text style={{ color: C.text, fontSize: 22, fontWeight: "900",
           textAlign: "center", marginBottom: 4 }}>Option King AI</Text>
         <Text style={{ color: C.muted, fontSize: 13, textAlign: "center",
-          marginBottom: 32 }}>SaaS Trading Platform</Text>
+          marginBottom: 32 }}>{hi ? "SaaS Trading Platform" : "SaaS Trading Platform"}</Text>
         <Card glow={C.accent}>
           <ErrorBox msg={error} />
           <Label text="Email" />
           <TextInput style={st.input} value={email}
-            onChangeText={setEmail} placeholder="aapka@email.com"
+            onChangeText={setEmail} placeholder={hi ? "aapka@email.com" : "your@email.com"}
             placeholderTextColor={C.muted} autoCapitalize="none"
             keyboardType="email-address" />
-          <Label text="Password" />
+          <Label text={hi ? "Password" : "Password"} />
           <TextInput style={st.input} value={password}
             onChangeText={setPassword} placeholder="Password"
             placeholderTextColor={C.muted} secureTextEntry />
-          <Btn label="Login Karo" icon="🔑" onPress={handleLogin}
+          <Btn label={hi ? "Login Karo" : "Login"} icon="🔑" onPress={handleLogin}
             loading={loading} style={{ marginTop: 4 }} />
         </Card>
         <TouchableOpacity onPress={onRegister}
           style={{ marginTop: 16, alignItems: "center" }}>
           <Text style={{ color: C.accent, fontSize: 14 }}>
-            Account nahi hai? Register Karo →
+            {hi ? "Account nahi hai? Register Karo →" : "Don't have an account? Register →"}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -260,7 +275,8 @@ function LoginScreen({ onLogin, onRegister }) {
 }
 
 // ── Register Screen ───────────────────────────────────────
-function RegisterScreen({ onLogin, onBack }) {
+function RegisterScreen({ onLogin, onBack, lang }) {
+  const hi = lang === "hi";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -271,15 +287,15 @@ function RegisterScreen({ onLogin, onBack }) {
 
   async function handleRegister() {
     setError("");
-    if (password !== confirm) { setError("Passwords match nahi karte"); return; }
-    if (password.length < 6) { setError("Password kam se kam 6 characters"); return; }
+    if (password !== confirm) { setError(hi ? "Passwords match nahi karte" : "Passwords do not match"); return; }
+    if (password.length < 6) { setError(hi ? "Password kam se kam 6 characters" : "Password must be at least 6 characters"); return; }
     setLoading(true);
     try {
       const d = await apiPost("/auth/register",
         { name, email, phone, password });
       if (d.token) { onLogin(d.token, d.user); }
-      else setError(d.detail || "Registration failed");
-    } catch { setError("Server se connect nahi ho paya"); }
+      else setError(d.detail || (hi ? "Registration fail ho gaya" : "Registration failed"));
+    } catch { setError(hi ? "Server se connect nahi ho paya" : "Could not connect to server"); }
     setLoading(false);
   }
 
@@ -288,33 +304,33 @@ function RegisterScreen({ onLogin, onBack }) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 60 }}>
         <TouchableOpacity onPress={onBack} style={{ marginBottom: 16 }}>
-          <Text style={{ color: C.accent, fontSize: 14 }}>← Wapas Login</Text>
+          <Text style={{ color: C.accent, fontSize: 14 }}>{hi ? "← Wapas Login" : "← Back to Login"}</Text>
         </TouchableOpacity>
         <Text style={{ color: C.text, fontSize: 20, fontWeight: "900",
-          marginBottom: 20 }}>👑 Register Karo</Text>
+          marginBottom: 20 }}>👑 {hi ? "Register Karo" : "Register"}</Text>
         <Card glow={C.green}>
           <ErrorBox msg={error} />
-          <Label text="Naam *" />
+          <Label text={hi ? "Naam *" : "Name *"} />
           <TextInput style={st.input} value={name} onChangeText={setName}
-            placeholder="Aapka poora naam" placeholderTextColor={C.muted} />
+            placeholder={hi ? "Aapka poora naam" : "Your full name"} placeholderTextColor={C.muted} />
           <Label text="Email *" />
           <TextInput style={st.input} value={email} onChangeText={setEmail}
-            placeholder="aapki@email.com" placeholderTextColor={C.muted}
+            placeholder={hi ? "aapki@email.com" : "your@email.com"} placeholderTextColor={C.muted}
             autoCapitalize="none" keyboardType="email-address" />
-          <Label text="Phone (Optional)" />
+          <Label text={hi ? "Phone (Optional)" : "Phone (Optional)"} />
           <TextInput style={st.input} value={phone} onChangeText={setPhone}
             placeholder="9999999999" placeholderTextColor={C.muted}
             keyboardType="phone-pad" />
-          <Label text="Password *" />
+          <Label text={hi ? "New Password *" : "New Password *"} />
           <TextInput style={st.input} value={password}
-            onChangeText={setPassword} placeholder="Kam se kam 6 characters"
+            onChangeText={setPassword} placeholder={hi ? "Kam se kam 6 characters" : "At least 6 characters"}
             placeholderTextColor={C.muted} secureTextEntry />
-          <Label text="Password Confirm *" />
+          <Label text={hi ? "New Password Confirm *" : "Confirm New Password *"} />
           <TextInput style={[st.input, { marginBottom: 20 }]}
             value={confirm} onChangeText={setConfirm}
-            placeholder="Password dobara daalo"
+            placeholder={hi ? "Password dobara daalo" : "Re-enter password"}
             placeholderTextColor={C.muted} secureTextEntry />
-          <Btn label="Register Karo" icon="🚀" color={C.green}
+          <Btn label={hi ? "Register Karo" : "Register"} icon="🚀" color={C.green}
             onPress={handleRegister} loading={loading} />
         </Card>
         <Card style={{ marginTop: 12 }}>
@@ -322,10 +338,11 @@ function RegisterScreen({ onLogin, onBack }) {
             <Text style={{ fontSize: 20 }}>🎁</Text>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={{ color: C.text, fontSize: 14,
-                fontWeight: "900" }}>7 Din Free Trial</Text>
+                fontWeight: "900" }}>{hi ? "7 Din Free Trial" : "7-Day Free Trial"}</Text>
               <Text style={{ color: C.muted, fontSize: 12,
-                marginTop: 3 }}>Register karo aur 7 din tak bilkul
-                free use karo — koi credit card nahi</Text>
+                marginTop: 3 }}>{hi
+                ? "Register karo aur 7 din tak bilkul free use karo — koi credit card nahi"
+                : "Register and use it completely free for 7 days — no credit card needed"}</Text>
             </View>
           </Row>
         </Card>
@@ -652,7 +669,8 @@ function HeroTab({ token }) {
 }
 
 // ── Broker Tab ───────────────────────────────────────────
-function BrokerTab({ token }) {
+function BrokerTab({ token, lang }) {
+  const hi = lang === "hi";
   const [broker, setBroker] = useState("angelone");
   const [clientId, setClientId] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -669,33 +687,33 @@ function BrokerTab({ token }) {
   const brokerFields = {
     angelone: [
       { key: "clientId", label: "Client ID", state: clientId,
-        set: setClientId, placeholder: "Aapka Angel One Client ID" },
+        set: setClientId, placeholder: hi ? "Aapka Angel One Client ID" : "Your Angel One Client ID" },
       { key: "apiKey", label: "API Key", state: apiKey,
         set: setApiKey, placeholder: "Angel One API Key" },
       { key: "apiSecret", label: "API Secret", state: apiSecret,
         set: setApiSecret, placeholder: "API Secret Key" },
       { key: "mpin", label: "MPIN", state: mpin,
-        set: setMpin, placeholder: "4-digit MPIN", secure: true },
+        set: setMpin, placeholder: hi ? "4-digit MPIN" : "4-digit MPIN", secure: true },
       { key: "totpKey", label: "TOTP Key", state: totpKey,
-        set: setTotpKey, placeholder: "TOTP Secret (Authenticator se)" },
+        set: setTotpKey, placeholder: hi ? "TOTP Secret (Authenticator se)" : "TOTP Secret (from Authenticator)" },
     ],
     zerodha: [
-      { key: "clientId", label: "Client ID (Zerodha)", state: clientId,
+      { key: "clientId", label: hi ? "Client ID (Zerodha)" : "Client ID (Zerodha)", state: clientId,
         set: setClientId, placeholder: "ZZ0000" },
       { key: "apiKey", label: "API Key", state: apiKey,
         set: setApiKey, placeholder: "Kite API Key" },
-      { key: "apiSecret", label: "API Secret", state: apiSecret,
-        set: setApiSecret, placeholder: "Kite API Secret" },
+      { key: "apiSecret", label: hi ? "API Secret (Access Token)" : "API Secret (Access Token)", state: apiSecret,
+        set: setApiSecret, placeholder: "Kite Access Token" },
       { key: "totpKey", label: "TOTP Key", state: totpKey,
         set: setTotpKey, placeholder: "TOTP Secret" },
     ],
     upstox: [
-      { key: "clientId", label: "Client ID (Upstox)", state: clientId,
+      { key: "clientId", label: hi ? "Client ID (Upstox)" : "Client ID (Upstox)", state: clientId,
         set: setClientId, placeholder: "Upstox Client ID" },
       { key: "apiKey", label: "API Key", state: apiKey,
         set: setApiKey, placeholder: "Upstox API Key" },
-      { key: "apiSecret", label: "API Secret", state: apiSecret,
-        set: setApiSecret, placeholder: "Upstox API Secret" },
+      { key: "apiSecret", label: hi ? "API Secret (Access Token)" : "API Secret (Access Token)", state: apiSecret,
+        set: setApiSecret, placeholder: "Upstox Access Token" },
       { key: "totpKey", label: "TOTP Key", state: totpKey,
         set: setTotpKey, placeholder: "TOTP Secret" },
     ],
@@ -708,7 +726,7 @@ function BrokerTab({ token }) {
       const d = await apiGet(`/broker/test/${broker}`, token);
       setTestResult(d);
     } catch (e) {
-      setTestResult({ success: false, message: "Broker settings endpoint missing" });
+      setTestResult({ success: false, message: hi ? "Broker settings endpoint missing" : "Broker settings endpoint missing" });
     }
     setTesting(false);
   }
@@ -724,9 +742,9 @@ function BrokerTab({ token }) {
         totp_secret: broker === "angelone" ? totpKey.trim() : ""
       }, token);
       if (d.success || d.message) {
-        setSuccess("✅ Broker credentials save ho gaye!");
-      } else setError(d.detail || "Save failed");
-    } catch { setError("Server error"); }
+        setSuccess(hi ? "✅ Broker credentials save ho gaye!" : "✅ Broker credentials saved!");
+      } else setError(d.detail || (hi ? "Save nahi ho paya" : "Save failed"));
+    } catch { setError(hi ? "Server error" : "Server error"); }
     setLoading(false);
   }
 
@@ -735,7 +753,7 @@ function BrokerTab({ token }) {
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
       <Card glow={C.blue}>
         <Text style={{ color: C.text, fontSize: 16, fontWeight: "900",
-          marginBottom: 16 }}>🔗 Broker Connect Karo</Text>
+          marginBottom: 16 }}>🔗 {hi ? "Broker Connect Karo" : "Connect Broker"}</Text>
 
         {error ? <ErrorBox msg={error} /> : null}
         {success ? (
@@ -775,11 +793,11 @@ function BrokerTab({ token }) {
           </View>
         ))}
 
-        <Btn label="Credentials Save Karo" icon="💾"
+        <Btn label={hi ? "Credentials Save Karo" : "Save Credentials"} icon="💾"
           color={C.blue} onPress={saveBroker} loading={loading}
           style={{ marginTop: 8 }} />
 
-        <Btn label="Test Broker Connection" icon="🧪"
+        <Btn label={hi ? "Test Broker Connection" : "Test Broker Connection"} icon="🧪"
           color={C.gold} onPress={testBroker} loading={testing}
           style={{ marginTop: 10 }} />
 
@@ -790,10 +808,10 @@ function BrokerTab({ token }) {
             <Text style={{ color: testResult.success ? C.green : C.red,
               fontSize: 13, fontWeight: "800" }}>
               {testResult.success
-                ? `✅ ${broker} connected. Status: ${testResult.status || "connected"}`
+                ? (hi ? `✅ ${broker} connected. Status: ${testResult.status || "connected"}` : `✅ ${broker} connected. Status: ${testResult.status || "connected"}`)
                 : (broker === "zerodha" && testResult.status === "auth_failed"
-                    ? "Zerodha token missing or expired. Please generate new access token."
-                    : `❌ ${testResult.message || "Connection test failed"}`)}
+                    ? (hi ? "Zerodha token missing ya expire ho gaya hai. Naya access token generate karein." : "Zerodha token missing or expired. Please generate a new access token.")
+                    : `❌ ${testResult.message || (hi ? "Connection test fail ho gaya" : "Connection test failed")}`)}
             </Text>
           </View>
         )}
@@ -803,11 +821,15 @@ function BrokerTab({ token }) {
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
           textTransform: "uppercase", letterSpacing: 1.2,
           marginBottom: 12 }}>🔒 Security</Text>
-        {[
+        {(hi ? [
           ["🔐", "AES-256 Encryption", "Credentials encrypted store hote hain"],
           ["🔑", "JWT Auth", "Har request authenticated hai"],
           ["🚫", "No Plain Text", "Kabhi plain text save nahi hota"],
-        ].map(([icon, title, desc]) => (
+        ] : [
+          ["🔐", "AES-256 Encryption", "Credentials are stored encrypted"],
+          ["🔑", "JWT Auth", "Every request is authenticated"],
+          ["🚫", "No Plain Text", "Plain text is never saved"],
+        ]).map(([icon, title, desc]) => (
           <Row key={title} style={{ paddingVertical: 10,
             borderBottomWidth: 1, borderBottomColor: C.border,
             gap: 12 }}>
@@ -1562,7 +1584,8 @@ function PlansTab({ token, user, onSuccess }) {
 }
 
 // ── Admin Tab ────────────────────────────────────────────
-function AdminTab({ token, user }) {
+function AdminTab({ token, user, lang }) {
+  const hi = lang === "hi";
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1591,7 +1614,7 @@ function AdminTab({ token, user }) {
         justifyContent: "center", padding: 32 }}>
         <Text style={{ fontSize: 48, marginBottom: 16 }}>🔒</Text>
         <Text style={{ color: C.muted, fontSize: 14,
-          textAlign: "center" }}>Admin access required</Text>
+          textAlign: "center" }}>{hi ? "Admin access chahiye" : "Admin access required"}</Text>
       </View>
     );
   }
@@ -1605,13 +1628,13 @@ function AdminTab({ token, user }) {
 
       <Card glow={C.green}>
         <Text style={{ color: C.text, fontSize: 18,
-          fontWeight: "900", marginBottom: 6 }}>💰 Paper Capital</Text>
+          fontWeight: "900", marginBottom: 6 }}>💰 {hi ? "Paper Capital" : "Paper Capital"}</Text>
         <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
-          Paper mode aur Backtest dono ke liye capital update karo.
+          {hi ? "Paper mode aur Backtest dono ke liye capital update karo." : "Update capital for both Paper mode and Backtest."}
         </Text>
 
         <Text style={{ color: C.muted, fontSize: 11,
-          fontWeight: "800", marginBottom: 5 }}>Paper Capital</Text>
+          fontWeight: "800", marginBottom: 5 }}>{hi ? "Paper Capital" : "Paper Capital"}</Text>
         <TextInput style={[st.input, { marginBottom: 12 }]}
           value={"100000"}
           onChangeText={(v) => {
@@ -1623,11 +1646,11 @@ function AdminTab({ token, user }) {
           placeholderTextColor={C.muted} />
 
         <Row style={{ gap: 10 }}>
-          <Btn label="Update" icon="💾" color={C.green}
+          <Btn label={hi ? "Update Karo" : "Update"} icon="💾" color={C.green}
             loading={loading}
             onPress={savePaperCapital}
             style={{ flex: 1 }} />
-          <Btn label="Reset P&L" icon="♻️" color={C.gold}
+          <Btn label={hi ? "P&L Reset Karo" : "Reset P&L"} icon="♻️" color={C.gold}
             onPress={resetPaperCapital}
             style={{ flex: 1 }} />
         </Row>
@@ -1642,9 +1665,9 @@ function AdminTab({ token, user }) {
 
       <Card glow={C.purple}>
         <Text style={{ color: C.purple, fontSize: 16,
-          fontWeight: "900", marginBottom: 4 }}>👑 Admin Dashboard</Text>
+          fontWeight: "900", marginBottom: 4 }}>👑 {hi ? "Admin Dashboard" : "Admin Dashboard"}</Text>
         <Text style={{ color: C.muted, fontSize: 12 }}>
-          Pull to refresh
+          {hi ? "Refresh ke liye niche kheenchein" : "Pull to refresh"}
         </Text>
       </Card>
 
@@ -1658,13 +1681,13 @@ function AdminTab({ token, user }) {
       {stats && (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
           {[
-            ["👥", "Total Users", stats.total_users, C.blue],
-            ["✅", "Active Subs", stats.active_subscriptions, C.green],
-            ["🆓", "Trial Users", stats.trial_users, C.gold],
-            ["💰", "Revenue", "₹" + (stats.total_revenue || 0), C.green],
-            ["🤖", "Bot Running", stats.bot_active ? "YES" : "NO",
+            ["👥", hi ? "Total Users" : "Total Users", stats.total_users, C.blue],
+            ["✅", hi ? "Active Subs" : "Active Subs", stats.active_subscriptions, C.green],
+            ["🆓", hi ? "Trial Users" : "Trial Users", stats.trial_users, C.gold],
+            ["💰", hi ? "Revenue" : "Revenue", "₹" + (stats.total_revenue || 0), C.green],
+            ["🤖", hi ? "Bot Chal Raha Hai" : "Bot Running", stats.bot_active ? (hi ? "HAAN" : "YES") : (hi ? "NAHI" : "NO"),
               stats.bot_active ? C.green : C.red],
-            ["📈", "Trades Today", stats.trades_today || 0, C.accent],
+            ["📈", hi ? "Aaj Ke Trades" : "Trades Today", stats.trades_today || 0, C.accent],
           ].map(([icon, label, val, color]) => (
             <Card key={label}
               style={{ width: "47%", alignItems: "center", padding: 14 }}>
@@ -1682,7 +1705,7 @@ function AdminTab({ token, user }) {
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
           textTransform: "uppercase", letterSpacing: 1.2,
-          marginBottom: 14 }}>Recent Users</Text>
+          marginBottom: 14 }}>{hi ? "Recent Users" : "Recent Users"}</Text>
         {users.slice(0, 10).map((u, i) => (
           <Row key={u.id || i} style={{ justifyContent: "space-between",
             paddingVertical: 10, borderBottomWidth: 1,
@@ -1699,7 +1722,7 @@ function AdminTab({ token, user }) {
         ))}
         {users.length === 0 && !loading && (
           <Text style={{ color: C.muted, fontSize: 13,
-            textAlign: "center", padding: 16 }}>Koi user nahi mila</Text>
+            textAlign: "center", padding: 16 }}>{hi ? "Koi user nahi mila" : "No users found"}</Text>
         )}
       </Card>
 
@@ -1707,14 +1730,14 @@ function AdminTab({ token, user }) {
       <Card glow={C.orange}>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
           textTransform: "uppercase", letterSpacing: 1.2,
-          marginBottom: 12 }}>⚙️ Bot Control</Text>
+          marginBottom: 12 }}>⚙️ {hi ? "Bot Control" : "Bot Control"}</Text>
         <Row style={{ gap: 10 }}>
-          <Btn label="Bot Start" icon="▶️" color={C.green}
+          <Btn label={hi ? "Bot Start" : "Start Bot"} icon="▶️" color={C.green}
             onPress={async () => {
               await apiPostAuth("/bot/start", {}, token);
               load(false);
             }} style={{ flex: 1 }} />
-          <Btn label="Bot Stop" icon="⏹️" color={C.red}
+          <Btn label={hi ? "Bot Stop" : "Stop Bot"} icon="⏹️" color={C.red}
             onPress={async () => {
               await apiPostAuth("/bot/stop", {}, token);
               load(false);
@@ -1895,16 +1918,25 @@ function MiniBarChart({ data, color, negativeColor, height = 80, formatLabel }) 
   );
 }
 
-const BOT_STATUS_MESSAGES = {
+const BOT_STATUS_MESSAGES_HI = {
   PAPER_RUNNING: "Paper mode running — real TQU data",
   LIVE_RUNNING: "Live mode running — real TQU data",
   CONNECT_BROKER_FOR_REAL_SIGNAL: "Broker connect karein real signal ke liye",
   ENGINE_WARMING_UP: "Broker connected — candles load ho rahi hain (market band ho sakta hai)",
   PAPER_STOPPED: "Bot stopped (Paper mode)",
+  LIVE_WAITING: "Live data ka wait ho raha hai...",
+};
+const BOT_STATUS_MESSAGES_EN = {
+  PAPER_RUNNING: "Paper mode running — real TQU data",
+  LIVE_RUNNING: "Live mode running — real TQU data",
+  CONNECT_BROKER_FOR_REAL_SIGNAL: "Connect a broker for real signals",
+  ENGINE_WARMING_UP: "Broker connected — loading candles (market may be closed)",
+  PAPER_STOPPED: "Bot stopped (Paper mode)",
   LIVE_WAITING: "Waiting for live data...",
 };
 
-function BotTab({ token }) {
+function BotTab({ token, lang }) {
+  const hi = lang === "hi";
   const [signal, setSignal] = useState(null);
   const [settings, setSettings] = useState(null);
   const [history, setHistory] = useState([]);
@@ -1926,7 +1958,7 @@ function BotTab({ token }) {
       const trades = await apiGet("/history/paper", token);
       if (trades && trades.paper_trades) setPaperTrades(trades.paper_trades);
     } catch (e) {
-      setError("Status load nahi ho paya. Refresh try karein.");
+      setError(hi ? "Status load nahi ho paya. Refresh try karein." : "Could not load status. Please try refreshing.");
     }
     setLoading(false);
   }
@@ -1945,7 +1977,7 @@ function BotTab({ token }) {
       }
       await load();
     } catch (e) {
-      setError("Settings save nahi hui.");
+      setError(hi ? "Settings save nahi hui." : "Could not save settings.");
     }
     setSaving(false);
   }
@@ -1957,7 +1989,7 @@ function BotTab({ token }) {
       await apiPostAuth("/bot/start", {}, token);
       await load();
     } catch (e) {
-      setError("Bot start nahi ho paya.");
+      setError(hi ? "Bot start nahi ho paya." : "Could not start the bot.");
     }
     setSaving(false);
   }
@@ -1969,7 +2001,7 @@ function BotTab({ token }) {
       await apiPostAuth("/bot/stop", {}, token);
       await load();
     } catch (e) {
-      setError("Bot stop nahi ho paya.");
+      setError(hi ? "Bot stop nahi ho paya." : "Could not stop the bot.");
     }
     setSaving(false);
   }
@@ -1977,11 +2009,11 @@ function BotTab({ token }) {
   function handleModeSelect(mode) {
     if (mode === "live") {
       Alert.alert(
-        "Live Mode",
-        "Live mode can place real broker orders. Continue?",
+        hi ? "Live Mode" : "Live Mode",
+        hi ? "Live mode asli broker order laga sakta hai. Continue karein?" : "Live mode can place real broker orders. Continue?",
         [
-          { text: "Cancel", style: "cancel" },
-          { text: "Continue", style: "destructive", onPress: () => saveSettings({ trading_mode: "live" }) }
+          { text: hi ? "Cancel" : "Cancel", style: "cancel" },
+          { text: hi ? "Continue" : "Continue", style: "destructive", onPress: () => saveSettings({ trading_mode: "live" }) }
         ]
       );
     } else {
@@ -2017,7 +2049,7 @@ function BotTab({ token }) {
   const isRunning = !!signal?.running;
   const mode = signal?.trading_mode || settings?.trading_mode || "paper";
   const rawStatus = signal?.status || "";
-  const friendlyStatus = BOT_STATUS_MESSAGES[rawStatus] || rawStatus || "--";
+  const friendlyStatus = (hi ? BOT_STATUS_MESSAGES_HI : BOT_STATUS_MESSAGES_EN)[rawStatus] || rawStatus || "--";
   const brokerNotConnected = rawStatus === "CONNECT_BROKER_FOR_REAL_SIGNAL";
   const engineWarmingUp = rawStatus === "ENGINE_WARMING_UP";
   const noRealData = brokerNotConnected || engineWarmingUp || signal?.signal === "NO_DATA";
@@ -2036,8 +2068,8 @@ function BotTab({ token }) {
       {/* Status Card */}
       <Card glow={isRunning ? C.green : C.red}>
         <Row style={{ justifyContent: "space-between", marginBottom: 10 }}>
-          <Text style={{ color: C.text, fontSize: 16, fontWeight: "900" }}>Bot Status</Text>
-          <Tag label={isRunning ? "RUNNING" : "STOPPED"} color={isRunning ? C.green : C.red} />
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: "900" }}>{hi ? "Bot Status" : "Bot Status"}</Text>
+          <Tag label={isRunning ? (hi ? "CHAL RAHA HAI" : "RUNNING") : (hi ? "RUKA HUA HAI" : "STOPPED")} color={isRunning ? C.green : C.red} />
         </Row>
 
         {noRealData && (
@@ -2050,11 +2082,11 @@ function BotTab({ token }) {
         )}
 
         {[
-          ["Mode", mode.toUpperCase()],
-          ["Signal", signal?.signal === "NO_DATA" ? "No live data" : (signal?.signal || "--")],
-          ["Score", `${signal?.score ?? "--"} / ${signal?.min_score ?? "--"}`],
-          ["Total Trades", signal?.total_trades ?? "--"],
-          ["Total P&L", signal?.total_pnl != null ? `₹${signal.total_pnl}` : "--"],
+          [hi ? "Mode" : "Mode", mode.toUpperCase()],
+          [hi ? "Signal" : "Signal", signal?.signal === "NO_DATA" ? (hi ? "Live data nahi hai" : "No live data") : (signal?.signal || "--")],
+          [hi ? "Score" : "Score", `${signal?.score ?? "--"} / ${signal?.min_score ?? "--"}`],
+          [hi ? "Total Trades" : "Total Trades", signal?.total_trades ?? "--"],
+          [hi ? "Total P&L" : "Total P&L", signal?.total_pnl != null ? `₹${signal.total_pnl}` : "--"],
         ].map(([l, v]) => (
           <Row key={l} style={{ justifyContent: "space-between", paddingVertical: 8,
             borderBottomWidth: 1, borderBottomColor: C.border }}>
@@ -2069,46 +2101,46 @@ function BotTab({ token }) {
       {/* Start/Stop/Refresh */}
       <Row style={{ gap: 10 }}>
         <View style={{ flex: 1 }}>
-          <Btn label="Start Bot" icon="▶️" color={C.green} loading={saving}
+          <Btn label={hi ? "Bot Start Karo" : "Start Bot"} icon="▶️" color={C.green} loading={saving}
             onPress={handleStart} />
         </View>
         <View style={{ flex: 1 }}>
-          <Btn label="Stop Bot" icon="⏹️" color={C.red} loading={saving}
+          <Btn label={hi ? "Bot Stop Karo" : "Stop Bot"} icon="⏹️" color={C.red} loading={saving}
             onPress={handleStop} />
         </View>
       </Row>
-      <Btn label="Refresh Status" icon="🔄" color={C.blue} loading={loading} onPress={load} />
+      <Btn label={hi ? "Status Refresh Karo" : "Refresh Status"} icon="🔄" color={C.blue} loading={loading} onPress={load} />
 
       {/* Charts */}
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Score History</Text>
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Score History" : "Score History"}</Text>
         <MiniBarChart data={scoreData} color={C.accent} />
       </Card>
 
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Price Movement</Text>
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Price Movement" : "Price Movement"}</Text>
         <MiniBarChart data={priceData} color={C.blue} />
       </Card>
 
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Paper Trade P&L</Text>
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Paper Trade P&L" : "Paper Trade P&L"}</Text>
         <MiniBarChart data={pnlData} color={C.green} negativeColor={C.red} />
       </Card>
 
       {/* Paper/Live Mode Switch */}
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Trading Mode</Text>
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Trading Mode" : "Trading Mode"}</Text>
         <Row style={{ gap: 10 }}>
           <View style={{ flex: 1 }}>
-            <Btn label="PAPER MODE" color={mode === "paper" ? C.accent : C.muted}
+            <Btn label={hi ? "PAPER MODE" : "PAPER MODE"} color={mode === "paper" ? C.accent : C.muted}
               loading={saving} onPress={() => handleModeSelect("paper")} />
           </View>
           <View style={{ flex: 1 }}>
-            <Btn label="LIVE MODE" color={mode === "live" ? C.red : C.muted}
+            <Btn label={hi ? "LIVE MODE" : "LIVE MODE"} color={mode === "live" ? C.red : C.muted}
               loading={saving} onPress={() => handleModeSelect("live")} />
           </View>
         </Row>
@@ -2117,7 +2149,7 @@ function BotTab({ token }) {
       {/* Instrument selection */}
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Instruments</Text>
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Instruments" : "Instruments"}</Text>
         {["NIFTY", "BANKNIFTY", "SENSEX"].map(sym => {
           const enabled = (settings?.enabled_instruments || []).includes(sym);
           const isPrimary = settings?.primary_instrument === sym;
@@ -2126,14 +2158,14 @@ function BotTab({ token }) {
               paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
               <Row style={{ gap: 8 }}>
                 <Text style={{ color: C.text, fontSize: 14, fontWeight: "800" }}>{sym}</Text>
-                {isPrimary && <Tag label="PRIMARY" color={C.accent} />}
+                {isPrimary && <Tag label={hi ? "PRIMARY" : "PRIMARY"} color={C.accent} />}
               </Row>
               <Row style={{ gap: 8 }}>
                 {enabled && !isPrimary && (
                   <TouchableOpacity onPress={() => setPrimary(sym)}
                     style={{ paddingHorizontal: 10, paddingVertical: 6,
                       borderRadius: 8, borderWidth: 1, borderColor: C.border }}>
-                    <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800" }}>Set Primary</Text>
+                    <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800" }}>{hi ? "Primary Karo" : "Set Primary"}</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={() => toggleInstrument(sym)}
@@ -2153,7 +2185,7 @@ function BotTab({ token }) {
       {/* Paper capital */}
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Paper Capital</Text>
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Paper Capital" : "Paper Capital"}</Text>
         <TextInput
           value={capitalInput}
           onChangeText={setCapitalInput}
@@ -2163,11 +2195,11 @@ function BotTab({ token }) {
           style={{ backgroundColor: C.s2, borderRadius: 10, padding: 12,
             color: C.text, fontSize: 14, borderWidth: 1, borderColor: C.border, marginBottom: 10 }}
         />
-        <Btn label="Save Capital" icon="💾" color={C.blue} loading={saving}
+        <Btn label={hi ? "Capital Save Karo" : "Save Capital"} icon="💾" color={C.blue} loading={saving}
           onPress={() => {
             const val = parseFloat(capitalInput);
             if (!val || val < 1000) {
-              setError("Paper capital kam se kam ₹1000 hona chahiye.");
+              setError(hi ? "Paper capital kam se kam ₹1000 hona chahiye." : "Paper capital must be at least ₹1000.");
               return;
             }
             saveSettings({ paper_capital: val });
@@ -2761,7 +2793,8 @@ function GuideTab({ lang, setLang }) {
 
 // ── Home Tab ─────────────────────────────────────────────
 
-function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
+function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab, lang }) {
+  const hi = lang === "hi";
   const daysLeft = subStatus?.days_remaining ?? null;
 
   const [signal, setSignal] = useState(null);
@@ -2797,7 +2830,7 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
         <Row style={{ justifyContent: "space-between", marginBottom: 12 }}>
           <View>
             <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800",
-              textTransform: "uppercase" }}>Welcome Back</Text>
+              textTransform: "uppercase" }}>{hi ? "Welcome Back" : "Welcome Back"}</Text>
             <Text style={{ color: C.text, fontSize: 20, fontWeight: "900",
               marginTop: 2 }}>{user?.name || "Trader"}</Text>
           </View>
@@ -2806,15 +2839,15 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
         <View style={{ backgroundColor: C.s2, borderRadius: 10,
           padding: 12, borderWidth: 1, borderColor: C.border }}>
           <Row style={{ justifyContent: "space-between" }}>
-            <Text style={{ color: C.muted, fontSize: 12 }}>Subscription</Text>
+            <Text style={{ color: C.muted, fontSize: 12 }}>{hi ? "Subscription" : "Subscription"}</Text>
             <Tag label={user?.subscription_status?.toUpperCase()||"TRIAL"}
               color={user?.subscription_status==="active"?C.green:C.accent} />
           </Row>
           {daysLeft !== null && (
             <Row style={{ justifyContent: "space-between", marginTop: 8 }}>
-              <Text style={{ color: C.muted, fontSize: 12 }}>Bacha hua time</Text>
+              <Text style={{ color: C.muted, fontSize: 12 }}>{hi ? "Bacha hua time" : "Time remaining"}</Text>
               <Text style={{ color: daysLeft<=3?C.red:C.green,
-                fontWeight: "900", fontSize: 13 }}>{daysLeft} din</Text>
+                fontWeight: "900", fontSize: 13 }}>{hi ? `${daysLeft} din` : `${daysLeft} days`}</Text>
             </Row>
           )}
         </View>
@@ -2824,13 +2857,13 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
       <Row style={{ gap: 10 }}>
         <Card style={{ flex: 1 }} glow={isRunning ? C.green : C.red}>
           <Text style={{ color: C.muted, fontSize: 10, fontWeight: "800",
-            textTransform: "uppercase" }}>Bot</Text>
+            textTransform: "uppercase" }}>{hi ? "Bot" : "Bot"}</Text>
           <Text style={{ color: isRunning ? C.green : C.red, fontSize: 16,
-            fontWeight: "900", marginTop: 4 }}>{isRunning ? "RUNNING" : "STOPPED"}</Text>
+            fontWeight: "900", marginTop: 4 }}>{isRunning ? (hi ? "CHAL RAHA HAI" : "RUNNING") : (hi ? "RUKA HUA" : "STOPPED")}</Text>
         </Card>
         <Card style={{ flex: 1 }}>
           <Text style={{ color: C.muted, fontSize: 10, fontWeight: "800",
-            textTransform: "uppercase" }}>Mode</Text>
+            textTransform: "uppercase" }}>{hi ? "Mode" : "Mode"}</Text>
           <Text style={{ color: mode === "live" ? C.red : C.accent, fontSize: 16,
             fontWeight: "900", marginTop: 4 }}>{mode.toUpperCase()}</Text>
         </Card>
@@ -2838,7 +2871,7 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
       <Row style={{ gap: 10 }}>
         <Card style={{ flex: 1 }}>
           <Text style={{ color: C.muted, fontSize: 10, fontWeight: "800",
-            textTransform: "uppercase" }}>Today P&L</Text>
+            textTransform: "uppercase" }}>{hi ? "Aaj Ka P&L" : "Today P&L"}</Text>
           <Text style={{ color: (todayPnl ?? 0) >= 0 ? C.green : C.red, fontSize: 16,
             fontWeight: "900", marginTop: 4 }}>
             {todayPnl != null ? `₹${todayPnl}` : "--"}
@@ -2846,7 +2879,7 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
         </Card>
         <Card style={{ flex: 1 }}>
           <Text style={{ color: C.muted, fontSize: 10, fontWeight: "800",
-            textTransform: "uppercase" }}>Paper Capital</Text>
+            textTransform: "uppercase" }}>{hi ? "Paper Capital" : "Paper Capital"}</Text>
           <Text style={{ color: C.text, fontSize: 16,
             fontWeight: "900", marginTop: 4 }}>
             {paperEquity != null ? `₹${paperEquity}` : "--"}
@@ -2858,10 +2891,10 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
       <Card>
         <Row style={{ justifyContent: "space-between", marginBottom: 12 }}>
           <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-            textTransform: "uppercase", letterSpacing: 1.2 }}>Market</Text>
+            textTransform: "uppercase", letterSpacing: 1.2 }}>{hi ? "Market" : "Market"}</Text>
           <Text style={{ color: market?.feed_connected ? C.green : C.muted,
             fontSize: 10, fontWeight: "800" }}>
-            {market ? (market.feed_connected ? "🟢 Connected" : "⚪ Live feed not connected") : "--"}
+            {market ? (market.feed_connected ? (hi ? "🟢 Connected" : "🟢 Connected") : (hi ? "⚪ Live feed connected nahi hai" : "⚪ Live feed not connected")) : "--"}
           </Text>
         </Row>
         {(market?.indices || [
@@ -2883,7 +2916,7 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
                 )}
               </Row>
             ) : (
-              <Text style={{ color: C.muted, fontSize: 11 }}>Live feed not connected</Text>
+              <Text style={{ color: C.muted, fontSize: 11 }}>{hi ? "Live feed connected nahi hai" : "Live feed not connected"}</Text>
             )}
           </Row>
         ))}
@@ -2892,18 +2925,18 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
       {/* Quick actions */}
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Quick Actions</Text>
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Quick Actions" : "Quick Actions"}</Text>
         <Row style={{ gap: 10 }}>
           <View style={{ flex: 1 }}>
-            <Btn label="Trade" icon="🧾" color={C.accent}
+            <Btn label={hi ? "Trade" : "Trade"} icon="🧾" color={C.accent}
               onPress={() => setActiveTab && setActiveTab("trade")} />
           </View>
           <View style={{ flex: 1 }}>
-            <Btn label="Bot" icon="🤖" color={C.blue}
+            <Btn label={hi ? "Bot" : "Bot"} icon="🤖" color={C.blue}
               onPress={() => setActiveTab && setActiveTab("bot")} />
           </View>
           <View style={{ flex: 1 }}>
-            <Btn label="More" icon="⚙️" color={C.muted}
+            <Btn label={hi ? "More" : "More"} icon="⚙️" color={C.muted}
               onPress={() => setActiveTab && setActiveTab("more")} />
           </View>
         </Row>
@@ -2912,12 +2945,12 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab }) {
       {/* Warning */}
       <Card style={{ borderColor: C.red+"55", borderWidth: 1 }}>
         <Text style={{ color: C.red, fontSize: 12, fontWeight: "800" }}>
-          ⚠️ Live mode can place real orders. Paper mode is safe.
+          ⚠️ {hi ? "Live mode asli order laga sakta hai. Paper mode safe hai." : "Live mode can place real orders. Paper mode is safe."}
         </Text>
       </Card>
 
       {user?.subscription_status !== "active" && (
-        <Btn label="Plans Dekho" icon="💎" color={C.gold}
+        <Btn label={hi ? "Plans Dekho" : "View Plans"} icon="💎" color={C.gold}
           onPress={onSubscribe} />
       )}
     </ScrollView>
@@ -2979,7 +3012,8 @@ function formatDateSafe(isoString) {
   }
 }
 
-function AccountTab({ user, subStatus, onLogout, onRefresh }) {
+function AccountTab({ user, subStatus, onLogout, onRefresh, lang }) {
+  const hi = lang === "hi";
   return (
     <ScrollView style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
@@ -3011,13 +3045,13 @@ function AccountTab({ user, subStatus, onLogout, onRefresh }) {
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
           textTransform: "uppercase", letterSpacing: 1.2,
-          marginBottom: 12 }}>Account Details</Text>
+          marginBottom: 12 }}>{hi ? "Account Details" : "Account Details"}</Text>
         {[
-          ["Status", user?.subscription_status?.toUpperCase() || "--"],
-          ["Bacha hua time", subStatus?.days_remaining != null
-            ? `${subStatus.days_remaining} din` : "--"],
-          ["Trial ends", formatDateSafe(user?.trial_ends_at)],
-          ["Member since", formatDateSafe(user?.created_at)],
+          [hi ? "Status" : "Status", user?.subscription_status?.toUpperCase() || "--"],
+          [hi ? "Bacha hua time" : "Time remaining", subStatus?.days_remaining != null
+            ? (hi ? `${subStatus.days_remaining} din` : `${subStatus.days_remaining} days`) : "--"],
+          [hi ? "Trial ends" : "Trial ends", formatDateSafe(user?.trial_ends_at)],
+          [hi ? "Member since" : "Member since", formatDateSafe(user?.created_at)],
         ].map(([l, v]) => (
           <Row key={l} style={{ justifyContent: "space-between",
             paddingVertical: 10, borderBottomWidth: 1,
@@ -3029,13 +3063,16 @@ function AccountTab({ user, subStatus, onLogout, onRefresh }) {
         ))}
       </Card>
 
-      <Btn label="Refresh" icon="🔄" color={C.blue} onPress={onRefresh} />
+      <Btn label={hi ? "Refresh Karo" : "Refresh"} icon="🔄" color={C.blue} onPress={onRefresh} />
 
-      <Btn label="Logout" icon="🚪" color={C.red}
-        onPress={() => Alert.alert("Logout", "Aap logout karna chahte hain?", [
-          { text: "Cancel", style: "cancel" },
-          { text: "Logout", style: "destructive", onPress: onLogout }
-        ])} />
+      <Btn label={hi ? "Logout" : "Logout"} icon="🚪" color={C.red}
+        onPress={() => Alert.alert(
+          hi ? "Logout" : "Logout",
+          hi ? "Aap logout karna chahte hain?" : "Do you want to logout?",
+          [
+            { text: hi ? "Cancel" : "Cancel", style: "cancel" },
+            { text: hi ? "Logout" : "Logout", style: "destructive", onPress: onLogout }
+          ])} />
     </ScrollView>
   );
 }
@@ -3111,18 +3148,10 @@ function OtaStatusBanner() {
 
 
 // ── Dashboard Screen ──────────────────────────────────────
-function DashboardScreen({ token, user, onLogout }) {
+function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
   const [activeTab, setActiveTab] = useState("home");
-  const [lang, setLang] = useState("en");
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const savedLang = await AsyncStorage.getItem("okai_lang");
-        if (savedLang === "hi" || savedLang === "en") setLang(savedLang);
-      } catch {}
-    })();
-  }, []);
+  const lang = initialLang || "en";
+  const setLang = onLangChange || (() => {});
   const [subStatus, setSubStatus] = useState(null);
   const [userFresh, setUserFresh] = useState(user);
 
@@ -3196,7 +3225,7 @@ function DashboardScreen({ token, user, onLogout }) {
 
         {activeTab === "home" && (
           <HomeTab user={userFresh} subStatus={subStatus} token={token}
-            setActiveTab={setActiveTab} onSubscribe={() => setActiveTab("more")} />
+            setActiveTab={setActiveTab} onSubscribe={() => setActiveTab("more")} lang={lang} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
         {activeTab === "markets" && <MarketsTab token={token} lang={lang} />}
@@ -3204,8 +3233,8 @@ function DashboardScreen({ token, user, onLogout }) {
         {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
         {activeTab === "more" && <MoreTab token={token} user={userFresh} lang={lang} setLang={setLang} isAdmin={isAdmin} setActiveTab={setActiveTab} />}
         {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
-        {activeTab === "bot" && <BotTab token={token} />}
-        {activeTab === "broker" && <BrokerTab token={token} />}
+        {activeTab === "bot" && <BotTab token={token} lang={lang} />}
+        {activeTab === "broker" && <BrokerTab token={token} lang={lang} />}
         {activeTab === "telegram" && <TelegramTab token={token} />}
         {activeTab === "livefeed" && <LiveFeedTab token={token} />}
         {activeTab === "servertest" && <ServerTestTab token={token} />}
@@ -3215,10 +3244,10 @@ function DashboardScreen({ token, user, onLogout }) {
             onSuccess={refreshUser} />
         )}
         {activeTab === "admin" && isAdmin && (
-          <AdminTab token={token} user={userFresh} />
+          <AdminTab token={token} user={userFresh} lang={lang} />
         )}
         {activeTab === "account" && (
-          <TabErrorBoundary><AccountTab user={userFresh} subStatus={subStatus} onLogout={onLogout} onRefresh={refreshUser} /></TabErrorBoundary>
+          <TabErrorBoundary><AccountTab user={userFresh} subStatus={subStatus} onLogout={onLogout} onRefresh={refreshUser} lang={lang} /></TabErrorBoundary>
         )}
       </ScrollView>
 
@@ -3246,12 +3275,14 @@ function InnerApp() {
   const [screen, setScreen] = useState("loading");
   const [token, setToken]   = useState(null);
   const [user, setUser]     = useState(null);
+  const [lang, setLang]     = useState("en");
 
   useEffect(() => {
     (async () => {
       try {
-        const [[, savedToken], [, savedUser]] =
-          await AsyncStorage.multiGet(["saas_token", "saas_user"]);
+        const [[, savedToken], [, savedUser], [, savedLang]] =
+          await AsyncStorage.multiGet(["saas_token", "saas_user", "okai_lang"]);
+        if (savedLang === "hi" || savedLang === "en") setLang(savedLang);
         if (savedToken && savedUser) {
           setToken(savedToken);
           setUser(JSON.parse(savedUser));
@@ -3266,6 +3297,11 @@ function InnerApp() {
       } catch { setScreen("login"); }
     })();
   }, []);
+
+  async function changeLang(next) {
+    setLang(next);
+    try { await AsyncStorage.setItem("okai_lang", next); } catch {}
+  }
 
   function handleLogin(t, u) {
     setToken(t); setUser(u); setScreen("dashboard");
@@ -3291,14 +3327,14 @@ function InnerApp() {
   }
   if (screen === "register") {
     return <RegisterScreen onLogin={handleLogin}
-      onBack={() => setScreen("login")} />;
+      onBack={() => setScreen("login")} lang={lang} setLang={changeLang} />;
   }
   if (screen === "login") {
     return <LoginScreen onLogin={handleLogin}
-      onRegister={() => setScreen("register")} />;
+      onRegister={() => setScreen("register")} lang={lang} setLang={changeLang} />;
   }
   return <DashboardScreen token={token} user={user}
-    onLogout={handleLogout} />;
+    onLogout={handleLogout} initialLang={lang} onLangChange={changeLang} />;
 }
 
 // ── Styles ────────────────────────────────────────────────
