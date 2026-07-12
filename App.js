@@ -2534,12 +2534,13 @@ function MoreTab({ token, user, lang, setLang, isAdmin, setActiveTab }) {
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
           textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Tools</Text>
         {[
-          ["Broker Credentials", "🔗", "broker"],
-          ["Telegram Settings", "🔔", "telegram"],
-          ["Backtest", "🧪", "backtest"],
-          ["Live Price / Feed", "📡", "livefeed"],
-          ["Server Test", "🖥️", "servertest"],
-          ["Hero Zero Mode", "🚀", "herozero"],
+          [hi ? "Broker Credentials" : "Broker Credentials", "🔗", "broker"],
+          [hi ? "Telegram Settings" : "Telegram Settings", "🔔", "telegram"],
+          [hi ? "Backtest" : "Backtest", "🧪", "backtest"],
+          [hi ? "Live Price / Feed" : "Live Price / Feed", "📡", "livefeed"],
+          [hi ? "Server Test" : "Server Test", "🖥️", "servertest"],
+          [hi ? "Hero Zero Mode" : "Hero Zero Mode", "🚀", "herozero"],
+          [hi ? "App Guide" : "App Guide", "📘", "guide"],
         ].map(([label, icon, tab]) => (
           <TouchableOpacity key={tab} onPress={() => setActiveTab && setActiveTab(tab)}
             style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12,
@@ -2774,6 +2775,204 @@ function GuideTab({ lang, setLang }) {
             </Text>
           </View>
         ))}
+      </Card>
+
+      <Card glow={C.blue}>
+        <Text style={{ color: C.text, fontSize: 20, fontWeight: "900", marginBottom: 6 }}>
+          🔗 {isHi ? "ब्रोकर सेटअप गाइड" : "Broker Setup Guide"}
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12, marginBottom: 16 }}>
+          {isHi
+            ? "हर ब्रोकर के लिए रजिस्ट्रेशन से लेकर क्रेडेंशियल्स भरने तक पूरे चरण।"
+            : "Full steps from registration to filling in credentials, for each broker."}
+        </Text>
+
+        {/* Angel One */}
+        <Text style={{ color: C.blue, fontSize: 15, fontWeight: "900", marginBottom: 8 }}>
+          🅰️ Angel One {isHi ? "(मुफ़्त)" : "(Free)"}
+        </Text>
+        {(isHi ? [
+          ["1. Account खोलें", "angelone.in पर जाकर demat account खोलें और F&O trading permission चालू करवाएं।"],
+          ["2. SmartAPI Register", "smartapi.angelbroking.com पर जाएं और Sign Up करें (अलग से, demat account से अलग)।"],
+          ["3. App बनाएं", "Login के बाद 'Create New App' दबाएं। App type 'Personal' चुनें। App का कोई भी नाम दें।"],
+          ["4. API Key कॉपी करें", "App बनने के बाद उसकी 'API Key' दिखेगी — उसे कॉपी करके ऐप के 'API Key' फ़ील्ड में डालें।"],
+          ["5. Client ID", "यह आपका Angel One login ID है (जैसे A123456), जो आपको account खोलते समय मिला था।"],
+          ["6. MPIN / API Secret", "आपका 4-digit MPIN जो आप Angel One app में login के लिए इस्तेमाल करते हैं, वही यहाँ डालें।"],
+          ["7. TOTP Secret", "Angel One app → Profile → Security खोलें। 'Enable TOTP' पर जाएं — वहाँ एक secret key (QR code के नीचे text रूप में) मिलेगी। उसे कॉपी करके 'TOTP Key' फ़ील्ड में डालें।"],
+        ] : [
+          ["1. Open Account", "Go to angelone.in and open a demat account. Make sure F&O trading permission is enabled."],
+          ["2. SmartAPI Register", "Go to smartapi.angelbroking.com and Sign Up separately (this is different from your demat account login)."],
+          ["3. Create App", "After logging in, click 'Create New App'. Choose app type 'Personal'. Give it any name."],
+          ["4. Copy API Key", "Once the app is created, its 'API Key' will be shown — copy it into the app's 'API Key' field."],
+          ["5. Client ID", "This is your Angel One login ID (e.g. A123456), given when you opened your account."],
+          ["6. MPIN / API Secret", "Enter the 4-digit MPIN you use to log into the Angel One app."],
+          ["7. TOTP Secret", "Open Angel One app → Profile → Security. Go to 'Enable TOTP' — you'll find a secret key (shown as text below the QR code). Copy it into the 'TOTP Key' field."],
+        ]).map(([t, d], i) => (
+          <View key={"ao"+i} style={{ marginBottom: 10 }}>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: "800" }}>{t}</Text>
+            <Text style={{ color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 2 }}>{d}</Text>
+          </View>
+        ))}
+
+        <View style={{ height: 1, backgroundColor: C.border, marginVertical: 14 }} />
+
+        {/* Zerodha */}
+        <Text style={{ color: C.gold, fontSize: 15, fontWeight: "900", marginBottom: 8 }}>
+          🅩 Zerodha {isHi ? "(₹2000/महीना - सशुल्क)" : "(₹2000/month - Paid)"}
+        </Text>
+        {(isHi ? [
+          ["1. Account खोलें", "zerodha.com पर demat account खोलें और F&O permission चालू करवाएं।"],
+          ["2. Kite Connect Subscribe", "developers.kite.trade पर जाकर ₹2000/महीना का प्लान subscribe करें (ज़रूरी है, बिना subscription के API काम नहीं करेगा)।"],
+          ["3. App बनाएं", "developers.kite.trade/apps पर 'Create new app' दबाएं। Redirect URL में http://127.0.0.1 डालें।"],
+          ["4. API Key और Secret", "App बनने के बाद 'API Key' और 'API Secret' दोनों मिलेंगे — दोनों कॉपी कर लें।"],
+          ["5. रोज़ाना Login (ज़रूरी)", "Zerodha का access token हर दिन बदलता है — रोज़ एक बार browser में login करके नया access token लेना होगा, फिर उसे 'API Secret (Access Token)' फ़ील्ड में डालना होगा।"],
+          ["6. Client ID", "यह आपकी Zerodha User ID है (जैसे ZZ1234), जो login screen पर दिखती है।"],
+        ] : [
+          ["1. Open Account", "Open a demat account at zerodha.com and enable F&O permission."],
+          ["2. Subscribe Kite Connect", "Go to developers.kite.trade and subscribe to the ₹2000/month plan (required — the API won't work without a subscription)."],
+          ["3. Create App", "On developers.kite.trade/apps, click 'Create new app'. Set the Redirect URL to http://127.0.0.1."],
+          ["4. API Key and Secret", "Once created, you'll get both an 'API Key' and 'API Secret' — copy both."],
+          ["5. Daily Login (Required)", "Zerodha's access token changes every day — you must log in via browser once a day to get a fresh access token, then paste it into the 'API Secret (Access Token)' field."],
+          ["6. Client ID", "This is your Zerodha User ID (e.g. ZZ1234), shown on the login screen."],
+        ]).map(([t, d], i) => (
+          <View key={"zd"+i} style={{ marginBottom: 10 }}>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: "800" }}>{t}</Text>
+            <Text style={{ color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 2 }}>{d}</Text>
+          </View>
+        ))}
+
+        <View style={{ height: 1, backgroundColor: C.border, marginVertical: 14 }} />
+
+        {/* Upstox */}
+        <Text style={{ color: C.green, fontSize: 15, fontWeight: "900", marginBottom: 8 }}>
+          🅄 Upstox {isHi ? "(मुफ़्त)" : "(Free)"}
+        </Text>
+        {(isHi ? [
+          ["1. Account खोलें", "upstox.com पर demat account खोलें और F&O trading enable करवाएं।"],
+          ["2. Developer App बनाएं", "developer.upstox.com पर login करें और 'Create App' दबाएं। Redirect URI में http://localhost डालें।"],
+          ["3. API Key और Secret", "App बनने पर 'API Key' (यही Client ID भी है) और 'API Secret' मिलेंगे — दोनों कॉपी कर लें।"],
+          ["4. रोज़ाना Login (ज़रूरी)", "Upstox का access token हर दिन expire होता है — रोज़ एक बार browser में login/authorize करके नया access token लेना होगा, फिर उसे 'API Secret (Access Token)' फ़ील्ड में डालना होगा।"],
+          ["5. Client ID", "यह वही 'API Key' है जो App बनाते समय मिली थी।"],
+        ] : [
+          ["1. Open Account", "Open a demat account at upstox.com and enable F&O trading."],
+          ["2. Create Developer App", "Log in at developer.upstox.com and click 'Create App'. Set the Redirect URI to http://localhost."],
+          ["3. API Key and Secret", "Once created, you'll get an 'API Key' (this also serves as Client ID) and an 'API Secret' — copy both."],
+          ["4. Daily Login (Required)", "Upstox's access token expires every day — you must log in/authorize via browser once a day to get a fresh access token, then paste it into the 'API Secret (Access Token)' field."],
+          ["5. Client ID", "This is the same 'API Key' you got when creating the app."],
+        ]).map(([t, d], i) => (
+          <View key={"up"+i} style={{ marginBottom: 10 }}>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: "800" }}>{t}</Text>
+            <Text style={{ color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 2 }}>{d}</Text>
+          </View>
+        ))}
+
+        <View style={{ backgroundColor: C.goldLo, borderRadius: 10, padding: 10, marginTop: 6,
+          borderWidth: 1, borderColor: C.gold+"44" }}>
+          <Text style={{ color: C.gold, fontSize: 12, fontWeight: "700", lineHeight: 18 }}>
+            {isHi
+              ? "💡 ध्यान दें: फॉर्म हर बार खाली दिखता है (सुरक्षा कारणों से पुराना डेटा वापस नहीं दिखाया जाता)। इसलिए हर बार Save करते समय सभी फ़ील्ड भरनी होंगी — सिर्फ बदला हुआ फ़ील्ड नहीं।"
+              : "💡 Note: the form always appears empty (saved data is never shown back, for security). So every time you save, fill in all fields — not just the one that changed."}
+          </Text>
+        </View>
+      </Card>
+
+      <Card glow={C.blue}>
+        <Text style={{ color: C.text, fontSize: 20, fontWeight: "900", marginBottom: 6 }}>
+          🔗 {isHi ? "ब्रोकर सेटअप गाइड" : "Broker Setup Guide"}
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12, marginBottom: 16 }}>
+          {isHi
+            ? "हर ब्रोकर के लिए रजिस्ट्रेशन से लेकर क्रेडेंशियल्स भरने तक पूरे चरण।"
+            : "Full steps from registration to filling in credentials, for each broker."}
+        </Text>
+
+        {/* Angel One */}
+        <Text style={{ color: C.blue, fontSize: 15, fontWeight: "900", marginBottom: 8 }}>
+          🅰️ Angel One {isHi ? "(मुफ़्त)" : "(Free)"}
+        </Text>
+        {(isHi ? [
+          ["1. Account खोलें", "angelone.in पर जाकर demat account खोलें और F&O trading permission चालू करवाएं।"],
+          ["2. SmartAPI Register", "smartapi.angelbroking.com पर जाएं और Sign Up करें (अलग से, demat account से अलग)।"],
+          ["3. App बनाएं", "Login के बाद 'Create New App' दबाएं। App type 'Personal' चुनें। App का कोई भी नाम दें।"],
+          ["4. API Key कॉपी करें", "App बनने के बाद उसकी 'API Key' दिखेगी — उसे कॉपी करके ऐप के 'API Key' फ़ील्ड में डालें।"],
+          ["5. Client ID", "यह आपका Angel One login ID है (जैसे A123456), जो आपको account खोलते समय मिला था।"],
+          ["6. MPIN / API Secret", "आपका 4-digit MPIN जो आप Angel One app में login के लिए इस्तेमाल करते हैं, वही यहाँ डालें।"],
+          ["7. TOTP Secret", "Angel One app → Profile → Security खोलें। 'Enable TOTP' पर जाएं — वहाँ एक secret key (QR code के नीचे text रूप में) मिलेगी। उसे कॉपी करके 'TOTP Key' फ़ील्ड में डालें।"],
+        ] : [
+          ["1. Open Account", "Go to angelone.in and open a demat account. Make sure F&O trading permission is enabled."],
+          ["2. SmartAPI Register", "Go to smartapi.angelbroking.com and Sign Up separately (this is different from your demat account login)."],
+          ["3. Create App", "After logging in, click 'Create New App'. Choose app type 'Personal'. Give it any name."],
+          ["4. Copy API Key", "Once the app is created, its 'API Key' will be shown — copy it into the app's 'API Key' field."],
+          ["5. Client ID", "This is your Angel One login ID (e.g. A123456), given when you opened your account."],
+          ["6. MPIN / API Secret", "Enter the 4-digit MPIN you use to log into the Angel One app."],
+          ["7. TOTP Secret", "Open Angel One app → Profile → Security. Go to 'Enable TOTP' — you'll find a secret key (shown as text below the QR code). Copy it into the 'TOTP Key' field."],
+        ]).map(([t, d], i) => (
+          <View key={"ao"+i} style={{ marginBottom: 10 }}>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: "800" }}>{t}</Text>
+            <Text style={{ color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 2 }}>{d}</Text>
+          </View>
+        ))}
+
+        <View style={{ height: 1, backgroundColor: C.border, marginVertical: 14 }} />
+
+        {/* Zerodha */}
+        <Text style={{ color: C.gold, fontSize: 15, fontWeight: "900", marginBottom: 8 }}>
+          🅩 Zerodha {isHi ? "(₹2000/महीना - सशुल्क)" : "(₹2000/month - Paid)"}
+        </Text>
+        {(isHi ? [
+          ["1. Account खोलें", "zerodha.com पर demat account खोलें और F&O permission चालू करवाएं।"],
+          ["2. Kite Connect Subscribe", "developers.kite.trade पर जाकर ₹2000/महीना का प्लान subscribe करें (ज़रूरी है, बिना subscription के API काम नहीं करेगा)।"],
+          ["3. App बनाएं", "developers.kite.trade/apps पर 'Create new app' दबाएं। Redirect URL में http://127.0.0.1 डालें।"],
+          ["4. API Key और Secret", "App बनने के बाद 'API Key' और 'API Secret' दोनों मिलेंगे — दोनों कॉपी कर लें।"],
+          ["5. रोज़ाना Login (ज़रूरी)", "Zerodha का access token हर दिन बदलता है — रोज़ एक बार browser में login करके नया access token लेना होगा, फिर उसे 'API Secret (Access Token)' फ़ील्ड में डालना होगा।"],
+          ["6. Client ID", "यह आपकी Zerodha User ID है (जैसे ZZ1234), जो login screen पर दिखती है।"],
+        ] : [
+          ["1. Open Account", "Open a demat account at zerodha.com and enable F&O permission."],
+          ["2. Subscribe Kite Connect", "Go to developers.kite.trade and subscribe to the ₹2000/month plan (required — the API won't work without a subscription)."],
+          ["3. Create App", "On developers.kite.trade/apps, click 'Create new app'. Set the Redirect URL to http://127.0.0.1."],
+          ["4. API Key and Secret", "Once created, you'll get both an 'API Key' and 'API Secret' — copy both."],
+          ["5. Daily Login (Required)", "Zerodha's access token changes every day — you must log in via browser once a day to get a fresh access token, then paste it into the 'API Secret (Access Token)' field."],
+          ["6. Client ID", "This is your Zerodha User ID (e.g. ZZ1234), shown on the login screen."],
+        ]).map(([t, d], i) => (
+          <View key={"zd"+i} style={{ marginBottom: 10 }}>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: "800" }}>{t}</Text>
+            <Text style={{ color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 2 }}>{d}</Text>
+          </View>
+        ))}
+
+        <View style={{ height: 1, backgroundColor: C.border, marginVertical: 14 }} />
+
+        {/* Upstox */}
+        <Text style={{ color: C.green, fontSize: 15, fontWeight: "900", marginBottom: 8 }}>
+          🅄 Upstox {isHi ? "(मुफ़्त)" : "(Free)"}
+        </Text>
+        {(isHi ? [
+          ["1. Account खोलें", "upstox.com पर demat account खोलें और F&O trading enable करवाएं।"],
+          ["2. Developer App बनाएं", "developer.upstox.com पर login करें और 'Create App' दबाएं। Redirect URI में http://localhost डालें।"],
+          ["3. API Key और Secret", "App बनने पर 'API Key' (यही Client ID भी है) और 'API Secret' मिलेंगे — दोनों कॉपी कर लें।"],
+          ["4. रोज़ाना Login (ज़रूरी)", "Upstox का access token हर दिन expire होता है — रोज़ एक बार browser में login/authorize करके नया access token लेना होगा, फिर उसे 'API Secret (Access Token)' फ़ील्ड में डालना होगा।"],
+          ["5. Client ID", "यह वही 'API Key' है जो App बनाते समय मिली थी।"],
+        ] : [
+          ["1. Open Account", "Open a demat account at upstox.com and enable F&O trading."],
+          ["2. Create Developer App", "Log in at developer.upstox.com and click 'Create App'. Set the Redirect URI to http://localhost."],
+          ["3. API Key and Secret", "Once created, you'll get an 'API Key' (this also serves as Client ID) and an 'API Secret' — copy both."],
+          ["4. Daily Login (Required)", "Upstox's access token expires every day — you must log in/authorize via browser once a day to get a fresh access token, then paste it into the 'API Secret (Access Token)' field."],
+          ["5. Client ID", "This is the same 'API Key' you got when creating the app."],
+        ]).map(([t, d], i) => (
+          <View key={"up"+i} style={{ marginBottom: 10 }}>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: "800" }}>{t}</Text>
+            <Text style={{ color: C.muted, fontSize: 12, lineHeight: 18, marginTop: 2 }}>{d}</Text>
+          </View>
+        ))}
+
+        <View style={{ backgroundColor: C.goldLo, borderRadius: 10, padding: 10, marginTop: 6,
+          borderWidth: 1, borderColor: C.gold+"44" }}>
+          <Text style={{ color: C.gold, fontSize: 12, fontWeight: "700", lineHeight: 18 }}>
+            {isHi
+              ? "💡 ध्यान दें: फॉर्म हर बार खाली दिखता है (सुरक्षा कारणों से पुराना डेटा वापस नहीं दिखाया जाता)। इसलिए हर बार Save करते समय सभी फ़ील्ड भरनी होंगी — सिर्फ बदला हुआ फ़ील्ड नहीं।"
+              : "💡 Note: the form always appears empty (saved data is never shown back, for security). So every time you save, fill in all fields — not just the one that changed."}
+          </Text>
+        </View>
       </Card>
 
       <Card glow={C.red}>
