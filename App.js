@@ -1414,7 +1414,6 @@ function LiveFeedTab({ token }) {
 function ServerTestTab({ token }) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [monthlyProgress, setMonthlyProgress] = useState("");
 
   async function runTest() {
     setLoading(true);
@@ -2232,6 +2231,7 @@ function BacktestTab({ token, lang }) {
   const [capitalMsg, setCapitalMsg] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [monthlyProgress, setMonthlyProgress] = useState("");
 
   async function loadPaperCapital() {
     try {
