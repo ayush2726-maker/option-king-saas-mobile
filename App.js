@@ -1414,6 +1414,7 @@ function LiveFeedTab({ token }) {
 function ServerTestTab({ token }) {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [monthlyProgress, setMonthlyProgress] = useState("");
 
   async function runTest() {
     setLoading(true);
@@ -2298,15 +2299,61 @@ function BacktestTab({ token, lang }) {
     setLoading(false);
   }
 
+  async function pollMonthlyJob(jobId) {
+    for (let attempt = 0; attempt < 450; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+
+      const status = await apiGet(
+        `/backtest/monthly/status/${jobId}`,
+        token,
+      );
+
+      const completed = Number(status?.completed_days || 0);
+      const total = Number(status?.total_days || 0);
+      const currentDate = status?.current_date || "";
+
+      if (total > 0) {
+        setMonthlyProgress(
+          `Monthly backtest: ${completed}/${total} days${currentDate ? ` • ${currentDate}` : ""}`,
+        );
+      } else {
+        setMonthlyProgress(
+          status?.phase === "LOGIN_AND_DATA"
+            ? "Broker login aur historical data prepare ho raha hai..."
+            : "Monthly backtest background me chal raha hai...",
+        );
+      }
+
+      if (status?.status === "COMPLETED") {
+        setMonthlyProgress("✅ Monthly backtest complete");
+        return status.result;
+      }
+
+      if (
+        status?.status === "FAILED" ||
+        status?.status === "NOT_FOUND" ||
+        status?.status === "FORBIDDEN"
+      ) {
+        throw new Error(
+          status?.error ||
+          status?.message ||
+          "Monthly backtest failed",
+        );
+      }
+    }
+
+    throw new Error(
+      "Monthly backtest abhi bhi chal raha hai. Thodi der baad dobara check karein.",
+    );
+  }
+
   async function runBacktest() {
     setLoading(true);
     setResult(null);
+    setMonthlyProgress("");
 
     try {
       const isMonthly = period === "monthly";
-      const endpoint = isMonthly
-        ? "/backtest/monthly"
-        : "/backtest/run";
 
       const body = {
         instrument,
@@ -2317,21 +2364,61 @@ function BacktestTab({ token, lang }) {
         strategy_mode: strategyMode,
       };
 
-      if (isMonthly) body.month = month;
-      else body.date = date;
+      if (isMonthly) {
+        body.month = month;
 
-      const d = await apiPostAuth(endpoint, body, token);
-      setResult(d);
-    } catch {
+        setMonthlyProgress(
+          "Monthly backtest job start ho raha hai...",
+        );
+
+        const started = await apiPostAuth(
+          "/backtest/monthly",
+          body,
+          token,
+        );
+
+        if (!started?.success) {
+          throw new Error(
+            started?.message ||
+            started?.error ||
+            "Monthly job start failed",
+          );
+        }
+
+        if (started?.job_id) {
+          setMonthlyProgress(
+            "Monthly backtest background me start ho gaya...",
+          );
+          const finalResult = await pollMonthlyJob(
+            started.job_id,
+          );
+          setResult(finalResult);
+        } else {
+          // Backward compatibility with the old synchronous route.
+          setResult(started);
+        }
+      } else {
+        body.date = date;
+
+        const dailyResult = await apiPostAuth(
+          "/backtest/run",
+          body,
+          token,
+        );
+        setResult(dailyResult);
+      }
+    } catch (error) {
       setResult({
         success: false,
-        message: hi
-          ? "Backtest server error"
-          : "Backtest server error",
+        message:
+          error?.message ||
+          (hi
+            ? "Backtest server error"
+            : "Backtest server error"),
       });
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   const summary = result?.summary;
@@ -2766,7 +2853,8 @@ function BacktestTab({ token, lang }) {
             marginTop: 10,
             textAlign: "center",
           }}>
-            Monthly AUTO backtest me poore month ke trading days scan hote hain. Isme kuch minute lag sakte hain.
+            {monthlyProgress ||
+              "Monthly backtest background me chalega. Screen open rakhein; progress yahan dikhegi."}
           </Text>
         )}
       </Card>
