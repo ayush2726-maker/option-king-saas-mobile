@@ -2656,10 +2656,10 @@ function BacktestTab({ token, lang }) {
               fontSize: 10,
               lineHeight: 16,
             }}>
-              Tuesday Expiry • 14:30–15:00 Entry{"\n"}
-              15:25 Force Exit • Score 82 Fixed{"\n"}
-              Premium ₹0.50–₹10 • Capital Max ₹2,000{"\n"}
-              Maximum 1 Hero Zero Trade Per Day
+              NIFTY: Every Tuesday{"\n"}
+              BANKNIFTY: Last Tuesday • SENSEX: Thursday{"\n"}
+              14:30–15:00 Entry • 15:25 Force Exit{"\n"}
+              Score 82 • Premium ₹0.50–₹10 • Max ₹2,000
             </Text>
           </View>
         )}
@@ -2808,14 +2808,14 @@ function BacktestTab({ token, lang }) {
                 <>
                   Hero Zero: Score 82 • Capital Max ₹2,000{"\n"}
                   50% SL • 100% Target • Gamma Estimate{"\n"}
-                  Tuesday Only • Force Exit 15:25
+                  Instrument Expiry • Force Exit 15:25
                 </>
               )
               : strategyMode === "COMBINED"
               ? (
                 <>
                   Normal: 90% Capital • ATR Dynamic Exit{"\n"}
-                  Hero Zero: Max ₹2,000 • Tuesday Only{"\n"}
+                  Hero Zero: Expiry Calendar • Max ₹2,000{"\n"}
                   One Open Trade at a Time
                 </>
               )
