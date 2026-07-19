@@ -2222,6 +2222,7 @@ function BacktestTab({ token, lang }) {
   const currentMonth = today.slice(0, 7);
 
   const [period, setPeriod] = useState("daily");
+  const [strategyMode, setStrategyMode] = useState("NORMAL");
   const [instrument, setInstrument] = useState("AUTO");
   const [date, setDate] = useState(today);
   const [month, setMonth] = useState(currentMonth);
@@ -2313,6 +2314,7 @@ function BacktestTab({ token, lang }) {
         entry_threshold: 82,
         sl_percent: 0,
         target_percent: 0,
+        strategy_mode: strategyMode,
       };
 
       if (isMonthly) body.month = month;
@@ -2486,6 +2488,95 @@ function BacktestTab({ token, lang }) {
           ))}
         </Row>
 
+        <Text style={{
+          color: C.muted,
+          fontSize: 11,
+          fontWeight: "800",
+          marginBottom: 6,
+        }}>
+          Strategy Mode
+        </Text>
+
+        <View style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 12,
+        }}>
+          {[
+            ["NORMAL", "NORMAL"],
+            ["HERO_ZERO", "HERO ZERO"],
+            ["COMBINED", "COMBINED"],
+          ].map(([value, label]) => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => {
+                setStrategyMode(value);
+                setResult(null);
+              }}
+              style={{
+                width:
+                  value === "COMBINED"
+                    ? "100%"
+                    : "48%",
+                padding: 11,
+                borderRadius: 12,
+                backgroundColor:
+                  strategyMode === value
+                    ? C.orangeLo
+                    : C.s2,
+                borderWidth: 1,
+                borderColor:
+                  strategyMode === value
+                    ? C.orange
+                    : C.border,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{
+                color:
+                  strategyMode === value
+                    ? C.orange
+                    : C.muted,
+                fontWeight: "900",
+                fontSize: 11,
+              }}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {strategyMode !== "NORMAL" && (
+          <View style={{
+            backgroundColor: C.orangeLo,
+            borderWidth: 1,
+            borderColor: C.orange + "55",
+            borderRadius: 12,
+            padding: 10,
+            marginBottom: 10,
+          }}>
+            <Text style={{
+              color: C.orange,
+              fontSize: 11,
+              fontWeight: "900",
+              marginBottom: 4,
+            }}>
+              Hero Zero Protected Rules
+            </Text>
+            <Text style={{
+              color: C.muted,
+              fontSize: 10,
+              lineHeight: 16,
+            }}>
+              Tuesday Expiry • 14:30–15:00 Entry{"\n"}
+              15:25 Force Exit • Score 82 Fixed{"\n"}
+              Premium ₹0.50–₹10 • Capital Max ₹2,000{"\n"}
+              Maximum 1 Hero Zero Trade Per Day
+            </Text>
+          </View>
+        )}
+
         <View style={{
           backgroundColor: C.accentLo,
           borderWidth: 1,
@@ -2625,17 +2716,41 @@ function BacktestTab({ token, lang }) {
             fontSize: 11,
             lineHeight: 18,
           }}>
-            Score 82 Fixed • 90% Capital • Whole Lots{"\n"}
-            Pure ATR SL • Dynamic Profit Lock{"\n"}
-            True Opposite V2 • No Fixed Target
+            {strategyMode === "HERO_ZERO"
+              ? (
+                <>
+                  Hero Zero: Score 82 • Capital Max ₹2,000{"\n"}
+                  50% SL • 100% Target • Gamma Estimate{"\n"}
+                  Tuesday Only • Force Exit 15:25
+                </>
+              )
+              : strategyMode === "COMBINED"
+              ? (
+                <>
+                  Normal: 90% Capital • ATR Dynamic Exit{"\n"}
+                  Hero Zero: Max ₹2,000 • Tuesday Only{"\n"}
+                  One Open Trade at a Time
+                </>
+              )
+              : (
+                <>
+                  Score 82 Fixed • 90% Capital • Whole Lots{"\n"}
+                  Pure ATR SL • Dynamic Profit Lock{"\n"}
+                  True Opposite V2 • No Fixed Target
+                </>
+              )}
           </Text>
         </View>
 
         <Btn
           label={
-            period === "monthly"
-              ? "Run Monthly Backtest"
-              : "Run Daily Backtest"
+            `${strategyMode === "HERO_ZERO"
+              ? "Hero Zero "
+              : strategyMode === "COMBINED"
+              ? "Combined "
+              : ""}${period === "monthly"
+              ? "Monthly Backtest"
+              : "Daily Backtest"}`
           }
           icon="▶️"
           color={C.green}
@@ -2700,6 +2815,12 @@ function BacktestTab({ token, lang }) {
             ["Losses", summary.losses],
             ["Win Rate", `${summary.win_rate}%`],
             ["Starting Capital", `₹${summary.capital}`],
+            ...(summary.normal_pnl != null
+              ? [["Normal P&L", `₹${summary.normal_pnl}`]]
+              : []),
+            ...(summary.hero_zero_pnl != null
+              ? [["Hero Zero P&L", `₹${summary.hero_zero_pnl}`]]
+              : []),
             [
               "Ending Capital",
               `₹${summary.ending_capital ?? result?.ending_capital ?? "--"}`,
@@ -2812,6 +2933,16 @@ function BacktestTab({ token, lang }) {
                 Trades {day.trades || 0} • W/L {day.wins || 0}/{day.losses || 0}
               </Text>
 
+              {(day.normal_pnl != null || day.hero_zero_pnl != null) && (
+                <Text style={{
+                  color: C.muted,
+                  fontSize: 10,
+                  marginTop: 3,
+                }}>
+                  Normal ₹{day.normal_pnl || 0} • Hero Zero ₹{day.hero_zero_pnl || 0}
+                </Text>
+              )}
+
               <Text style={{
                 color:
                   Number(day.pnl || 0) >= 0
@@ -2890,7 +3021,7 @@ function BacktestTab({ token, lang }) {
                 fontSize: 11,
                 marginTop: 4,
               }}>
-                Score {trade.score ?? "--"} • Entry {tradeEntry(trade)} → Exit {tradeExit(trade)}
+                {trade.strategy || result?.strategy_mode || "NORMAL"} • Score {trade.score ?? "--"} • Entry {tradeEntry(trade)} → Exit {tradeExit(trade)}
               </Text>
 
               <Text style={{
