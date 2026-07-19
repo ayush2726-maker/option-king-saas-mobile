@@ -2219,13 +2219,15 @@ function BotTab({ token, lang }) {
 function BacktestTab({ token, lang }) {
   const hi = lang === "hi";
   const today = new Date().toISOString().slice(0, 10);
-  const [instrument, setInstrument] = useState("NIFTY");
+  const currentMonth = today.slice(0, 7);
+
+  const [period, setPeriod] = useState("daily");
+  const [instrument, setInstrument] = useState("AUTO");
   const [date, setDate] = useState(today);
+  const [month, setMonth] = useState(currentMonth);
   const [capital, setCapital] = useState("100000");
   const [paperCapital, setPaperCapital] = useState("100000");
   const [capitalMsg, setCapitalMsg] = useState("");
-  // Protected automatic strategy settings:
-  // Entry score 82 + Pure ATR SL + Dynamic Profit Lock.
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -2245,15 +2247,25 @@ function BacktestTab({ token, lang }) {
     setLoading(true);
     try {
       const d = await apiPostAuth("/paper/capital", {
-        capital: Number((paperCapital || 100000)),
-        make_paper_mode: true
+        capital: Number(paperCapital || 100000),
+        make_paper_mode: true,
       }, token);
       const cap = String(d.paper_capital || paperCapital || 100000);
       setPaperCapital(cap);
       setCapital(cap);
-      setCapitalMsg("✅ " + (hi ? "Paper capital update ho gaya" : "Paper capital updated"));
+      setCapitalMsg(
+        "✅ " + (
+          hi
+            ? "Paper capital update ho gaya"
+            : "Paper capital updated"
+        )
+      );
     } catch {
-      setCapitalMsg(hi ? "Paper capital update failed" : "Paper capital update failed");
+      setCapitalMsg(
+        hi
+          ? "Paper capital update failed"
+          : "Paper capital update failed"
+      );
     }
     setLoading(false);
   }
@@ -2263,14 +2275,24 @@ function BacktestTab({ token, lang }) {
     setLoading(true);
     try {
       const d = await apiPostAuth("/paper/reset", {
-        capital: Number((paperCapital || 100000))
+        capital: Number(paperCapital || 100000),
       }, token);
       const cap = String(d.paper_capital || paperCapital || 100000);
       setPaperCapital(cap);
       setCapital(cap);
-      setCapitalMsg("✅ " + (hi ? "Paper account reset ho gaya" : "Paper account reset"));
+      setCapitalMsg(
+        "✅ " + (
+          hi
+            ? "Paper account reset ho gaya"
+            : "Paper account reset"
+        )
+      );
     } catch {
-      setCapitalMsg(hi ? "Paper reset failed" : "Paper reset failed");
+      setCapitalMsg(
+        hi
+          ? "Paper reset failed"
+          : "Paper reset failed"
+      );
     }
     setLoading(false);
   }
@@ -2278,85 +2300,309 @@ function BacktestTab({ token, lang }) {
   async function runBacktest() {
     setLoading(true);
     setResult(null);
+
     try {
-      const d = await apiPostAuth("/backtest/run", {
+      const isMonthly = period === "monthly";
+      const endpoint = isMonthly
+        ? "/backtest/monthly"
+        : "/backtest/run";
+
+      const body = {
         instrument,
-        date,
         capital: Number(capital || paperCapital || 100000),
         entry_threshold: 82,
         sl_percent: 0,
         target_percent: 0,
-      }, token);
+      };
+
+      if (isMonthly) body.month = month;
+      else body.date = date;
+
+      const d = await apiPostAuth(endpoint, body, token);
       setResult(d);
     } catch {
-      setResult({ success: false, message: hi ? "Backtest server error" : "Backtest server error" });
+      setResult({
+        success: false,
+        message: hi
+          ? "Backtest server error"
+          : "Backtest server error",
+      });
     }
+
     setLoading(false);
   }
 
   const summary = result?.summary;
+  const isMonthlyResult =
+    result?.period === "MONTHLY" ||
+    summary?.period === "MONTHLY";
+
+  function tradeTitle(t) {
+    const tradeDate =
+      t.date ||
+      String(t.entry_time || "").slice(0, 10) ||
+      "--";
+    const entryTime =
+      String(t.entry_time || t.time || "")
+        .split("T")[1]
+        ?.slice(0, 5) || "";
+    const symbol =
+      t.instrument ||
+      String(t.symbol || "").split(" ")[0] ||
+      instrument;
+
+    return `${tradeDate}${entryTime ? " " + entryTime : ""} • ${symbol} ${t.side || ""}`;
+  }
+
+  function tradeEntry(t) {
+    return t.entry_price ?? t.entry ?? "--";
+  }
+
+  function tradeExit(t) {
+    return t.exit_price ?? t.exit ?? "--";
+  }
 
   return (
-    <ScrollView style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
-
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{
+        padding: 16,
+        gap: 12,
+        paddingBottom: 100,
+      }}
+    >
       <Card glow={C.green}>
-        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
+        <Text style={{
+          color: C.text,
+          fontSize: 18,
+          fontWeight: "900",
+          marginBottom: 6,
+        }}>
           💰 {hi ? "Paper Capital" : "Paper Capital"}
         </Text>
-        <Text style={{ color: C.muted, fontSize: 12, marginBottom: 12 }}>
-          {hi ? "Paper mode aur Backtest dono ke liye capital update karo." : "Update capital for Paper Mode and Backtest."}
+
+        <Text style={{
+          color: C.muted,
+          fontSize: 12,
+          marginBottom: 12,
+        }}>
+          {hi
+            ? "Paper mode aur Backtest dono ke liye capital update karo."
+            : "Update capital for Paper Mode and Backtest."}
         </Text>
 
-        <TextInput style={[st.input, { marginBottom: 12 }]}
+        <TextInput
+          style={[st.input, { marginBottom: 12 }]}
           value={paperCapital}
-          onChangeText={(v) => { setPaperCapital(v); setCapital(v); }}
+          onChangeText={(value) => {
+            setPaperCapital(value);
+            setCapital(value);
+          }}
           keyboardType="numeric"
           placeholder="100000"
-          placeholderTextColor={C.muted} />
+          placeholderTextColor={C.muted}
+        />
 
         <Row style={{ gap: 10 }}>
-          <Btn label={hi ? "Update" : "Update"} icon="💾" color={C.green}
-            loading={loading} onPress={savePaperCapital} style={{ flex: 1 }} />
-          <Btn label={hi ? "Reset P&L" : "Reset P&L"} icon="♻️" color={C.gold}
-            onPress={resetPaperCapital} style={{ flex: 1 }} />
+          <Btn
+            label="Update"
+            icon="💾"
+            color={C.green}
+            loading={loading}
+            onPress={savePaperCapital}
+            style={{ flex: 1 }}
+          />
+          <Btn
+            label="Reset P&L"
+            icon="♻️"
+            color={C.gold}
+            onPress={resetPaperCapital}
+            style={{ flex: 1 }}
+          />
         </Row>
 
         {!!capitalMsg && (
-          <Text style={{ color: capitalMsg.includes("✅") ? C.green : C.red,
-            marginTop: 10, fontWeight: "900", fontSize: 12 }}>{capitalMsg}</Text>
+          <Text style={{
+            color: capitalMsg.includes("✅")
+              ? C.green
+              : C.red,
+            marginTop: 10,
+            fontWeight: "900",
+            fontSize: 12,
+          }}>
+            {capitalMsg}
+          </Text>
         )}
       </Card>
 
       <Card glow={C.purple}>
-        <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
+        <Text style={{
+          color: C.text,
+          fontSize: 18,
+          fontWeight: "900",
+          marginBottom: 12,
+        }}>
           🧪 {hi ? "Backtest Strategy" : "Backtest Strategy"}
         </Text>
 
-        <Row style={{ gap: 8, marginBottom: 10 }}>
-          {["NIFTY", "BANKNIFTY", "SENSEX"].map(x => (
-            <TouchableOpacity key={x} onPress={() => setInstrument(x)}
-              style={{ flex: 1, padding: 12, borderRadius: 12,
-                backgroundColor: instrument===x ? C.accentLo : C.s2,
+        <Row style={{ gap: 8, marginBottom: 12 }}>
+          {[
+            ["daily", "DAILY"],
+            ["monthly", "MONTHLY"],
+          ].map(([value, label]) => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => {
+                setPeriod(value);
+                setResult(null);
+              }}
+              style={{
+                flex: 1,
+                padding: 12,
+                borderRadius: 12,
+                backgroundColor:
+                  period === value
+                    ? C.blueLo
+                    : C.s2,
                 borderWidth: 1,
-                borderColor: instrument===x ? C.accent : C.border,
-                alignItems: "center" }}>
-              <Text style={{ color: instrument===x ? C.accent : C.muted,
-                fontWeight: "900", fontSize: 11 }}>{x}</Text>
+                borderColor:
+                  period === value
+                    ? C.blue
+                    : C.border,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{
+                color:
+                  period === value
+                    ? C.blue
+                    : C.muted,
+                fontWeight: "900",
+                fontSize: 12,
+              }}>
+                {label}
+              </Text>
             </TouchableOpacity>
           ))}
         </Row>
 
-        {[
-          [hi ? "Date YYYY-MM-DD" : "Date YYYY-MM-DD", date, setDate, "default"],
-          [hi ? "Backtest Capital" : "Backtest Capital", capital, setCapital, "numeric"],
-        ].map(([label, val, setter, kb]) => (
-          <View key={label} style={{ marginBottom: 10 }}>
-            <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>{label}</Text>
-            <TextInput style={st.input} value={val} onChangeText={setter}
-              keyboardType={kb} placeholderTextColor={C.muted} />
-          </View>
-        ))}
+        <View style={{
+          backgroundColor: C.accentLo,
+          borderWidth: 1,
+          borderColor: C.accent + "55",
+          borderRadius: 12,
+          padding: 10,
+          marginBottom: 10,
+        }}>
+          <Text style={{
+            color: C.accent,
+            fontSize: 11,
+            fontWeight: "900",
+            marginBottom: 3,
+          }}>
+            AUTO = NIFTY + BANKNIFTY + SENSEX
+          </Text>
+          <Text style={{
+            color: C.muted,
+            fontSize: 10,
+            lineHeight: 16,
+          }}>
+            Jahan pehla valid 82+ setup milega wahi trade select hogi. Ek time par sirf ek trade.
+          </Text>
+        </View>
+
+        <View style={{
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 10,
+        }}>
+          {[
+            "AUTO",
+            "NIFTY",
+            "BANKNIFTY",
+            "SENSEX",
+          ].map((value) => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => setInstrument(value)}
+              style={{
+                width: "48%",
+                padding: 12,
+                borderRadius: 12,
+                backgroundColor:
+                  instrument === value
+                    ? C.accentLo
+                    : C.s2,
+                borderWidth: 1,
+                borderColor:
+                  instrument === value
+                    ? C.accent
+                    : C.border,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{
+                color:
+                  instrument === value
+                    ? C.accent
+                    : C.muted,
+                fontWeight: "900",
+                fontSize: 11,
+              }}>
+                {value}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={{ marginBottom: 10 }}>
+          <Text style={{
+            color: C.muted,
+            fontSize: 11,
+            fontWeight: "800",
+            marginBottom: 5,
+          }}>
+            {period === "monthly"
+              ? "Month YYYY-MM"
+              : "Date YYYY-MM-DD"}
+          </Text>
+
+          <TextInput
+            style={st.input}
+            value={
+              period === "monthly"
+                ? month
+                : date
+            }
+            onChangeText={
+              period === "monthly"
+                ? setMonth
+                : setDate
+            }
+            keyboardType="default"
+            placeholderTextColor={C.muted}
+          />
+        </View>
+
+        <View style={{ marginBottom: 10 }}>
+          <Text style={{
+            color: C.muted,
+            fontSize: 11,
+            fontWeight: "800",
+            marginBottom: 5,
+          }}>
+            Backtest Capital
+          </Text>
+
+          <TextInput
+            style={st.input}
+            value={capital}
+            onChangeText={setCapital}
+            keyboardType="numeric"
+            placeholderTextColor={C.muted}
+          />
+        </View>
 
         <View style={{
           backgroundColor: C.greenLo,
@@ -2379,59 +2625,292 @@ function BacktestTab({ token, lang }) {
             fontSize: 11,
             lineHeight: 18,
           }}>
-            Score 82 Fixed • Pure ATR SL • Dynamic Profit Lock{"\n"}
-            True Opposite V2 Exit • No Fixed Target
+            Score 82 Fixed • 90% Capital • Whole Lots{"\n"}
+            Pure ATR SL • Dynamic Profit Lock{"\n"}
+            True Opposite V2 • No Fixed Target
           </Text>
         </View>
 
-        <Btn label={hi ? "Run Backtest" : "Run Backtest"} icon="▶️" color={C.green}
-          loading={loading} onPress={runBacktest} />
+        <Btn
+          label={
+            period === "monthly"
+              ? "Run Monthly Backtest"
+              : "Run Daily Backtest"
+          }
+          icon="▶️"
+          color={C.green}
+          loading={loading}
+          onPress={runBacktest}
+        />
+
+        {period === "monthly" && loading && (
+          <Text style={{
+            color: C.gold,
+            fontSize: 11,
+            lineHeight: 17,
+            marginTop: 10,
+            textAlign: "center",
+          }}>
+            Monthly AUTO backtest me poore month ke trading days scan hote hain. Isme kuch minute lag sakte hain.
+          </Text>
+        )}
       </Card>
 
+      {result?.success === false && (
+        <ErrorBox
+          msg={
+            result?.message ||
+            result?.error ||
+            "Backtest failed"
+          }
+        />
+      )}
+
       {summary && (
-        <Card glow={summary.net_pnl >= 0 ? C.green : C.red}>
-          <Text style={{ color: C.text, fontSize: 16, fontWeight: "900", marginBottom: 12 }}>
-            📌 {hi ? "Backtest Result" : "Backtest Result"}
+        <Card
+          glow={
+            Number(summary.net_pnl || 0) >= 0
+              ? C.green
+              : C.red
+          }
+        >
+          <Text style={{
+            color: C.text,
+            fontSize: 16,
+            fontWeight: "900",
+            marginBottom: 12,
+          }}>
+            📌 {isMonthlyResult
+              ? "Monthly Result"
+              : "Backtest Result"}
           </Text>
+
           {[
+            ...(isMonthlyResult
+              ? [
+                  ["Month", summary.month || result?.month],
+                  ["Tested Days", summary.tested_days],
+                  ["Skipped Days", summary.skipped_days],
+                  ["Winning Days", summary.winning_days],
+                  ["Losing Days", summary.losing_days],
+                ]
+              : []),
             ["Trades", summary.trades],
             ["Wins", summary.wins],
             ["Losses", summary.losses],
             ["Win Rate", `${summary.win_rate}%`],
-            ["Capital", `₹${summary.capital}`],
+            ["Starting Capital", `₹${summary.capital}`],
+            [
+              "Ending Capital",
+              `₹${summary.ending_capital ?? result?.ending_capital ?? "--"}`,
+            ],
             ["Net P&L", `₹${summary.net_pnl}`],
-          ].map(([k, v]) => (
-            <Row key={k} style={{ justifyContent: "space-between",
-              paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.border }}>
-              <Text style={{ color: C.muted, fontSize: 12 }}>{k}</Text>
-              <Text style={{ color: k==="Net P&L" ? (summary.net_pnl>=0?C.green:C.red) : C.text,
-                fontWeight: "900", fontSize: 13 }}>{v}</Text>
+            ...(isMonthlyResult
+              ? [
+                  [
+                    "Max Drawdown",
+                    `₹${summary.max_drawdown} (${summary.max_drawdown_percent}%)`,
+                  ],
+                ]
+              : []),
+          ].map(([key, value]) => (
+            <Row
+              key={key}
+              style={{
+                justifyContent: "space-between",
+                paddingVertical: 6,
+                borderBottomWidth: 1,
+                borderBottomColor: C.border,
+              }}
+            >
+              <Text style={{
+                color: C.muted,
+                fontSize: 12,
+              }}>
+                {key}
+              </Text>
+              <Text style={{
+                color:
+                  key === "Net P&L"
+                    ? Number(summary.net_pnl || 0) >= 0
+                      ? C.green
+                      : C.red
+                    : C.text,
+                fontWeight: "900",
+                fontSize: 13,
+              }}>
+                {value ?? "--"}
+              </Text>
             </Row>
           ))}
-          <Text style={{ color: C.gold, fontSize: 11, marginTop: 10 }}>{summary.note}</Text>
+
+          {!!summary.note && (
+            <Text style={{
+              color: C.gold,
+              fontSize: 11,
+              marginTop: 10,
+              lineHeight: 17,
+            }}>
+              {summary.note}
+            </Text>
+          )}
+        </Card>
+      )}
+
+      {isMonthlyResult && result?.days?.length > 0 && (
+        <Card>
+          <Text style={{
+            color: C.sub,
+            fontSize: 10,
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: 1.2,
+            marginBottom: 12,
+          }}>
+            Day-wise Monthly Result
+          </Text>
+
+          {result.days.map((day, index) => (
+            <View
+              key={`${day.date}-${index}`}
+              style={{
+                paddingVertical: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: C.border,
+              }}
+            >
+              <Row style={{
+                justifyContent: "space-between",
+              }}>
+                <Text style={{
+                  color: C.text,
+                  fontWeight: "900",
+                  fontSize: 12,
+                }}>
+                  {day.date}
+                </Text>
+
+                <Tag
+                  label={day.status || "FLAT"}
+                  color={
+                    day.status === "PROFIT"
+                      ? C.green
+                      : day.status === "LOSS"
+                      ? C.red
+                      : day.status === "SKIPPED"
+                      ? C.gold
+                      : C.muted
+                  }
+                />
+              </Row>
+
+              <Text style={{
+                color: C.muted,
+                fontSize: 11,
+                marginTop: 5,
+              }}>
+                Trades {day.trades || 0} • W/L {day.wins || 0}/{day.losses || 0}
+              </Text>
+
+              <Text style={{
+                color:
+                  Number(day.pnl || 0) >= 0
+                    ? C.green
+                    : C.red,
+                fontSize: 12,
+                fontWeight: "900",
+                marginTop: 3,
+              }}>
+                P&L ₹{day.pnl || 0} • Capital ₹{day.capital_end}
+              </Text>
+
+              {!!day.message && (
+                <Text style={{
+                  color: C.gold,
+                  fontSize: 10,
+                  marginTop: 4,
+                }}>
+                  {day.message}
+                </Text>
+              )}
+            </View>
+          ))}
         </Card>
       )}
 
       {result?.trades?.length > 0 && (
         <Card>
-          <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-            textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>
-            {hi ? "Trade List" : "Trade List"}
+          <Text style={{
+            color: C.sub,
+            fontSize: 10,
+            fontWeight: "900",
+            textTransform: "uppercase",
+            letterSpacing: 1.2,
+            marginBottom: 12,
+          }}>
+            Trade List
           </Text>
-          {result.trades.map((t, i) => (
-            <View key={i} style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
-              <Row style={{ justifyContent: "space-between" }}>
-                <Text style={{ color: C.text, fontWeight: "900", fontSize: 12 }}>
-                  {t.time} • {t.instrument} {t.side}
+
+          {result.trades.map((trade, index) => (
+            <View
+              key={`${trade.date || ""}-${index}`}
+              style={{
+                paddingVertical: 10,
+                borderBottomWidth: 1,
+                borderBottomColor: C.border,
+              }}
+            >
+              <Row style={{
+                justifyContent: "space-between",
+              }}>
+                <Text style={{
+                  color: C.text,
+                  fontWeight: "900",
+                  fontSize: 12,
+                  flex: 1,
+                }}>
+                  {tradeTitle(trade)}
                 </Text>
-                <Text style={{ color: t.result==="WIN"?C.green:C.red, fontWeight: "900" }}>{t.result}</Text>
+
+                <Text style={{
+                  color:
+                    Number(trade.pnl || 0) >= 0
+                      ? C.green
+                      : C.red,
+                  fontWeight: "900",
+                }}>
+                  {Number(trade.pnl || 0) >= 0
+                    ? "WIN"
+                    : "LOSS"}
+                </Text>
               </Row>
-              <Text style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>
-                Score {t.score} • Entry {t.entry} → Exit {t.exit}
+
+              <Text style={{
+                color: C.muted,
+                fontSize: 11,
+                marginTop: 4,
+              }}>
+                Score {trade.score ?? "--"} • Entry {tradeEntry(trade)} → Exit {tradeExit(trade)}
               </Text>
-              <Text style={{ color: t.pnl>=0?C.green:C.red,
-                fontSize: 12, fontWeight: "900", marginTop: 3 }}>
-                P&L ₹{t.pnl} • {t.reason}
+
+              <Text style={{
+                color: C.muted,
+                fontSize: 10,
+                marginTop: 3,
+              }}>
+                {trade.lots ?? "--"} lots • Qty {trade.qty ?? "--"} • Used ₹{trade.capital_used ?? "--"}
+              </Text>
+
+              <Text style={{
+                color:
+                  Number(trade.pnl || 0) >= 0
+                    ? C.green
+                    : C.red,
+                fontSize: 12,
+                fontWeight: "900",
+                marginTop: 3,
+              }}>
+                P&L ₹{trade.pnl} • {trade.reason}
               </Text>
             </View>
           ))}
