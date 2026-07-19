@@ -2224,9 +2224,8 @@ function BacktestTab({ token, lang }) {
   const [capital, setCapital] = useState("100000");
   const [paperCapital, setPaperCapital] = useState("100000");
   const [capitalMsg, setCapitalMsg] = useState("");
-  const [entryScore, setEntryScore] = useState("82");
-  const [sl, setSl] = useState("12");
-  const [target, setTarget] = useState("24");
+  // Protected automatic strategy settings:
+  // Entry score 82 + Pure ATR SL + Dynamic Profit Lock.
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -2284,9 +2283,9 @@ function BacktestTab({ token, lang }) {
         instrument,
         date,
         capital: Number(capital || paperCapital || 100000),
-        entry_threshold: Number(entryScore || 82),
-        sl_percent: Number(sl || 12),
-        target_percent: Number(target || 24),
+        entry_threshold: 82,
+        sl_percent: 0,
+        target_percent: 0,
       }, token);
       setResult(d);
     } catch {
@@ -2351,9 +2350,6 @@ function BacktestTab({ token, lang }) {
         {[
           [hi ? "Date YYYY-MM-DD" : "Date YYYY-MM-DD", date, setDate, "default"],
           [hi ? "Backtest Capital" : "Backtest Capital", capital, setCapital, "numeric"],
-          [hi ? "Entry Score" : "Entry Score", entryScore, setEntryScore, "numeric"],
-          [hi ? "SL %" : "SL %", sl, setSl, "numeric"],
-          [hi ? "Target %" : "Target %", target, setTarget, "numeric"],
         ].map(([label, val, setter, kb]) => (
           <View key={label} style={{ marginBottom: 10 }}>
             <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>{label}</Text>
@@ -2361,6 +2357,32 @@ function BacktestTab({ token, lang }) {
               keyboardType={kb} placeholderTextColor={C.muted} />
           </View>
         ))}
+
+        <View style={{
+          backgroundColor: C.greenLo,
+          borderWidth: 1,
+          borderColor: C.green + "44",
+          borderRadius: 12,
+          padding: 12,
+          marginBottom: 12,
+        }}>
+          <Text style={{
+            color: C.green,
+            fontSize: 12,
+            fontWeight: "900",
+            marginBottom: 5,
+          }}>
+            Automatic Risk & Exit System
+          </Text>
+          <Text style={{
+            color: C.muted,
+            fontSize: 11,
+            lineHeight: 18,
+          }}>
+            Score 82 Fixed • Pure ATR SL • Dynamic Profit Lock{"\n"}
+            True Opposite V2 Exit • No Fixed Target
+          </Text>
+        </View>
 
         <Btn label={hi ? "Run Backtest" : "Run Backtest"} icon="▶️" color={C.green}
           loading={loading} onPress={runBacktest} />
