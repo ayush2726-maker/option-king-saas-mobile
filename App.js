@@ -9,6 +9,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 const AiDecisionCard = require("./src/components/AiDecisionCard");
 const StrategyBuilderTab = require("./src/screens/StrategyBuilderTab");
+const RecoveryScreen = require("./src/screens/RecoveryScreen").default;
 
 
 // ── Global crash catcher (temporary debug tool) ──────────────
@@ -209,6 +210,23 @@ function Btn({ label, icon, color, onPress, loading, style }) {
     </TouchableOpacity>
   );
 }
+function PasswordInput({ value, onChangeText, placeholder, style }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <View style={{ position: "relative" }}>
+      <TextInput style={[st.input, style, { paddingRight: 54 }]} value={value}
+        onChangeText={onChangeText} placeholder={placeholder}
+        placeholderTextColor={C.muted} secureTextEntry={!visible} />
+      <TouchableOpacity onPress={() => setVisible(!visible)}
+        accessibilityLabel={visible ? "Hide password" : "Show password"}
+        style={{ position: "absolute", right: 6, top: 3, width: 44, height: 43,
+          alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ fontSize: 18 }}>{visible ? "🙈" : "👁️"}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 function ErrorBox({ msg }) {
   if (!msg) return null;
   return (
@@ -230,7 +248,7 @@ function ProgressBar({ value, max, color }) {
 }
 
 // ── Login Screen ─────────────────────────────────────────
-function LoginScreen({ onLogin, onRegister, lang, setLang }) {
+function LoginScreen({ onLogin, onRegister, onRecovery, lang, setLang }) {
   const hi = lang === "hi";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -279,11 +297,18 @@ function LoginScreen({ onLogin, onRegister, lang, setLang }) {
             placeholderTextColor={C.muted} autoCapitalize="none"
             keyboardType="email-address" />
           <Label text={hi ? "Password" : "Password"} />
-          <TextInput style={st.input} value={password}
-            onChangeText={setPassword} placeholder="Password"
-            placeholderTextColor={C.muted} secureTextEntry />
+          <PasswordInput value={password} onChangeText={setPassword}
+            placeholder="Password" />
           <Btn label={hi ? "Login Karo" : "Login"} icon="🔑" onPress={handleLogin}
             loading={loading} style={{ marginTop: 4 }} />
+          <Row style={{ justifyContent: "center", gap: 22, marginTop: 16 }}>
+            <TouchableOpacity onPress={() => onRecovery && onRecovery("loginId")}>
+              <Text style={{ color: C.blue, fontSize: 12, fontWeight: "900" }}>Forgot Login ID</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => onRecovery && onRecovery("password")}>
+              <Text style={{ color: C.green, fontSize: 12, fontWeight: "900" }}>Forgot Password</Text>
+            </TouchableOpacity>
+          </Row>
         </Card>
         <TouchableOpacity onPress={onRegister}
           style={{ marginTop: 16, alignItems: "center" }}>
@@ -313,6 +338,64 @@ function RegisterScreen({ onLogin, onBack, lang }) {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [showFullTerms, setShowFullTerms] = useState(false);
+  const [emailOtpAvailable, setEmailOtpAvailable] = useState(false);
+  const [emailOtp, setEmailOtp] = useState("");
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [emailVerificationToken, setEmailVerificationToken] = useState("");
+  const [emailOtpLoading, setEmailOtpLoading] = useState(false);
+  const [emailOtpMsg, setEmailOtpMsg] = useState("");
+
+  useEffect(() => {
+    fetch(SAAS_URL + "/auth/recovery-status")
+      .then(r => r.json())
+      .then(d => setEmailOtpAvailable(d?.email_otp_available === true))
+      .catch(() => setEmailOtpAvailable(false));
+  }, []);
+
+  function changeRegistrationEmail(value) {
+    setEmail(value);
+    setEmailVerified(false);
+    setEmailVerificationToken("");
+    setEmailOtpSent(false);
+    setEmailOtp("");
+    setEmailOtpMsg("");
+  }
+
+  async function sendRegistrationEmailOtp() {
+    setError(""); setEmailOtpMsg("");
+    if (!String(email || "").includes("@")) {
+      setError(hi ? "Valid email daalo" : "Enter a valid email");
+      return;
+    }
+    setEmailOtpLoading(true);
+    try {
+      const d = await apiPost("/auth/request-email-verification", { email });
+      if (d.success) {
+        setEmailOtpSent(true);
+        setEmailOtpMsg(hi ? "OTP email par bhej diya gaya" : "OTP sent to your email");
+      } else setError(d.detail || "Email OTP send nahi hua");
+    } catch { setError("Email OTP send nahi hua"); }
+    setEmailOtpLoading(false);
+  }
+
+  async function verifyRegistrationEmailOtp() {
+    setError(""); setEmailOtpMsg("");
+    if (String(emailOtp).replace(/\D/g, "").length !== 6) {
+      setError(hi ? "6-digit OTP daalo" : "Enter the 6-digit OTP");
+      return;
+    }
+    setEmailOtpLoading(true);
+    try {
+      const d = await apiPost("/auth/verify-email-verification", { email, otp: emailOtp });
+      if (d.email_verification_token) {
+        setEmailVerified(true);
+        setEmailVerificationToken(d.email_verification_token);
+        setEmailOtpMsg(hi ? "Email verify ho gaya" : "Email verified successfully");
+      } else setError(d.detail || "Email verify nahi hua");
+    } catch { setError("Email verify nahi hua"); }
+    setEmailOtpLoading(false);
+  }
 
   function ConsentRow({ checked, onPress, text }) {
     return (
@@ -347,11 +430,16 @@ function RegisterScreen({ onLogin, onBack, lang }) {
         : "Accept all mandatory acknowledgements to register");
       return;
     }
+    if (emailOtpAvailable && (!emailVerified || !emailVerificationToken)) {
+      setError(hi ? "Register karne se pehle email OTP verify karo" : "Verify the email OTP before registration");
+      return;
+    }
     setLoading(true);
     try {
       const d = await apiPost("/auth/register", {
         name,
         email,
+        email_verification_token: emailVerificationToken || undefined,
         phone,
         password,
         policy_version: REGISTRATION_POLICY_VERSION,
@@ -383,22 +471,47 @@ function RegisterScreen({ onLogin, onBack, lang }) {
           <TextInput style={st.input} value={name} onChangeText={setName}
             placeholder={hi ? "Aapka poora naam" : "Your full name"} placeholderTextColor={C.muted} />
           <Label text="Email *" />
-          <TextInput style={st.input} value={email} onChangeText={setEmail}
+          <TextInput style={st.input} value={email} onChangeText={changeRegistrationEmail}
             placeholder={hi ? "aapki@email.com" : "your@email.com"} placeholderTextColor={C.muted}
             autoCapitalize="none" keyboardType="email-address" />
+          {emailOtpAvailable ? (
+            <View style={{ backgroundColor: C.s1, borderRadius: 10, padding: 11,
+              borderWidth: 1, borderColor: emailVerified ? C.green+"66" : C.blue+"55",
+              marginBottom: 12 }}>
+              <Text style={{ color: emailVerified ? C.green : C.blue,
+                fontSize: 12, fontWeight: "900", marginBottom: 8 }}>
+                {emailVerified ? "✅ Email Verified" : "✉️ Email OTP Verification"}
+              </Text>
+              {!!emailOtpMsg && <Text style={{ color: emailVerified ? C.green : C.sub,
+                fontSize: 11, marginBottom: 8 }}>{emailOtpMsg}</Text>}
+              {!emailVerified && <>
+                <Btn label={emailOtpSent ? "Resend Email OTP" : "Send Email OTP"}
+                  color={C.blue} onPress={sendRegistrationEmailOtp} loading={emailOtpLoading} />
+                {emailOtpSent && <View style={{ marginTop: 10 }}>
+                  <TextInput style={st.input} value={emailOtp} onChangeText={setEmailOtp}
+                    placeholder="6-digit Email OTP" placeholderTextColor={C.muted}
+                    keyboardType="number-pad" maxLength={6} />
+                  <Btn label="Verify Email" color={C.green}
+                    onPress={verifyRegistrationEmailOtp} loading={emailOtpLoading} />
+                </View>}
+              </>}
+            </View>
+          ) : (
+            <Text style={{ color: C.muted, fontSize: 10, lineHeight: 15, marginBottom: 10 }}>
+              Email OTP service setup ho rahi hai; mobile verification abhi required nahi hai.
+            </Text>
+          )}
           <Label text={hi ? "WhatsApp Number *" : "WhatsApp Number *"} />
           <TextInput style={st.input} value={phone} onChangeText={setPhone}
             placeholder={hi ? "10 digit mobile number" : "10-digit mobile number"}
             placeholderTextColor={C.muted} keyboardType="phone-pad" />
           <Label text={hi ? "New Password *" : "New Password *"} />
-          <TextInput style={st.input} value={password}
-            onChangeText={setPassword} placeholder={hi ? "Kam se kam 6 characters" : "At least 6 characters"}
-            placeholderTextColor={C.muted} secureTextEntry />
+          <PasswordInput value={password} onChangeText={setPassword}
+            placeholder={hi ? "Kam se kam 6 characters" : "At least 6 characters"} />
           <Label text={hi ? "New Password Confirm *" : "Confirm New Password *"} />
-          <TextInput style={[st.input, { marginBottom: 20 }]}
-            value={confirm} onChangeText={setConfirm}
+          <PasswordInput value={confirm} onChangeText={setConfirm}
             placeholder={hi ? "Password dobara daalo" : "Re-enter password"}
-            placeholderTextColor={C.muted} secureTextEntry />
+            style={{ marginBottom: 20 }} />
           <View style={{ backgroundColor: C.s1, borderRadius: 12, padding: 13,
             marginBottom: 16, borderWidth: 1, borderColor: C.gold + "55" }}>
             <Row style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -6756,6 +6869,7 @@ function InnerApp() {
   const [token, setToken]   = useState(null);
   const [user, setUser]     = useState(null);
   const [lang, setLang]     = useState("en");
+  const [recoveryMode, setRecoveryMode] = useState("menu");
 
   useEffect(() => {
     (async () => {
@@ -6805,13 +6919,19 @@ function InnerApp() {
       </View>
     );
   }
+  if (screen === "recovery") {
+    return <RecoveryScreen initialMode={recoveryMode}
+      onBack={() => setScreen("login")} lang={lang} />;
+  }
   if (screen === "register") {
     return <RegisterScreen onLogin={handleLogin}
       onBack={() => setScreen("login")} lang={lang} setLang={changeLang} />;
   }
   if (screen === "login") {
     return <LoginScreen onLogin={handleLogin}
-      onRegister={() => setScreen("register")} lang={lang} setLang={changeLang} />;
+      onRegister={() => setScreen("register")}
+      onRecovery={(mode) => { setRecoveryMode(mode || "menu"); setScreen("recovery"); }}
+      lang={lang} setLang={changeLang} />;
   }
   return <DashboardScreen token={token} user={user}
     onLogout={handleLogout} initialLang={lang} onLangChange={changeLang} />;
