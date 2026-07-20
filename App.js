@@ -1886,34 +1886,487 @@ function TelegramTab({ token }) {
 // =====================================================================
 
 
-function MiniBarChart({ data, color, negativeColor, height = 80, formatLabel }) {
-  if (!data || data.length === 0) {
-    return (
-      <View style={{ height, alignItems: "center", justifyContent: "center" }}>
-        <Text style={{ color: C.muted, fontSize: 11 }}>Not enough data yet</Text>
-      </View>
-    );
+function chartParseDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+
+  let text = String(value).trim();
+
+  // Backend timestamps without timezone are UTC.
+  if (
+    /^\d{4}-\d{2}-\d{2}T/.test(text) &&
+    !/(Z|[+-]\d{2}:\d{2})$/.test(text)
+  ) {
+    text += "Z";
   }
 
-  const max = Math.max(...data.map(v => Math.abs(v)), 1);
-  const hasNegative = data.some(v => v < 0);
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime())
+    ? null
+    : parsed;
+}
+
+function chartTimeLabel(value) {
+  const date = chartParseDate(value);
+  if (!date) return "--:--";
+
+  const ist = new Date(
+    date.getTime() + 330 * 60 * 1000
+  );
+
+  return [
+    String(ist.getUTCHours()).padStart(2, "0"),
+    String(ist.getUTCMinutes()).padStart(2, "0"),
+  ].join(":");
+}
+
+function chartIstDayKey(value) {
+  const date = chartParseDate(value);
+  if (!date) return "";
+
+  const ist = new Date(
+    date.getTime() + 330 * 60 * 1000
+  );
+
+  return [
+    ist.getUTCFullYear(),
+    String(ist.getUTCMonth() + 1).padStart(2, "0"),
+    String(ist.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function chartCompactNumber(value) {
+  const number = Number(value || 0);
+  const absolute = Math.abs(number);
+
+  if (absolute >= 100000) {
+    return `${(number / 100000).toFixed(1)}L`;
+  }
+  if (absolute >= 1000) {
+    return `${(number / 1000).toFixed(1)}K`;
+  }
+  if (absolute >= 100) {
+    return number.toFixed(0);
+  }
+  if (absolute >= 10) {
+    return number.toFixed(1);
+  }
+  return number.toFixed(2);
+}
+
+function chartPriceNumber(value) {
+  return Number(value || 0).toLocaleString(
+    "en-IN",
+    {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+    }
+  );
+}
+
+function chartMoney(value) {
+  const number = Number(value || 0);
+  const sign = number > 0 ? "+" : "";
+
+  return `${sign}₹${number.toLocaleString(
+    "en-IN",
+    {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+    }
+  )}`;
+}
+
+function DetailedLineChart({
+  points,
+  color,
+  negativeColor = C.red,
+  height = 205,
+  minValue,
+  maxValue,
+  includeZero = false,
+  threshold,
+  thresholdLabel,
+  yAxisTitle,
+  valueFormatter = chartCompactNumber,
+  emptyMessage = "Not enough data yet",
+}) {
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  const cleanPoints = (points || [])
+    .map((point, index) => ({
+      value: Number(point?.value),
+      label: point?.label || String(index + 1),
+    }))
+    .filter((point) => Number.isFinite(point.value))
+    .slice(-80);
+
+  const hasData = cleanPoints.length > 0;
+  const values = hasData
+    ? cleanPoints.map((point) => point.value)
+    : [0];
+
+  let low = minValue != null
+    ? Number(minValue)
+    : Math.min(...values);
+  let high = maxValue != null
+    ? Number(maxValue)
+    : Math.max(...values);
+
+  if (includeZero) {
+    low = Math.min(low, 0);
+    high = Math.max(high, 0);
+  }
+
+  if (low === high) {
+    const expansion = Math.max(
+      Math.abs(low) * 0.02,
+      1
+    );
+    low -= expansion;
+    high += expansion;
+  }
+
+  if (minValue == null || maxValue == null) {
+    const padding = Math.max(
+      (high - low) * 0.10,
+      Math.abs(high) * 0.002,
+      0.5
+    );
+
+    if (minValue == null) low -= padding;
+    if (maxValue == null) high += padding;
+  }
+
+  const leftPad = 56;
+  const rightPad = 10;
+  const topPad = 16;
+  const bottomPad = 34;
+  const plotWidth = Math.max(
+    160,
+    containerWidth - leftPad - rightPad
+  );
+  const plotHeight = height - topPad - bottomPad;
+  const range = Math.max(high - low, 0.0001);
+
+  const coordinatePoints = cleanPoints.map(
+    (point, index) => ({
+      ...point,
+      x:
+        cleanPoints.length <= 1
+          ? plotWidth / 2
+          : index * (
+              plotWidth /
+              (cleanPoints.length - 1)
+            ),
+      y:
+        plotHeight -
+        ((point.value - low) / range) *
+          plotHeight,
+    })
+  );
+
+  const tickCount = 5;
+  const yTicks = Array.from(
+    { length: tickCount },
+    (_, index) => {
+      const ratio = index / (tickCount - 1);
+      return {
+        value: high - ratio * range,
+        y: ratio * plotHeight,
+      };
+    }
+  );
+
+  const xIndexes = cleanPoints.length
+    ? Array.from(
+        new Set([
+          0,
+          Math.round((cleanPoints.length - 1) * 0.25),
+          Math.round((cleanPoints.length - 1) * 0.50),
+          Math.round((cleanPoints.length - 1) * 0.75),
+          cleanPoints.length - 1,
+        ])
+      )
+    : [];
+
+  const thresholdY =
+    threshold != null &&
+    Number(threshold) >= low &&
+    Number(threshold) <= high
+      ? plotHeight -
+        ((Number(threshold) - low) / range) *
+          plotHeight
+      : null;
+
+  const zeroY =
+    low < 0 && high > 0
+      ? plotHeight -
+        ((0 - low) / range) * plotHeight
+      : null;
 
   return (
-    <View style={{ height, flexDirection: "row", alignItems: hasNegative ? "center" : "flex-end", gap: 3 }}>
-      {data.map((v, i) => {
-        const barHeight = Math.max(2, (Math.abs(v) / max) * (hasNegative ? height / 2 : height));
-        const isNeg = v < 0;
-        return (
-          <View key={i} style={{ flex: 1, alignItems: "center", justifyContent: hasNegative ? "center" : "flex-end", height }}>
-            <View style={{
-              width: "100%",
-              height: barHeight,
-              backgroundColor: isNeg ? (negativeColor || C.red) : color,
-              borderRadius: 2,
-            }} />
+    <View
+      onLayout={(event) => {
+        const width =
+          event.nativeEvent.layout.width;
+        if (
+          width &&
+          Math.abs(width - containerWidth) > 1
+        ) {
+          setContainerWidth(width);
+        }
+      }}
+      style={{
+        height,
+        width: "100%",
+        position: "relative",
+      }}
+    >
+      {containerWidth > 0 && (
+        <>
+          <Text style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            color: C.muted,
+            fontSize: 9,
+            fontWeight: "800",
+          }}>
+            {yAxisTitle || ""}
+          </Text>
+
+          <View style={{
+            position: "absolute",
+            left: leftPad,
+            top: topPad,
+            width: plotWidth,
+            height: plotHeight,
+          }}>
+            {yTicks.map((tick, index) => (
+              <View
+                key={`grid-${index}`}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: tick.y,
+                  width: plotWidth,
+                  borderTopWidth: 1,
+                  borderTopColor: C.border2,
+                  borderStyle: "dashed",
+                }}
+              />
+            ))}
+
+            {zeroY != null && (
+              <View style={{
+                position: "absolute",
+                left: 0,
+                top: zeroY,
+                width: plotWidth,
+                borderTopWidth: 1.5,
+                borderTopColor: C.sub,
+              }} />
+            )}
+
+            {thresholdY != null && (
+              <>
+                <View style={{
+                  position: "absolute",
+                  left: 0,
+                  top: thresholdY,
+                  width: plotWidth,
+                  borderTopWidth: 1,
+                  borderTopColor: C.gold,
+                  borderStyle: "dashed",
+                }} />
+                <Text style={{
+                  position: "absolute",
+                  right: 2,
+                  top: Math.max(
+                    0,
+                    thresholdY - 15
+                  ),
+                  color: C.gold,
+                  fontSize: 9,
+                  fontWeight: "900",
+                  backgroundColor: C.s2,
+                  paddingHorizontal: 4,
+                }}>
+                  {thresholdLabel || threshold}
+                </Text>
+              </>
+            )}
+
+            {coordinatePoints.slice(0, -1).map(
+              (point, index) => {
+                const next =
+                  coordinatePoints[index + 1];
+                const dx = next.x - point.x;
+                const dy = next.y - point.y;
+                const length = Math.sqrt(
+                  dx * dx + dy * dy
+                );
+                const angle =
+                  Math.atan2(dy, dx) *
+                  180 /
+                  Math.PI;
+                const segmentValue =
+                  (point.value + next.value) / 2;
+                const segmentColor =
+                  includeZero && segmentValue < 0
+                    ? negativeColor
+                    : color;
+
+                return (
+                  <View
+                    key={`segment-${index}`}
+                    style={{
+                      position: "absolute",
+                      left:
+                        (point.x +
+                          next.x -
+                          length) /
+                        2,
+                      top:
+                        (point.y +
+                          next.y -
+                          2) /
+                        2,
+                      width: length,
+                      height: 2.5,
+                      borderRadius: 2,
+                      backgroundColor:
+                        segmentColor,
+                      transform: [{
+                        rotateZ: `${angle}deg`,
+                      }],
+                    }}
+                  />
+                );
+              }
+            )}
+
+            {coordinatePoints.map((point, index) => {
+              const showDot =
+                coordinatePoints.length <= 18 ||
+                index ===
+                  coordinatePoints.length - 1;
+
+              if (!showDot) return null;
+
+              return (
+                <View
+                  key={`dot-${index}`}
+                  style={{
+                    position: "absolute",
+                    left: point.x - 3.5,
+                    top: point.y - 3.5,
+                    width: 7,
+                    height: 7,
+                    borderRadius: 4,
+                    backgroundColor:
+                      includeZero &&
+                      point.value < 0
+                        ? negativeColor
+                        : color,
+                    borderWidth: 1,
+                    borderColor: C.text,
+                  }}
+                />
+              );
+            })}
+
+            {xIndexes.map((index) => {
+              const point = coordinatePoints[index];
+
+              if (!point) return null;
+
+              return (
+                <Text
+                  key={`x-${index}`}
+                  numberOfLines={1}
+                  style={{
+                    position: "absolute",
+                    left: Math.max(
+                      -12,
+                      Math.min(
+                        plotWidth - 38,
+                        point.x - 19
+                      )
+                    ),
+                    top: plotHeight + 9,
+                    width: 42,
+                    textAlign: "center",
+                    color: C.muted,
+                    fontSize: 8,
+                    fontWeight: "700",
+                  }}
+                >
+                  {point.label}
+                </Text>
+              );
+            })}
           </View>
-        );
-      })}
+
+          {yTicks.map((tick, index) => (
+            <Text
+              key={`y-${index}`}
+              numberOfLines={1}
+              style={{
+                position: "absolute",
+                left: 0,
+                top:
+                  topPad +
+                  tick.y -
+                  7,
+                width: leftPad - 7,
+                textAlign: "right",
+                color: C.muted,
+                fontSize: 9,
+                fontWeight: "700",
+              }}
+            >
+              {valueFormatter(tick.value)}
+            </Text>
+          ))}
+
+          {!hasData && (
+            <View style={{
+              position: "absolute",
+              left: leftPad,
+              right: rightPad,
+              top: topPad,
+              height: plotHeight,
+              alignItems: "center",
+              justifyContent: "center",
+            }}>
+              <Text style={{
+                color: C.muted,
+                fontSize: 11,
+                textAlign: "center",
+                lineHeight: 17,
+                paddingHorizontal: 20,
+              }}>
+                {emptyMessage}
+              </Text>
+            </View>
+          )}
+
+          <Text style={{
+            position: "absolute",
+            bottom: 0,
+            left: leftPad,
+            right: rightPad,
+            textAlign: "center",
+            color: C.muted,
+            fontSize: 9,
+            fontWeight: "800",
+          }}>
+            Time (IST)
+          </Text>
+        </>
+      )}
     </View>
   );
 }
@@ -1945,8 +2398,8 @@ function BotTab({ token, lang }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  async function load() {
-    setLoading(true);
+  async function load(silent = false) {
+    if (!silent) setLoading(true);
     setError("");
     try {
       const sig = await apiGet("/bot/signal", token);
@@ -1960,10 +2413,19 @@ function BotTab({ token, lang }) {
     } catch (e) {
       setError(hi ? "Status load nahi ho paya. Refresh try karein." : "Could not load status. Please try refreshing.");
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+
+    const timer = setInterval(
+      () => load(true),
+      15000
+    );
+
+    return () => clearInterval(timer);
+  }, []);
 
   async function saveSettings(partial) {
     if (!settings) return;
@@ -2054,9 +2516,129 @@ function BotTab({ token, lang }) {
   const engineWarmingUp = rawStatus === "ENGINE_WARMING_UP";
   const noRealData = brokerNotConnected || engineWarmingUp || signal?.signal === "NO_DATA";
 
-  const scoreData = history.map(p => p.score || 0);
-  const priceData = history.map(p => p.price || 0);
-  const pnlData = paperTrades.slice(0, 20).reverse().map(t => Number(t.pnl) || 0);
+  const chartHistory = history
+    .filter((point) => (
+      Number.isFinite(Number(point?.score)) ||
+      Number.isFinite(Number(point?.price))
+    ))
+    .slice(-80);
+
+  const scorePoints = chartHistory
+    .filter((point) =>
+      Number.isFinite(Number(point?.score))
+    )
+    .map((point) => ({
+      value: Number(point.score),
+      label: chartTimeLabel(
+        point.created_at
+      ),
+    }));
+
+  const pricePoints = chartHistory
+    .filter((point) =>
+      Number.isFinite(Number(point?.price)) &&
+      Number(point.price) > 0
+    )
+    .map((point) => ({
+      value: Number(point.price),
+      label: chartTimeLabel(
+        point.created_at
+      ),
+    }));
+
+  const todayIstKey = chartIstDayKey(
+    new Date()
+  );
+
+  const closedPaperTrades = paperTrades
+    .filter((trade) => (
+      String(trade?.status || "").toUpperCase()
+        !== "OPEN" &&
+      Number.isFinite(Number(trade?.pnl))
+    ));
+
+  const todayPaperTrades = closedPaperTrades
+    .filter((trade) => (
+      chartIstDayKey(
+        trade.exit_time ||
+        trade.created_at
+      ) === todayIstKey
+    ));
+
+  const pnlSource = (
+    todayPaperTrades.length > 0
+      ? todayPaperTrades
+      : closedPaperTrades
+  )
+    .slice(0, 40)
+    .reverse();
+
+  let cumulativePnl = 0;
+  const pnlPoints = pnlSource.map((trade) => {
+    cumulativePnl += Number(
+      trade.pnl || 0
+    );
+
+    return {
+      value: cumulativePnl,
+      label: chartTimeLabel(
+        trade.exit_time ||
+        trade.created_at
+      ),
+    };
+  });
+
+  const latestScore =
+    scorePoints.length > 0
+      ? scorePoints[
+          scorePoints.length - 1
+        ].value
+      : null;
+
+  const latestPrice =
+    pricePoints.length > 0
+      ? pricePoints[
+          pricePoints.length - 1
+        ].value
+      : null;
+
+  const firstPrice =
+    pricePoints.length > 0
+      ? pricePoints[0].value
+      : null;
+
+  const priceChange =
+    latestPrice != null &&
+    firstPrice != null
+      ? latestPrice - firstPrice
+      : 0;
+
+  const priceChangePercent =
+    firstPrice
+      ? priceChange / firstPrice * 100
+      : 0;
+
+  const latestPnl =
+    pnlPoints.length > 0
+      ? pnlPoints[
+          pnlPoints.length - 1
+        ].value
+      : null;
+
+  const priceMoveColor =
+    priceChange >= 0
+      ? C.green
+      : C.red;
+
+  const pnlMoveColor =
+    Number(latestPnl || 0) >= 0
+      ? C.green
+      : C.red;
+
+  const primaryInstrument =
+    signal?.primary_instrument ||
+    settings?.primary_instrument ||
+    "NIFTY";
 
   return (
     <ScrollView style={{ flex: 1 }}
@@ -2111,23 +2693,187 @@ function BotTab({ token, lang }) {
       </Row>
       <Btn label={hi ? "Status Refresh Karo" : "Refresh Status"} icon="🔄" color={C.blue} loading={loading} onPress={load} />
 
-      {/* Charts */}
+      {/* Detailed intraday charts */}
       <Card>
-        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Score History" : "Score History"}</Text>
-        <MiniBarChart data={scoreData} color={C.accent} />
+        <Row style={{
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 3,
+        }}>
+          <View>
+            <Text style={{
+              color: C.sub,
+              fontSize: 10,
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: 1.2,
+            }}>
+              Score History
+            </Text>
+            <Text style={{
+              color: C.muted,
+              fontSize: 9,
+              marginTop: 3,
+            }}>
+              Signal quality • Entry line 82
+            </Text>
+          </View>
+
+          <Tag
+            label={
+              latestScore != null
+                ? `${latestScore.toFixed(0)}/100`
+                : "NO DATA"
+            }
+            color={
+              latestScore == null
+                ? C.muted
+                : latestScore >= 82
+                ? C.green
+                : latestScore >= 65
+                ? C.gold
+                : C.red
+            }
+          />
+        </Row>
+
+        <DetailedLineChart
+          points={scorePoints}
+          color={C.accent}
+          height={205}
+          minValue={0}
+          maxValue={100}
+          threshold={82}
+          thresholdLabel="ENTRY 82"
+          yAxisTitle="Score"
+          valueFormatter={(value) =>
+            Number(value).toFixed(0)
+          }
+          emptyMessage={
+            "Bot start hone aur real signal points aane ke baad score line dikhegi."
+          }
+        />
       </Card>
 
       <Card>
-        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Price Movement" : "Price Movement"}</Text>
-        <MiniBarChart data={priceData} color={C.blue} />
+        <Row style={{
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 3,
+        }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{
+              color: C.sub,
+              fontSize: 10,
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: 1.2,
+            }}>
+              Price Movement
+            </Text>
+            <Text style={{
+              color: C.blue,
+              fontSize: 11,
+              fontWeight: "900",
+              marginTop: 3,
+            }}>
+              {primaryInstrument}
+            </Text>
+          </View>
+
+          <View style={{
+            alignItems: "flex-end",
+            marginLeft: 10,
+          }}>
+            <Text style={{
+              color: C.text,
+              fontSize: 13,
+              fontWeight: "900",
+            }}>
+              {latestPrice != null
+                ? chartPriceNumber(latestPrice)
+                : "--"}
+            </Text>
+            <Text style={{
+              color: priceMoveColor,
+              fontSize: 10,
+              fontWeight: "900",
+              marginTop: 2,
+            }}>
+              {latestPrice != null
+                ? `${priceChange >= 0 ? "+" : ""}${chartPriceNumber(priceChange)} (${priceChangePercent >= 0 ? "+" : ""}${priceChangePercent.toFixed(2)}%)`
+                : "Waiting for price"}
+            </Text>
+          </View>
+        </Row>
+
+        <DetailedLineChart
+          points={pricePoints}
+          color={C.blue}
+          height={220}
+          yAxisTitle="Price"
+          valueFormatter={chartPriceNumber}
+          emptyMessage={
+            "Bot aur broker engine start hone ke baad poore din ki price movement yahan fill hogi."
+          }
+        />
       </Card>
 
       <Card>
-        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Paper Trade P&L" : "Paper Trade P&L"}</Text>
-        <MiniBarChart data={pnlData} color={C.green} negativeColor={C.red} />
+        <Row style={{
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 3,
+        }}>
+          <View>
+            <Text style={{
+              color: C.sub,
+              fontSize: 10,
+              fontWeight: "900",
+              textTransform: "uppercase",
+              letterSpacing: 1.2,
+            }}>
+              Paper Trade P&L
+            </Text>
+            <Text style={{
+              color: C.muted,
+              fontSize: 9,
+              marginTop: 3,
+            }}>
+              {todayPaperTrades.length > 0
+                ? "Today cumulative"
+                : "Recent cumulative"}
+            </Text>
+          </View>
+
+          <Tag
+            label={
+              latestPnl != null
+                ? chartMoney(latestPnl)
+                : "NO TRADES"
+            }
+            color={
+              latestPnl == null
+                ? C.muted
+                : pnlMoveColor
+            }
+          />
+        </Row>
+
+        <DetailedLineChart
+          points={pnlPoints}
+          color={C.green}
+          negativeColor={C.red}
+          height={205}
+          includeZero
+          yAxisTitle="P&L ₹"
+          valueFormatter={(value) =>
+            `₹${chartCompactNumber(value)}`
+          }
+          emptyMessage={
+            "Closed paper trades aane ke baad cumulative profit/loss line dikhegi."
+          }
+        />
       </Card>
 
       {/* Paper/Live Mode Switch */}
