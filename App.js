@@ -2632,8 +2632,8 @@ function BotTab({ token, lang }) {
     )
     .map((point) => ({
       value: Number(point.price),
-      label: chartTimeLabel(
-        point.created_at
+      label: chartDateTimeLabel(
+        chartPointTimestamp(point)
       ),
     }));
 
