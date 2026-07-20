@@ -3453,9 +3453,55 @@ function BotTab({ token, lang }) {
   const [paperTrades, setPaperTrades] = useState([]);
   const [chartCandles, setChartCandles] = useState([]);
   const [chartMeta, setChartMeta] = useState(null);
+  const [chartInstrument, setChartInstrument] = useState("NIFTY");
+  const chartInstrumentRef = useRef("NIFTY");
+  const chartSelectionInitializedRef = useRef(false);
+  const [chartLoading, setChartLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  async function loadChart(
+    instrument = chartInstrumentRef.current,
+    silent = false,
+  ) {
+    const selected = String(
+      instrument || "NIFTY"
+    ).toUpperCase();
+
+    if (!silent) {
+      setChartLoading(true);
+    }
+
+    try {
+      const chart = await apiGet(
+        `/bot/chart-data?instrument=${encodeURIComponent(selected)}`,
+        token
+      );
+
+      if (
+        chart &&
+        Array.isArray(chart.candles)
+      ) {
+        setChartCandles(
+          chart.candles
+        );
+        setChartMeta(chart);
+      }
+    } catch {
+      if (!silent) {
+        setError(
+          hi
+            ? "Selected chart load nahi hua."
+            : "Selected chart could not load."
+        );
+      }
+    }
+
+    if (!silent) {
+      setChartLoading(false);
+    }
+  }
 
   async function load(silent = false) {
     if (!silent) setLoading(true);
@@ -3464,7 +3510,22 @@ function BotTab({ token, lang }) {
       const sig = await apiGet("/bot/signal", token);
       setSignal(sig);
       const strat = await apiGet("/strategy/settings", token);
-      if (strat && strat.settings) setSettings(strat.settings);
+      if (strat && strat.settings) {
+        setSettings(strat.settings);
+
+        if (
+          !chartSelectionInitializedRef.current
+        ) {
+          const initialChart = String(
+            strat.settings.primary_instrument
+            || "NIFTY"
+          ).toUpperCase();
+
+          chartSelectionInitializedRef.current = true;
+          chartInstrumentRef.current = initialChart;
+          setChartInstrument(initialChart);
+        }
+      }
       const hist = await apiGet(
         "/bot/signal-history?limit=200",
         token
@@ -3473,22 +3534,10 @@ function BotTab({ token, lang }) {
         setHistory(hist.points);
       }
 
-      try {
-        const chart = await apiGet(
-          "/bot/chart-data",
-          token
-        );
-
-        if (
-          chart &&
-          Array.isArray(chart.candles)
-        ) {
-          setChartCandles(
-            chart.candles
-          );
-          setChartMeta(chart);
-        }
-      } catch {}
+      await loadChart(
+        chartInstrumentRef.current,
+        true
+      );
 
       const trades = await apiGet("/history/paper", token);
       if (trades && trades.paper_trades) setPaperTrades(trades.paper_trades);
@@ -3576,13 +3625,39 @@ function BotTab({ token, lang }) {
     }
     let primary = settings.primary_instrument;
     if (!enabled.includes(primary)) primary = enabled[0];
-    saveSettings({ enabled_instruments: enabled, primary_instrument: primary });
+
+    if (!enabled.includes(chartInstrumentRef.current)) {
+      const nextChart = enabled[0] || "NIFTY";
+      chartInstrumentRef.current = nextChart;
+      setChartInstrument(nextChart);
+    }
+
+    saveSettings({
+      enabled_instruments: enabled,
+      primary_instrument: primary,
+    });
   }
 
-  function setPrimary(sym) {
+  async function setChartOnly(sym) {
     if (!settings) return;
-    if (!(settings.enabled_instruments || []).includes(sym)) return;
-    saveSettings({ primary_instrument: sym });
+
+    if (
+      !(settings.enabled_instruments || [])
+        .includes(sym)
+    ) {
+      return;
+    }
+
+    chartInstrumentRef.current = sym;
+    setChartInstrument(sym);
+    setChartCandles([]);
+    setChartMeta({
+      instrument: sym,
+      status: "LOADING",
+      message: `${sym} chart load ho raha hai...`,
+    });
+
+    await loadChart(sym);
   }
 
   const [capitalInput, setCapitalInput] = useState("");
@@ -3779,8 +3854,7 @@ function BotTab({ token, lang }) {
 
   const primaryInstrument =
     chartMeta?.instrument ||
-    signal?.primary_instrument ||
-    settings?.primary_instrument ||
+    chartInstrument ||
     "NIFTY";
 
   const autoScanResults = Array.isArray(
@@ -4357,7 +4431,7 @@ function BotTab({ token, lang }) {
         </Text>
         {["NIFTY", "BANKNIFTY", "SENSEX"].map(sym => {
           const enabled = (settings?.enabled_instruments || []).includes(sym);
-          const isPrimary = settings?.primary_instrument === sym;
+          const isPrimary = chartInstrument === sym;
           return (
             <Row key={sym} style={{ justifyContent: "space-between", alignItems: "center",
               paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
@@ -4367,10 +4441,14 @@ function BotTab({ token, lang }) {
               </Row>
               <Row style={{ gap: 8 }}>
                 {enabled && !isPrimary && (
-                  <TouchableOpacity onPress={() => setPrimary(sym)}
+                  <TouchableOpacity onPress={() => setChartOnly(sym)}
                     style={{ paddingHorizontal: 10, paddingVertical: 6,
                       borderRadius: 8, borderWidth: 1, borderColor: C.border }}>
-                    <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800" }}>{hi ? "Chart Karo" : "Set Chart"}</Text>
+                    <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800" }}>
+                      {chartLoading
+                        ? (hi ? "Loading..." : "Loading...")
+                        : (hi ? "Chart Karo" : "Set Chart")}
+                    </Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={() => toggleInstrument(sym)}
