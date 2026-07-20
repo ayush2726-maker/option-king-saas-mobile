@@ -1887,20 +1887,52 @@ function TelegramTab({ token }) {
 
 
 function chartParseDate(value) {
-  if (!value) return null;
-  if (value instanceof Date) return value;
+  if (value == null || value === "") {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime())
+      ? null
+      : value;
+  }
+
+  if (typeof value === "number") {
+    const milliseconds =
+      value < 100000000000
+        ? value * 1000
+        : value;
+    const numericDate = new Date(milliseconds);
+
+    return Number.isNaN(numericDate.getTime())
+      ? null
+      : numericDate;
+  }
 
   let text = String(value).trim();
 
-  // Backend timestamps without timezone are UTC.
+  // SQLite datetime('now') returns:
+  // YYYY-MM-DD HH:MM:SS in UTC.
   if (
-    /^\d{4}-\d{2}-\d{2}T/.test(text) &&
-    !/(Z|[+-]\d{2}:\d{2})$/.test(text)
+    /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(text)
   ) {
+    text = text.replace(/\s+/, "T");
+
+    if (
+      !/(Z|[+-]\d{2}:?\d{2})$/.test(text)
+    ) {
+      text += "Z";
+    }
+  } else if (
+    /^\d{4}-\d{2}-\d{2}T/.test(text) &&
+    !/(Z|[+-]\d{2}:?\d{2})$/.test(text)
+  ) {
+    // Backend ISO timestamp without timezone is UTC.
     text += "Z";
   }
 
   const parsed = new Date(text);
+
   return Number.isNaN(parsed.getTime())
     ? null
     : parsed;
@@ -1918,6 +1950,58 @@ function chartTimeLabel(value) {
     String(ist.getUTCHours()).padStart(2, "0"),
     String(ist.getUTCMinutes()).padStart(2, "0"),
   ].join(":");
+}
+
+function chartDateTimeLabel(value) {
+  const date = chartParseDate(value);
+  if (!date) return "--/--\n--:--";
+
+  const ist = new Date(
+    date.getTime() + 330 * 60 * 1000
+  );
+
+  const day = String(
+    ist.getUTCDate()
+  ).padStart(2, "0");
+  const month = String(
+    ist.getUTCMonth() + 1
+  ).padStart(2, "0");
+  const hours = String(
+    ist.getUTCHours()
+  ).padStart(2, "0");
+  const minutes = String(
+    ist.getUTCMinutes()
+  ).padStart(2, "0");
+
+  return `${day}/${month}\n${hours}:${minutes}`;
+}
+
+function chartPointTimestamp(point) {
+  return (
+    point?.created_at ||
+    point?.engine_updated_at ||
+    point?.updated_at ||
+    point?.timestamp ||
+    point?.datetime ||
+    point?.time ||
+    point?.date ||
+    point?.ts ||
+    null
+  );
+}
+
+function chartTradeTimestamp(trade) {
+  return (
+    trade?.exit_time ||
+    trade?.closed_at ||
+    trade?.updated_at ||
+    trade?.created_at ||
+    trade?.entry_time ||
+    trade?.timestamp ||
+    trade?.time ||
+    trade?.date ||
+    null
+  );
 }
 
 function chartIstDayKey(value) {
@@ -1955,7 +2039,12 @@ function chartCompactNumber(value) {
 }
 
 function chartPriceNumber(value) {
-  return Number(value || 0).toLocaleString(
+  const number = Number(value || 0);
+  const rounded = Math.round(
+    (number + Number.EPSILON) * 100
+  ) / 100;
+
+  return rounded.toLocaleString(
     "en-IN",
     {
       maximumFractionDigits: 2,
@@ -1988,6 +2077,7 @@ function DetailedLineChart({
   threshold,
   thresholdLabel,
   yAxisTitle,
+  yAxisWidth = 56,
   valueFormatter = chartCompactNumber,
   emptyMessage = "Not enough data yet",
 }) {
@@ -2038,10 +2128,10 @@ function DetailedLineChart({
     if (maxValue == null) high += padding;
   }
 
-  const leftPad = 56;
+  const leftPad = yAxisWidth;
   const rightPad = 10;
   const topPad = 16;
-  const bottomPad = 34;
+  const bottomPad = 48;
   const plotWidth = Math.max(
     160,
     containerWidth - leftPad - rightPad
@@ -2285,21 +2375,22 @@ function DetailedLineChart({
               return (
                 <Text
                   key={`x-${index}`}
-                  numberOfLines={1}
+                  numberOfLines={2}
                   style={{
                     position: "absolute",
                     left: Math.max(
-                      -12,
+                      -16,
                       Math.min(
-                        plotWidth - 38,
-                        point.x - 19
+                        plotWidth - 50,
+                        point.x - 25
                       )
                     ),
-                    top: plotHeight + 9,
-                    width: 42,
+                    top: plotHeight + 5,
+                    width: 50,
                     textAlign: "center",
                     color: C.muted,
                     fontSize: 8,
+                    lineHeight: 10,
                     fontWeight: "700",
                   }}
                 >
@@ -2363,7 +2454,7 @@ function DetailedLineChart({
             fontSize: 9,
             fontWeight: "800",
           }}>
-            Time (IST)
+            Date • Time (IST)
           </Text>
         </>
       )}
@@ -2529,8 +2620,8 @@ function BotTab({ token, lang }) {
     )
     .map((point) => ({
       value: Number(point.score),
-      label: chartTimeLabel(
-        point.created_at
+      label: chartDateTimeLabel(
+        chartPointTimestamp(point)
       ),
     }));
 
@@ -2560,8 +2651,7 @@ function BotTab({ token, lang }) {
   const todayPaperTrades = closedPaperTrades
     .filter((trade) => (
       chartIstDayKey(
-        trade.exit_time ||
-        trade.created_at
+        chartTradeTimestamp(trade)
       ) === todayIstKey
     ));
 
@@ -2581,9 +2671,8 @@ function BotTab({ token, lang }) {
 
     return {
       value: cumulativePnl,
-      label: chartTimeLabel(
-        trade.exit_time ||
-        trade.created_at
+      label: chartDateTimeLabel(
+        chartTradeTimestamp(trade)
       ),
     };
   });
@@ -2812,6 +2901,7 @@ function BotTab({ token, lang }) {
           color={C.blue}
           height={220}
           yAxisTitle="Price"
+          yAxisWidth={74}
           valueFormatter={chartPriceNumber}
           emptyMessage={
             "Bot aur broker engine start hone ke baad poore din ki price movement yahan fill hogi."
