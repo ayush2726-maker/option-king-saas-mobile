@@ -1,0 +1,55 @@
+# retrigger: phonepe-mobile-1999-v1
+name: Validate PhonePe 1999 Mobile
+
+on:
+  push:
+    branches: [agent/phonepe-upi-1999-v1]
+    paths:
+      - "scripts/patch_phonepe_1999.py"
+      - ".github/workflows/apply-phonepe-1999-v1.yml"
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'agent/phonepe-upi-1999-v1' }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Apply payment UI patch
+        run: python scripts/patch_phonepe_1999.py
+      - name: Validate Android export
+        env:
+          CI: "1"
+        run: |
+          npm ci
+          npx expo export --platform android --output-dir /tmp/okai-phonepe-export
+          grep -q 'Pay ₹1,999 with PhonePe / UPI' App.js
+          grep -q '/subscription/phonepe/create-order' App.js
+          grep -q '/subscription/phonepe/status/' App.js
+          grep -q '₹1,999/month' App.js
+          if grep -q 'Submit Payment Request' App.js; then
+            echo 'Old manual payment UI still present'
+            exit 1
+          fi
+      - name: Commit patched branch
+        if: github.event_name == 'push'
+        run: |
+          rm -f .github/workflows/apply-phonepe-1999-v1.yml
+          rm -f scripts/patch_phonepe_1999.py
+          git config user.name "okai-payment-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Add PhonePe UPI payment UI for 1999 monthly plan"
+          git push origin HEAD:agent/phonepe-upi-1999-v1
