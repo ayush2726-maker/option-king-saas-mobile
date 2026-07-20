@@ -7,6 +7,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 const AiDecisionCard = require("./src/components/AiDecisionCard");
+const StrategyBuilderTab = require("./src/screens/StrategyBuilderTab");
 
 
 // ── Global crash catcher (temporary debug tool) ──────────────
@@ -3446,6 +3447,12 @@ function BotTab({ token, lang }) {
 
   const isRunning = !!signal?.running;
   const mode = signal?.trading_mode || settings?.trading_mode || "paper";
+  const activeEntryThreshold = Number(
+    signal?.min_score ?? 82
+  );
+  const activeStrategyName =
+    signal?.strategy_profile_name ||
+    "OKAI Default 82";
   const rawStatus = signal?.status || "";
   const friendlyStatus = (hi ? BOT_STATUS_MESSAGES_HI : BOT_STATUS_MESSAGES_EN)[rawStatus] || rawStatus || "--";
   const brokerNotConnected = rawStatus === "CONNECT_BROKER_FOR_REAL_SIGNAL";
@@ -3656,6 +3663,7 @@ function BotTab({ token, lang }) {
 
         {[
           [hi ? "Mode" : "Mode", mode.toUpperCase()],
+          [hi ? "Active Strategy" : "Active Strategy", activeStrategyName],
           [hi ? "Signal" : "Signal", signal?.signal === "NO_DATA" ? (hi ? "Live data nahi hai" : "No live data") : (signal?.signal || "--")],
           [hi ? "Score" : "Score", `${signal?.score ?? "--"} / ${signal?.min_score ?? "--"}`],
           [hi ? "Total Trades" : "Total Trades", signal?.total_trades ?? "--"],
@@ -3706,7 +3714,7 @@ function BotTab({ token, lang }) {
               fontSize: 9,
               marginTop: 3,
             }}>
-              Signal quality • Entry line 82
+              {`Signal quality • Entry line ${activeEntryThreshold}`}
             </Text>
           </View>
 
@@ -3719,9 +3727,9 @@ function BotTab({ token, lang }) {
             color={
               latestScore == null
                 ? C.muted
-                : latestScore >= 82
+                : latestScore >= activeEntryThreshold
                 ? C.green
-                : latestScore >= 65
+                : latestScore >= Math.max(50, activeEntryThreshold - 17)
                 ? C.gold
                 : C.red
             }
@@ -3734,8 +3742,8 @@ function BotTab({ token, lang }) {
           height={205}
           minValue={0}
           maxValue={100}
-          threshold={82}
-          thresholdLabel="ENTRY 82"
+          threshold={activeEntryThreshold}
+          thresholdLabel={`ENTRY ${activeEntryThreshold}`}
           yAxisTitle="Score"
           valueFormatter={(value) =>
             Number(value).toFixed(0)
@@ -4996,6 +5004,7 @@ function MoreTab({ token, user, lang, setLang, isAdmin, setActiveTab }) {
         {[
           [hi ? "Broker Credentials" : "Broker Credentials", "🔗", "broker"],
           [hi ? "Telegram Settings" : "Telegram Settings", "🔔", "telegram"],
+          [hi ? "Strategy Builder" : "Strategy Builder", "🧠", "strategybuilder"],
           [hi ? "Backtest" : "Backtest", "🧪", "backtest"],
           [hi ? "Live Price / Feed" : "Live Price / Feed", "📡", "livefeed"],
           [hi ? "Server Test" : "Server Test", "🖥️", "servertest"],
@@ -5895,6 +5904,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
         {activeTab === "bot" && <BotTab token={token} lang={lang} />}
         {activeTab === "broker" && <BrokerTab token={token} lang={lang} />}
         {activeTab === "telegram" && <TelegramTab token={token} />}
+        {activeTab === "strategybuilder" && <StrategyBuilderTab token={token} />}
         {activeTab === "livefeed" && <LiveFeedTab token={token} />}
         {activeTab === "servertest" && <ServerTestTab token={token} />}
         {activeTab === "herozero" && <HeroZeroTab token={token} />}
