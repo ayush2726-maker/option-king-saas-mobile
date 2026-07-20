@@ -1,0 +1,142 @@
+name: Apply Mobile Account Recovery V1
+
+on:
+  push:
+    branches:
+      - agent/account-recovery-v1
+    paths:
+      - ".github/workflows/apply-account-recovery-v1.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/account-recovery-v1
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Wire recovery screen
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise RuntimeError(f"{label} marker missing")
+              return text.replace(old, new, 1)
+
+          path = Path("App.js")
+          app = path.read_text(encoding="utf-8")
+
+          app = replace_once(
+              app,
+              'const StrategyBuilderTab = require("./src/screens/StrategyBuilderTab");\n',
+              'const StrategyBuilderTab = require("./src/screens/StrategyBuilderTab");\nconst RecoveryScreen = require("./src/screens/RecoveryScreen");\n',
+              "recovery import",
+          )
+
+          app = replace_once(
+              app,
+              'function LoginScreen({ onLogin, onRegister, lang, setLang }) {\n',
+              'function LoginScreen({ onLogin, onRegister, onRecovery, lang, setLang }) {\n',
+              "login props",
+          )
+
+          register_link = '''        <TouchableOpacity onPress={onRegister}
+          style={{ marginTop: 16, alignItems: "center" }}>
+          <Text style={{ color: C.accent, fontSize: 14 }}>
+            {hi ? "Account nahi hai? Register Karo →" : "Don't have an account? Register →"}
+          </Text>
+        </TouchableOpacity>
+'''
+
+          recovery_links = '''        <Row style={{ marginTop: 16, justifyContent: "center", gap: 22 }}>
+          <TouchableOpacity onPress={() => onRecovery && onRecovery("id")}>
+            <Text style={{ color: C.blue, fontSize: 13, fontWeight: "800" }}>
+              Forgot Login ID
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => onRecovery && onRecovery("password")}>
+            <Text style={{ color: C.green, fontSize: 13, fontWeight: "800" }}>
+              Forgot Password
+            </Text>
+          </TouchableOpacity>
+        </Row>
+
+''' + register_link
+
+          app = replace_once(app, register_link, recovery_links, "login recovery links")
+
+          app = replace_once(
+              app,
+              '  const [lang, setLang]     = useState("en");\n',
+              '  const [lang, setLang]     = useState("en");\n  const [recoveryMode, setRecoveryMode] = useState("menu");\n',
+              "recovery mode state",
+          )
+
+          old_login = '''  if (screen === "login") {
+    return <LoginScreen onLogin={handleLogin}
+      onRegister={() => setScreen("register")} lang={lang} setLang={changeLang} />;
+  }
+'''
+          new_login = '''  if (screen === "recovery") {
+    return <RecoveryScreen
+      initialMode={recoveryMode}
+      onBack={() => setScreen("login")}
+      lang={lang}
+    />;
+  }
+  if (screen === "login") {
+    return <LoginScreen onLogin={handleLogin}
+      onRegister={() => setScreen("register")}
+      onRecovery={(mode) => {
+        setRecoveryMode(mode || "menu");
+        setScreen("recovery");
+      }}
+      lang={lang} setLang={changeLang} />;
+  }
+'''
+          app = replace_once(app, old_login, new_login, "inner app recovery screen")
+          path.write_text(app, encoding="utf-8")
+
+          recovery_path = Path("src/screens/RecoveryScreen.js")
+          recovery = recovery_path.read_text(encoding="utf-8")
+          recovery = replace_once(
+              recovery,
+              'function RecoveryScreen({ onBack, lang }) {\n  const hi = lang === "hi";\n  const [mode, setMode] = useState("menu");\n',
+              'function RecoveryScreen({ onBack, lang, initialMode = "menu" }) {\n  const hi = lang === "hi";\n  const [mode, setMode] = useState(initialMode === "id" || initialMode === "password" ? initialMode : "menu");\n',
+              "initial recovery mode",
+          )
+          recovery_path.write_text(recovery, encoding="utf-8")
+          PY
+
+      - name: Validate Android bundle
+        env:
+          CI: "1"
+        run: |
+          npm ci
+          npx expo export --platform android --output-dir /tmp/okai-recovery-export
+          grep -q 'Forgot Login ID' App.js
+          grep -q 'Forgot Password' App.js
+          grep -q 'RecoveryScreen' App.js
+
+      - name: Remove one-time workflow and push
+        shell: bash
+        run: |
+          rm -f .github/workflows/apply-account-recovery-v1.yml
+          git config user.name "okai-recovery-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Add Forgot Login ID and password reset UI"
+          git push origin HEAD:agent/account-recovery-v1
