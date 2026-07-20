@@ -19,7 +19,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - name: Checkout fresh APK branch
         uses: actions/checkout@v4
@@ -32,6 +32,15 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Setup EAS
         uses: expo/expo-github-action@v8
@@ -65,60 +74,36 @@ jobs:
           grep -q 'Forgot Login ID' App.js
           grep -q 'Pay ₹1,999 with PhonePe / UPI' App.js
 
-      - name: Build signed APK on EAS
-        id: eas_build
+      - name: Build signed APK locally
         env:
           CI: "1"
+          EAS_LOCAL_BUILD_SKIP_CLEANUP: "1"
+          EAS_LOCAL_BUILD_WORKINGDIR: /tmp/eas-local-build
         shell: bash
         run: |
           set +e
           eas build \
             --platform android \
             --profile preview \
+            --local \
             --non-interactive \
-            --wait \
-            --json > /tmp/eas-build.json 2> /tmp/eas-build.stderr
+            --output "$PWD/Option-King-AI-v1.0.1.apk" \
+            > /tmp/eas-local.stdout 2> /tmp/eas-local.stderr
           status=$?
           set -e
           if [ "$status" -ne 0 ]; then
-            echo "EAS build failed with status $status"
-            tail -n 120 /tmp/eas-build.stderr || true
+            echo "Local EAS build failed with status $status"
+            tail -n 160 /tmp/eas-local.stdout || true
+            tail -n 160 /tmp/eas-local.stderr || true
             exit "$status"
           fi
 
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
+          test -f Option-King-AI-v1.0.1.apk
+          test "$(stat -c%s Option-King-AI-v1.0.1.apk)" -gt 5000000
+          unzip -t Option-King-AI-v1.0.1.apk >/dev/null
+          sha256sum Option-King-AI-v1.0.1.apk | tee Option-King-AI-v1.0.1.apk.sha256
 
-          data = json.loads(Path('/tmp/eas-build.json').read_text())
-          if isinstance(data, list):
-              build = data[-1]
-          elif isinstance(data, dict) and isinstance(data.get('builds'), list):
-              build = data['builds'][-1]
-          else:
-              build = data
-
-          artifacts = build.get('artifacts') or {}
-          url = (
-              artifacts.get('applicationArchiveUrl')
-              or artifacts.get('buildUrl')
-              or build.get('applicationArchiveUrl')
-          )
-          build_id = build.get('id') or ''
-          build_page = build.get('buildDetailsPageUrl') or build.get('url') or ''
-          if not url:
-              raise SystemExit(f'APK URL missing in EAS response keys: {sorted(build.keys())}')
-
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
-              out.write(f'apk_url={url}\n')
-              out.write(f'build_id={build_id}\n')
-              out.write(f'build_page={build_page}\n')
-          print(f'EAS build ID: {build_id}')
-          print(f'EAS build page: {build_page}')
-          PY
-
-      - name: Save EAS failure diagnostic
+      - name: Save local build failure diagnostic
         if: failure()
         shell: bash
         run: |
@@ -127,30 +112,22 @@ jobs:
             echo "UTC: $(date -u +%FT%TZ)"
             echo "App version: 1.0.1"
             echo ""
-            tail -n 200 /tmp/eas-build.stderr 2>/dev/null || echo "No EAS stderr file"
-          } > /tmp/okai-diagnostic/eas-build-error.txt
+            echo "--- STDOUT ---"
+            tail -n 200 /tmp/eas-local.stdout 2>/dev/null || true
+            echo ""
+            echo "--- STDERR ---"
+            tail -n 200 /tmp/eas-local.stderr 2>/dev/null || true
+          } > /tmp/okai-diagnostic/local-apk-build-error.txt
 
           git fetch origin agent/fresh-apk-v101
           git switch -C agent/fresh-apk-v101 origin/agent/fresh-apk-v101
           mkdir -p diagnostics
-          cp /tmp/okai-diagnostic/eas-build-error.txt diagnostics/eas-build-error.txt
+          cp /tmp/okai-diagnostic/local-apk-build-error.txt diagnostics/local-apk-build-error.txt
           git config user.name "okai-apk-build-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add diagnostics/eas-build-error.txt
-          git commit -m "Save EAS APK build diagnostic" || true
+          git add diagnostics/local-apk-build-error.txt
+          git commit -m "Save local APK build diagnostic" || true
           git push origin HEAD:agent/fresh-apk-v101 || true
-
-      - name: Download APK
-        if: success()
-        shell: bash
-        env:
-          APK_URL: ${{ steps.eas_build.outputs.apk_url }}
-        run: |
-          set -euo pipefail
-          curl --fail --location --retry 5 --retry-delay 5 \
-            "$APK_URL" --output Option-King-AI-v1.0.1.apk
-          test "$(stat -c%s Option-King-AI-v1.0.1.apk)" -gt 5000000
-          sha256sum Option-King-AI-v1.0.1.apk | tee Option-King-AI-v1.0.1.apk.sha256
 
       - name: Upload installable APK
         if: success()
