@@ -2462,6 +2462,21 @@ function DetailedLineChart({
   );
 }
 
+function chartNullableNumber(value) {
+  if (
+    value == null ||
+    value === ""
+  ) {
+    return null;
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number)
+    ? number
+    : null;
+}
+
 function aggregateChartCandles(
   candles,
   groupSize = 3,
@@ -2473,10 +2488,16 @@ function aggregateChartCandles(
       high: Number(candle?.high),
       low: Number(candle?.low),
       close: Number(candle?.close),
-      ema9: Number(candle?.ema9),
-      ema21: Number(candle?.ema21),
-      vwap: Number(candle?.vwap),
-      supertrend: Number(
+      ema9: chartNullableNumber(
+        candle?.ema9
+      ),
+      ema21: chartNullableNumber(
+        candle?.ema21
+      ),
+      vwap: chartNullableNumber(
+        candle?.vwap
+      ),
+      supertrend: chartNullableNumber(
         candle?.supertrend
       ),
     }))
@@ -2541,6 +2562,8 @@ function CandlestickIndicatorChart({
   const followLatestRef = useRef(true);
   const [viewportWidth, setViewportWidth] =
     useState(0);
+  const [yScaleFactor, setYScaleFactor] =
+    useState(1);
 
   const clean = (candles || []).filter(
     (candle) => (
@@ -2552,7 +2575,7 @@ function CandlestickIndicatorChart({
   );
 
   const yAxisWidth = 72;
-  const legendHeight = 30;
+  const legendHeight = 68;
   const bottomPad = 38;
   const topPad = 12;
   const chartHeight =
@@ -2583,37 +2606,86 @@ function CandlestickIndicatorChart({
       candle.vwap,
       candle.supertrend,
     ].forEach((value) => {
-      const number = Number(value);
-      if (Number.isFinite(number)) {
+      const number =
+        chartNullableNumber(value);
+
+      // Index prices and overlays must be positive.
+      // This prevents null Supertrend from becoming 0.
+      if (
+        number != null &&
+        number > 0
+      ) {
         allValues.push(number);
       }
     });
   });
 
-  let low = allValues.length
+  let autoLow = allValues.length
     ? Math.min(...allValues)
     : 0;
-  let high = allValues.length
+  let autoHigh = allValues.length
     ? Math.max(...allValues)
     : 1;
 
-  if (low === high) {
-    low -= 1;
-    high += 1;
+  if (autoLow === autoHigh) {
+    autoLow -= 1;
+    autoHigh += 1;
   }
 
-  const padding = Math.max(
-    (high - low) * 0.08,
+  const autoPadding = Math.max(
+    (autoHigh - autoLow) * 0.08,
     0.5
   );
 
-  low -= padding;
-  high += padding;
+  autoLow -= autoPadding;
+  autoHigh += autoPadding;
+
+  const autoRange = Math.max(
+    autoHigh - autoLow,
+    0.0001
+  );
+  const axisCenter =
+    (autoHigh + autoLow) / 2;
+  const adjustedRange = Math.max(
+    autoRange * yScaleFactor,
+    0.0001
+  );
+
+  let low =
+    axisCenter - adjustedRange / 2;
+  let high =
+    axisCenter + adjustedRange / 2;
 
   const range = Math.max(
     high - low,
     0.0001
   );
+
+  const zoomPercent = Math.round(
+    100 / yScaleFactor
+  );
+
+  function zoomYAxisIn() {
+    setYScaleFactor((current) =>
+      Math.max(
+        0.3,
+        current / 1.35
+      )
+    );
+  }
+
+  function zoomYAxisOut() {
+    setYScaleFactor((current) =>
+      Math.min(
+        4,
+        current * 1.35
+      )
+    );
+  }
+
+  function resetYAxis() {
+    setYScaleFactor(1);
+  }
 
   const yFor = (value) => (
     topPad +
@@ -2673,16 +2745,20 @@ function CandlestickIndicatorChart({
       index < clean.length - 1;
       index += 1
     ) {
-      const current = Number(
-        clean[index]?.[field]
-      );
-      const next = Number(
-        clean[index + 1]?.[field]
-      );
+      const current =
+        chartNullableNumber(
+          clean[index]?.[field]
+        );
+      const next =
+        chartNullableNumber(
+          clean[index + 1]?.[field]
+        );
 
       if (
-        !Number.isFinite(current) ||
-        !Number.isFinite(next)
+        current == null ||
+        next == null ||
+        current <= 0 ||
+        next <= 0
       ) {
         continue;
       }
@@ -2733,16 +2809,20 @@ function CandlestickIndicatorChart({
       index < clean.length - 1;
       index += 1
     ) {
-      const current = Number(
-        clean[index]?.supertrend
-      );
-      const next = Number(
-        clean[index + 1]?.supertrend
-      );
+      const current =
+        chartNullableNumber(
+          clean[index]?.supertrend
+        );
+      const next =
+        chartNullableNumber(
+          clean[index + 1]?.supertrend
+        );
 
       if (
-        !Number.isFinite(current) ||
-        !Number.isFinite(next)
+        current == null ||
+        next == null ||
+        current <= 0 ||
+        next <= 0
       ) {
         continue;
       }
@@ -2819,42 +2899,121 @@ function CandlestickIndicatorChart({
     >
       <View style={{
         height: legendHeight,
-        flexDirection: "row",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: 9,
         paddingLeft: yAxisWidth,
+        justifyContent: "space-evenly",
       }}>
-        {[
-          ["Candle", C.green],
-          ["EMA9", C.gold],
-          ["EMA21", C.accent],
-          ["VWAP", C.blue],
-          ["ST", C.red],
-        ].map(([label, color]) => (
-          <View
-            key={label}
+        <View style={{
+          flexDirection: "row",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 9,
+        }}>
+          {[
+            ["Candle", C.green],
+            ["EMA9", C.gold],
+            ["EMA21", C.accent],
+            ["VWAP", C.blue],
+            ["ST", C.red],
+          ].map(([label, color]) => (
+            <View
+              key={label}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <View style={{
+                width: 11,
+                height: 3,
+                borderRadius: 2,
+                backgroundColor: color,
+              }} />
+              <Text style={{
+                color: C.muted,
+                fontSize: 8,
+                fontWeight: "800",
+              }}>
+                {label}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 7,
+        }}>
+          <TouchableOpacity
+            onPress={zoomYAxisIn}
             style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: C.border2,
+              backgroundColor: C.card2,
             }}
           >
-            <View style={{
-              width: 11,
-              height: 3,
-              borderRadius: 2,
-              backgroundColor: color,
-            }} />
             <Text style={{
-              color: C.muted,
-              fontSize: 8,
-              fontWeight: "800",
+              color: C.text,
+              fontSize: 10,
+              fontWeight: "900",
             }}>
-              {label}
+              + Zoom
             </Text>
-          </View>
-        ))}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={resetYAxis}
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor:
+                yScaleFactor === 1
+                  ? C.blue
+                  : C.border2,
+              backgroundColor:
+                yScaleFactor === 1
+                  ? C.blueLo
+                  : C.card2,
+            }}
+          >
+            <Text style={{
+              color:
+                yScaleFactor === 1
+                  ? C.blue
+                  : C.text,
+              fontSize: 10,
+              fontWeight: "900",
+            }}>
+              AUTO {zoomPercent}%
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={zoomYAxisOut}
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: C.border2,
+              backgroundColor: C.card2,
+            }}
+          >
+            <Text style={{
+              color: C.text,
+              fontSize: 10,
+              fontWeight: "900",
+            }}>
+              - Zoom
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={{
@@ -3649,7 +3808,7 @@ function BotTab({ token, lang }) {
 
         <CandlestickIndicatorChart
           candles={displayCandles}
-          height={310}
+          height={350}
           emptyMessage={chartEmptyMessage}
         />
       </Card>
