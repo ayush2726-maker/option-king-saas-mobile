@@ -1333,7 +1333,9 @@ function TradeTab({ token }) {
 
   return (
     <ScrollView style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={loading}
+        onRefresh={loadTrade} tintColor={C.blue} colors={[C.blue]} />}>
 
       <Card glow={trade?.status === "OPEN" ? C.green : C.blue}>
         <Row style={{ justifyContent: "space-between", marginBottom: 10 }}>
@@ -1522,7 +1524,9 @@ function HeroZeroTab({ token }) {
 
   return (
     <ScrollView style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={loading}
+        onRefresh={loadTrade} tintColor={C.red} colors={[C.red]} />}>
 
       <Card glow={C.red}>
         <Text style={{ color: C.red, fontSize: 18, fontWeight: "900", marginBottom: 8 }}>
@@ -1636,7 +1640,9 @@ function LiveFeedTab({ token }) {
 
   return (
     <ScrollView style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={loading}
+        onRefresh={load} tintColor={C.green} colors={[C.green]} />}>
 
       <Card glow={market?.feed_connected ? C.green : C.red}>
         <Row style={{ justifyContent: "space-between", marginBottom: 10 }}>
@@ -1697,7 +1703,9 @@ function ServerTestTab({ token }) {
 
   return (
     <ScrollView style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={loading}
+        onRefresh={runTest} tintColor={C.orange} colors={[C.orange]} />}>
 
       <Card glow={result?.ok ? C.green : C.red}>
         <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
@@ -5902,7 +5910,9 @@ function MoreTab({ token, user, lang, setLang, isAdmin }) {
 
   return (
     <ScrollView style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={loading}
+        onRefresh={loadAll} tintColor={C.blue} colors={[C.blue]} />}>
 
 <Card glow={C.blue}>
         <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
@@ -6375,7 +6385,7 @@ function GuideTab({ lang, setLang }) {
 
 // ── Home Tab ─────────────────────────────────────────────
 
-function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab, lang }) {
+function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab, lang, onPageRefresh }) {
   const hi = lang === "hi";
   const isAdmin = !!user?.is_admin;
   const statusForDisplay = isAdmin
@@ -6396,6 +6406,9 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab, lang }) {
     try {
       const mkt = await apiGet("/market/status", token);
       setMarket(mkt);
+    } catch (e) {}
+    try {
+      if (onPageRefresh) await onPageRefresh();
     } catch (e) {}
     setLoading(false);
   }
@@ -6607,13 +6620,26 @@ function formatDateSafe(isoString) {
 
 function AccountTab({ user, subStatus, onLogout, onRefresh, lang }) {
   const hi = lang === "hi";
+  const [refreshing, setRefreshing] = useState(false);
   const isAdmin = !!user?.is_admin;
   const accountStatus = isAdmin
     ? "ADMIN"
     : (subStatus?.subscription_status || user?.subscription_status || "trial").toUpperCase();
+
+  async function refreshAccount() {
+    setRefreshing(true);
+    try {
+      if (onRefresh) await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   return (
     <ScrollView style={{ flex: 1 }}
-      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
+      refreshControl={<RefreshControl refreshing={refreshing}
+        onRefresh={refreshAccount} tintColor={C.purple} colors={[C.purple]} />}>
 
       <Card glow={C.purple}>
         <Row style={{ marginBottom: 16 }}>
@@ -6663,7 +6689,8 @@ function AccountTab({ user, subStatus, onLogout, onRefresh, lang }) {
         ))}
       </Card>
 
-      <Btn label={hi ? "Refresh Karo" : "Refresh"} icon="🔄" color={C.blue} onPress={onRefresh} />
+      <Btn label={hi ? "Refresh Karo" : "Refresh"} icon="🔄" color={C.blue}
+        loading={refreshing} onPress={refreshAccount} />
 
       <Btn label={hi ? "Logout" : "Logout"} icon="🚪" color={C.red}
         onPress={() => Alert.alert(
@@ -6966,7 +6993,8 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
 
         {activeTab === "home" && (
           <HomeTab user={displayUser} subStatus={displaySubStatus} token={token}
-            setActiveTab={navigateTo} onSubscribe={() => navigateTo("more")} lang={lang} />
+            setActiveTab={navigateTo} onSubscribe={() => navigateTo("more")}
+            onPageRefresh={refreshUser} lang={lang} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
         {activeTab === "markets" && <MarketsTab token={token} lang={lang} />}
