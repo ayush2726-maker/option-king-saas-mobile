@@ -4,11 +4,12 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator, StatusBar, Alert,
   Platform, KeyboardAvoidingView, RefreshControl,
-  BackHandler
+  BackHandler, Linking
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 const AiDecisionCard = require("./src/components/AiDecisionCard");
 const StrategyBuilderTab = require("./src/screens/StrategyBuilderTab");
+const UpstoxSetupGuide = require("./src/components/UpstoxSetupGuide");
 const RecoveryScreen = require("./src/screens/RecoveryScreen").default;
 
 
@@ -967,14 +968,12 @@ function BrokerTab({ token, lang }) {
         set: setTotpKey, placeholder: "TOTP Secret" },
     ],
     upstox: [
-      { key: "clientId", label: hi ? "Client ID (Upstox)" : "Client ID (Upstox)", state: clientId,
-        set: setClientId, placeholder: "Upstox Client ID" },
-      { key: "apiKey", label: "API Key", state: apiKey,
-        set: setApiKey, placeholder: "Upstox API Key" },
-      { key: "apiSecret", label: hi ? "API Secret (Access Token)" : "API Secret (Access Token)", state: apiSecret,
-        set: setApiSecret, placeholder: "Upstox Access Token" },
-      { key: "totpKey", label: "TOTP Key", state: totpKey,
-        set: setTotpKey, placeholder: "TOTP Secret" },
+      { key: "clientId", label: "API Key (Client ID)", state: clientId,
+        set: setClientId, placeholder: "Upstox Developer Apps ka API Key" },
+      { key: "apiKey", label: "API Secret", state: apiKey,
+        set: setApiKey, placeholder: "Upstox Developer Apps ka API Secret", secure: true },
+      { key: "apiSecret", label: "Daily Access Token", state: apiSecret,
+        set: setApiSecret, placeholder: "Generate kiya hua standard Access Token", secure: true },
     ],
   };
 
@@ -995,7 +994,9 @@ function BrokerTab({ token, lang }) {
     try {
       const d = await apiPostAuth("/broker/connect", {
         broker_name: broker,
-        client_id: clientId.trim().toUpperCase(),
+        client_id: broker === "upstox"
+          ? clientId.trim()
+          : clientId.trim().toUpperCase(),
         api_key: apiKey.trim(),
         api_secret: broker === "angelone" ? (apiSecret.trim() || mpin.trim()) : apiSecret.trim(),
         totp_secret: broker === "angelone" ? totpKey.trim() : ""
@@ -1051,6 +1052,10 @@ function BrokerTab({ token, lang }) {
               secureTextEntry={f.secure ?? false} />
           </View>
         ))}
+
+        {broker === "upstox" && (
+          <UpstoxSetupGuide compact />
+        )}
 
         <Btn label={hi ? "Credentials Save Karo" : "Save Credentials"} icon="💾"
           color={C.blue} onPress={saveBroker} loading={loading}
@@ -6003,6 +6008,7 @@ function GuideTab({ lang, setLang }) {
   return (
     <ScrollView style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
+      <UpstoxSetupGuide />
 
       <Card glow={C.blue}>
         <Text style={{ color: C.text, fontSize: 20, fontWeight: "900", marginBottom: 6 }}>
