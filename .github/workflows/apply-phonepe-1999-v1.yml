@@ -1,4 +1,3 @@
-# retrigger: phonepe-mobile-1999-v1
 name: Validate PhonePe 1999 Mobile
 
 on:
@@ -27,8 +26,13 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - name: Apply payment UI patch
-        run: python scripts/patch_phonepe_1999.py
+      - name: Apply payment UI patch when needed
+        run: |
+          if grep -q 'Pay ₹1,999 with PhonePe / UPI' App.js; then
+            echo 'PhonePe UI patch already applied'
+          else
+            python scripts/patch_phonepe_1999.py
+          fi
       - name: Validate Android export
         env:
           CI: "1"
@@ -44,12 +48,12 @@ jobs:
             exit 1
           fi
       - name: Commit patched branch
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && hashFiles('scripts/patch_phonepe_1999.py') != ''
         run: |
           rm -f .github/workflows/apply-phonepe-1999-v1.yml
           rm -f scripts/patch_phonepe_1999.py
           git config user.name "okai-payment-bot"
           git config user.email "actions@users.noreply.github.com"
           git add -A
-          git commit -m "Add PhonePe UPI payment UI for 1999 monthly plan"
+          git diff --cached --quiet || git commit -m "Add PhonePe UPI payment UI for 1999 monthly plan"
           git push origin HEAD:agent/phonepe-upi-1999-v1
