@@ -1,0 +1,72 @@
+name: Run Direct Auth UI Hotfix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/run-direct-auth-ui-hotfix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Apply direct UI patch
+        run: |
+          python scripts/patch_direct_auth_ui.py
+          cat > index.js <<'EOF'
+          import { registerRootComponent } from 'expo';
+          import App from './App';
+
+          registerRootComponent(App);
+          EOF
+          rm -f src/runtime/AuthEnhancements.js
+
+      - name: Validate Android export
+        env:
+          CI: "1"
+        run: |
+          npm ci
+          npx expo export --platform android --output-dir /tmp/okai-direct-auth-hotfix
+          grep -q 'Forgot Login ID' App.js
+          grep -q 'Forgot Password' App.js
+          grep -q 'RecoveryScreen' App.js
+          grep -q 'PasswordInput' App.js
+          grep -q 'email_verification_token' App.js
+
+      - name: Commit direct fix
+        run: |
+          rm -f .github/workflows/run-direct-auth-ui-hotfix.yml
+          rm -f scripts/patch_direct_auth_ui.py
+          git config user.name "okai-auth-hotfix-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix recovery links with direct App integration"
+          git push origin HEAD:main
+
+      - name: Publish production OTA
+        env:
+          CI: "1"
+        run: >-
+          eas update
+          --channel production
+          --message "Direct Forgot Login ID and password recovery UI fix"
+          --non-interactive
