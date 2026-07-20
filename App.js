@@ -3639,6 +3639,27 @@ function BotTab({ token, lang }) {
     settings?.primary_instrument ||
     "NIFTY";
 
+  const autoScanResults = Array.isArray(
+    signal?.scan_results
+  )
+    ? signal.scan_results
+    : [];
+
+  const activePortfolioTrades = Array.isArray(
+    signal?.active_trades
+  )
+    ? signal.active_trades
+    : signal?.active_trade
+    ? [signal.active_trade]
+    : [];
+
+  const capitalPlan = signal?.capital_plan || {
+    slot_1_percent: 50,
+    slot_2_percent: 40,
+    reserve_percent: 10,
+    max_open_positions: 2,
+  };
+
   return (
     <ScrollView style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
@@ -3667,6 +3688,7 @@ function BotTab({ token, lang }) {
           [hi ? "Active Strategy" : "Active Strategy", activeStrategyName],
           [hi ? "Signal" : "Signal", signal?.signal === "NO_DATA" ? (hi ? "Live data nahi hai" : "No live data") : (signal?.signal || "--")],
           [hi ? "Score" : "Score", `${signal?.score ?? "--"} / ${signal?.min_score ?? "--"}`],
+          [hi ? "Open Positions" : "Open Positions", `${signal?.open_trade_count ?? activePortfolioTrades.length} / ${capitalPlan.max_open_positions || 2}`],
           [hi ? "Total Trades" : "Total Trades", signal?.total_trades ?? "--"],
           [hi ? "Total P&L" : "Total P&L", signal?.total_pnl != null ? `₹${signal.total_pnl}` : "--"],
         ].map(([l, v]) => (
@@ -3679,6 +3701,293 @@ function BotTab({ token, lang }) {
       </Card>
 
       <AiDecisionCard signal={signal} />
+
+      {/* AUTO Portfolio 50/40 */}
+      <Card glow={C.accent}>
+        <Row style={{
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 10,
+        }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{
+              color: C.text,
+              fontSize: 16,
+              fontWeight: "900",
+            }}>
+              🎯 AUTO Portfolio
+            </Text>
+            <Text style={{
+              color: C.muted,
+              fontSize: 10,
+              lineHeight: 16,
+              marginTop: 4,
+            }}>
+              NIFTY, BANKNIFTY aur SENSEX me best score select hota hai.
+              Second trade sirf alag index me liya jayega.
+            </Text>
+          </View>
+
+          <Tag
+            label="MAX 2"
+            color={C.accent}
+          />
+        </Row>
+
+        <View style={{
+          flexDirection: "row",
+          gap: 8,
+          marginBottom: 12,
+        }}>
+          {[
+            ["SLOT 1", `${capitalPlan.slot_1_percent || 50}%`, C.green],
+            ["SLOT 2", `${capitalPlan.slot_2_percent || 40}%`, C.blue],
+            ["RESERVE", `${capitalPlan.reserve_percent || 10}%`, C.gold],
+          ].map(([label, value, color]) => (
+            <View
+              key={label}
+              style={{
+                flex: 1,
+                backgroundColor: color + "15",
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: color + "55",
+                paddingVertical: 9,
+                paddingHorizontal: 6,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{
+                color: C.muted,
+                fontSize: 8,
+                fontWeight: "900",
+              }}>
+                {label}
+              </Text>
+              <Text style={{
+                color,
+                fontSize: 15,
+                fontWeight: "900",
+                marginTop: 2,
+              }}>
+                {value}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={{
+          color: C.sub,
+          fontSize: 10,
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: 1.1,
+          marginBottom: 6,
+        }}>
+          Live Index Scan
+        </Text>
+
+        {autoScanResults.length > 0 ? (
+          autoScanResults.map((scan, scanIndex) => {
+            const passed = !!scan?.trade_allowed;
+            const score = Number(scan?.score || 0);
+            const minimum = Number(scan?.min_score || activeEntryThreshold);
+            const signalText =
+              scan?.signal && scan.signal !== "WAIT"
+                ? scan.signal
+                : scan?.candidate_signal || "WAIT";
+
+            return (
+              <View
+                key={scan?.underlying || `scan-${scanIndex}`}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingVertical: 8,
+                  borderBottomWidth: 1,
+                  borderBottomColor: C.border,
+                }}
+              >
+                <View>
+                  <Text style={{
+                    color: C.text,
+                    fontSize: 12,
+                    fontWeight: "900",
+                  }}>
+                    {scan?.underlying || "--"}
+                  </Text>
+                  <Text style={{
+                    color: C.muted,
+                    fontSize: 9,
+                    marginTop: 2,
+                  }}>
+                    {scan?.status || "--"} • {signalText}
+                  </Text>
+                </View>
+
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={{
+                    color: passed
+                      ? C.green
+                      : score >= minimum - 5
+                      ? C.gold
+                      : C.muted,
+                    fontSize: 13,
+                    fontWeight: "900",
+                  }}>
+                    {score}/{minimum}
+                  </Text>
+                  <Text style={{
+                    color: passed ? C.green : C.muted,
+                    fontSize: 8,
+                    fontWeight: "900",
+                    marginTop: 2,
+                  }}>
+                    {passed ? "QUALIFIED" : "WAIT"}
+                  </Text>
+                </View>
+              </View>
+            );
+          })
+        ) : (
+          <Text style={{
+            color: C.muted,
+            fontSize: 10,
+            lineHeight: 16,
+          }}>
+            Bot ke next scan ke baad tino indices ka score yahan dikhega.
+          </Text>
+        )}
+
+        <Text style={{
+          color: C.sub,
+          fontSize: 10,
+          fontWeight: "900",
+          textTransform: "uppercase",
+          letterSpacing: 1.1,
+          marginTop: 14,
+          marginBottom: 6,
+        }}>
+          Active Positions
+        </Text>
+
+        {activePortfolioTrades.length > 0 ? (
+          activePortfolioTrades.map((trade, index) => {
+            const allocation =
+              trade?.allocation_pct != null
+                ? Number(trade.allocation_pct).toFixed(0)
+                : index === 0
+                ? "50"
+                : "40";
+            const livePnl = Number(
+              trade?.unrealized_pnl ??
+              trade?.pnl ??
+              0
+            );
+
+            return (
+              <View
+                key={trade?.id || `${trade?.symbol}-${index}`}
+                style={{
+                  backgroundColor: C.s2,
+                  borderRadius: 11,
+                  borderWidth: 1,
+                  borderColor:
+                    livePnl >= 0
+                      ? C.green + "44"
+                      : C.red + "44",
+                  padding: 10,
+                  marginBottom: 8,
+                }}
+              >
+                <Row style={{
+                  justifyContent: "space-between",
+                }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      color: C.text,
+                      fontSize: 12,
+                      fontWeight: "900",
+                    }}>
+                      {trade?.underlying || trade?.symbol || "--"} {trade?.side || ""}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        color: C.muted,
+                        fontSize: 9,
+                        marginTop: 3,
+                      }}
+                    >
+                      {trade?.symbol || "--"}
+                    </Text>
+                  </View>
+
+                  <Tag
+                    label={`SLOT ${trade?.capital_slot || index + 1} • ${allocation}%`}
+                    color={index === 0 ? C.green : C.blue}
+                  />
+                </Row>
+
+                <View style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginTop: 9,
+                }}>
+                  {[
+                    ["Qty", trade?.qty ?? "--"],
+                    ["Entry", trade?.entry_price != null ? `₹${Number(trade.entry_price).toFixed(2)}` : "--"],
+                    ["LTP", trade?.current_price != null ? `₹${Number(trade.current_price).toFixed(2)}` : "--"],
+                    ["SL", trade?.sl_price != null ? `₹${Number(trade.sl_price).toFixed(2)}` : "--"],
+                  ].map(([label, value]) => (
+                    <View
+                      key={label}
+                      style={{
+                        width: "47%",
+                      }}
+                    >
+                      <Text style={{
+                        color: C.muted,
+                        fontSize: 8,
+                        fontWeight: "800",
+                      }}>
+                        {label}
+                      </Text>
+                      <Text style={{
+                        color: C.text,
+                        fontSize: 11,
+                        fontWeight: "900",
+                        marginTop: 2,
+                      }}>
+                        {value}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+
+                <Text style={{
+                  color: livePnl >= 0 ? C.green : C.red,
+                  fontSize: 13,
+                  fontWeight: "900",
+                  textAlign: "right",
+                  marginTop: 8,
+                }}>
+                  {livePnl >= 0 ? "+" : ""}₹{livePnl.toFixed(2)}
+                </Text>
+              </View>
+            );
+          })
+        ) : (
+          <Text style={{
+            color: C.muted,
+            fontSize: 10,
+          }}>
+            Abhi koi open position nahi hai.
+          </Text>
+        )}
+      </Card>
 
       {/* Start/Stop/Refresh */}
       <Row style={{ gap: 10 }}>
@@ -3898,7 +4207,10 @@ function BotTab({ token, lang }) {
       {/* Instrument selection */}
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>{hi ? "Instruments" : "Instruments"}</Text>
+          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 5 }}>{hi ? "AUTO Scan Instruments" : "AUTO Scan Instruments"}</Text>
+        <Text style={{ color: C.muted, fontSize: 9, lineHeight: 14, marginBottom: 10 }}>
+          ON kiye gaye sabhi indices har cycle scan honge. CHART sirf graph display select karta hai.
+        </Text>
         {["NIFTY", "BANKNIFTY", "SENSEX"].map(sym => {
           const enabled = (settings?.enabled_instruments || []).includes(sym);
           const isPrimary = settings?.primary_instrument === sym;
@@ -3907,14 +4219,14 @@ function BotTab({ token, lang }) {
               paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border }}>
               <Row style={{ gap: 8 }}>
                 <Text style={{ color: C.text, fontSize: 14, fontWeight: "800" }}>{sym}</Text>
-                {isPrimary && <Tag label={hi ? "PRIMARY" : "PRIMARY"} color={C.accent} />}
+                {isPrimary && <Tag label={hi ? "CHART" : "CHART"} color={C.accent} />}
               </Row>
               <Row style={{ gap: 8 }}>
                 {enabled && !isPrimary && (
                   <TouchableOpacity onPress={() => setPrimary(sym)}
                     style={{ paddingHorizontal: 10, paddingVertical: 6,
                       borderRadius: 8, borderWidth: 1, borderColor: C.border }}>
-                    <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800" }}>{hi ? "Primary Karo" : "Set Primary"}</Text>
+                    <Text style={{ color: C.muted, fontSize: 11, fontWeight: "800" }}>{hi ? "Chart Karo" : "Set Chart"}</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={() => toggleInstrument(sym)}
