@@ -1,0 +1,96 @@
+name: Strengthen Mobile Registration Consent V1
+
+on:
+  push:
+    branches:
+      - agent/registration-risk-consent-v1
+    paths:
+      - ".github/workflows/strengthen-registration-consent-v1.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/registration-risk-consent-v1
+          fetch-depth: 0
+
+      - name: Add separate consent checkboxes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("App.js")
+          app = path.read_text(encoding="utf-8")
+
+          def replace_once(old, new, label):
+              global app
+              if old not in app:
+                  raise RuntimeError(f"{label} marker missing")
+              app = app.replace(old, new, 1)
+
+          replace_once(
+              "  const [riskAcknowledged, setRiskAcknowledged] = useState(false);\n  const [algoOrderAuthorized, setAlgoOrderAuthorized] = useState(false);\n",
+              "  const [riskAcknowledged, setRiskAcknowledged] = useState(false);\n  const [noGuaranteeAcknowledged, setNoGuaranteeAcknowledged] = useState(false);\n  const [technologyRiskAcknowledged, setTechnologyRiskAcknowledged] = useState(false);\n  const [algoOrderAuthorized, setAlgoOrderAuthorized] = useState(false);\n",
+              "consent states",
+          )
+          replace_once(
+              "    const allAccepted = ageConfirmed && riskAcknowledged && algoOrderAuthorized\n      && termsAccepted && privacyAccepted && whatsappOptIn;\n",
+              "    const allAccepted = ageConfirmed && riskAcknowledged && noGuaranteeAcknowledged\n      && technologyRiskAcknowledged && algoOrderAuthorized && termsAccepted\n      && privacyAccepted && whatsappOptIn;\n",
+              "all accepted validation",
+          )
+          replace_once(
+              "        risk_acknowledged: riskAcknowledged,\n        algo_order_authorized: algoOrderAuthorized,\n",
+              "        risk_acknowledged: riskAcknowledged,\n        no_guarantee_acknowledged: noGuaranteeAcknowledged,\n        technology_risk_acknowledged: technologyRiskAcknowledged,\n        algo_order_authorized: algoOrderAuthorized,\n",
+              "registration payload",
+          )
+          replace_once(
+              '''            <ConsentRow checked={riskAcknowledged}
+              onPress={() => setRiskAcknowledged(!riskAcknowledged)}
+              text={hi
+                ? "Main options trading ka high risk, poore capital ke loss ka risk, aur no-profit-guarantee rule samajhta/samajhti hoon."
+                : "I understand the high risk, possible loss of all trading capital, and that no profit or return is guaranteed."} />
+            <ConsentRow checked={algoOrderAuthorized}
+''',
+              '''            <ConsentRow checked={riskAcknowledged}
+              onPress={() => setRiskAcknowledged(!riskAcknowledged)}
+              text={hi
+                ? "Main options trading ka high risk aur poore trading capital ke loss ka risk samajhta/samajhti hoon."
+                : "I understand the high risk of options trading and the possible loss of all trading capital."} />
+            <ConsentRow checked={noGuaranteeAcknowledged}
+              onPress={() => setNoGuaranteeAcknowledged(!noGuaranteeAcknowledged)}
+              text={hi
+                ? "Main samajhta/samajhti hoon ki profit, return, accuracy ya loss recovery ki koi guarantee nahi hai; backtest future result ki guarantee nahi hai."
+                : "I understand that profit, returns, accuracy and loss recovery are not guaranteed, and backtests do not guarantee future results."} />
+            <ConsentRow checked={technologyRiskAcknowledged}
+              onPress={() => setTechnologyRiskAcknowledged(!technologyRiskAcknowledged)}
+              text={hi
+                ? "Main samajhta/samajhti hoon ki internet, market data, server, mobile, broker API ya exchange failure se order delay, reject, miss, duplicate ya galat ho sakta hai."
+                : "I understand that internet, market data, server, mobile, broker API or exchange failures may delay, reject, miss, duplicate or incorrectly route orders."} />
+            <ConsentRow checked={algoOrderAuthorized}
+''',
+              "consent rows",
+          )
+          path.write_text(app, encoding="utf-8")
+          PY
+
+      - name: Validate mobile markers
+        run: |
+          grep -q 'no_guarantee_acknowledged' App.js
+          grep -q 'technology_risk_acknowledged' App.js
+          grep -q 'noGuaranteeAcknowledged' App.js
+
+      - name: Remove workflow and push
+        shell: bash
+        run: |
+          rm -f .github/workflows/strengthen-registration-consent-v1.yml
+          git config user.name "okai-consent-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Add separate no-guarantee and technology-risk checks"
+          git push origin HEAD:agent/registration-risk-consent-v1
