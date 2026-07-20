@@ -6377,7 +6377,11 @@ function GuideTab({ lang, setLang }) {
 
 function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab, lang }) {
   const hi = lang === "hi";
-  const daysLeft = subStatus?.days_remaining ?? null;
+  const isAdmin = !!user?.is_admin;
+  const statusForDisplay = isAdmin
+    ? "admin"
+    : (subStatus?.subscription_status || user?.subscription_status || "trial");
+  const daysLeft = isAdmin ? null : (subStatus?.days_remaining ?? null);
 
   const [signal, setSignal] = useState(null);
   const [market, setMarket] = useState(null);
@@ -6422,10 +6426,17 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab, lang }) {
           padding: 12, borderWidth: 1, borderColor: C.border }}>
           <Row style={{ justifyContent: "space-between" }}>
             <Text style={{ color: C.muted, fontSize: 12 }}>{hi ? "Subscription" : "Subscription"}</Text>
-            <Tag label={user?.subscription_status?.toUpperCase()||"TRIAL"}
-              color={user?.subscription_status==="active"?C.green:C.accent} />
+            <Tag label={isAdmin ? "ADMIN" : statusForDisplay.toUpperCase()}
+              color={isAdmin || statusForDisplay==="active" ? C.green : C.accent} />
           </Row>
-          {daysLeft !== null && (
+          {isAdmin ? (
+            <Row style={{ justifyContent: "space-between", marginTop: 8 }}>
+              <Text style={{ color: C.muted, fontSize: 12 }}>{hi ? "Access" : "Access"}</Text>
+              <Text style={{ color: C.green, fontWeight: "900", fontSize: 13 }}>
+                {hi ? "Unlimited" : "Unlimited"}
+              </Text>
+            </Row>
+          ) : daysLeft !== null && (
             <Row style={{ justifyContent: "space-between", marginTop: 8 }}>
               <Text style={{ color: C.muted, fontSize: 12 }}>{hi ? "Bacha hua time" : "Time remaining"}</Text>
               <Text style={{ color: daysLeft<=3?C.red:C.green,
@@ -6531,7 +6542,7 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab, lang }) {
         </Text>
       </Card>
 
-      {user?.subscription_status !== "active" && (
+      {!isAdmin && statusForDisplay !== "active" && Number(daysLeft ?? 0) <= 0 && (
         <Btn label={hi ? "Plans Dekho" : "View Plans"} icon="💎" color={C.gold}
           onPress={onSubscribe} />
       )}
@@ -6596,6 +6607,10 @@ function formatDateSafe(isoString) {
 
 function AccountTab({ user, subStatus, onLogout, onRefresh, lang }) {
   const hi = lang === "hi";
+  const isAdmin = !!user?.is_admin;
+  const accountStatus = isAdmin
+    ? "ADMIN"
+    : (subStatus?.subscription_status || user?.subscription_status || "trial").toUpperCase();
   return (
     <ScrollView style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
@@ -6620,8 +6635,8 @@ function AccountTab({ user, subStatus, onLogout, onRefresh, lang }) {
               fontSize: 12, marginTop: 2 }}>{user.phone}</Text>}
           </View>
         </Row>
-        <Tag label={user?.subscription_status?.toUpperCase()||"TRIAL"}
-          color={user?.subscription_status==="active"?C.green:C.accent} />
+        <Tag label={accountStatus}
+          color={isAdmin || accountStatus==="ACTIVE" ? C.green : C.accent} />
       </Card>
 
       <Card>
@@ -6629,10 +6644,13 @@ function AccountTab({ user, subStatus, onLogout, onRefresh, lang }) {
           textTransform: "uppercase", letterSpacing: 1.2,
           marginBottom: 12 }}>{hi ? "Account Details" : "Account Details"}</Text>
         {[
-          [hi ? "Status" : "Status", user?.subscription_status?.toUpperCase() || "--"],
-          [hi ? "Bacha hua time" : "Time remaining", subStatus?.days_remaining != null
-            ? (hi ? `${subStatus.days_remaining} din` : `${subStatus.days_remaining} days`) : "--"],
-          [hi ? "Trial ends" : "Trial ends", formatDateSafe(user?.trial_ends_at)],
+          [hi ? "Status" : "Status", accountStatus],
+          [hi ? "Bacha hua time" : "Time remaining", isAdmin
+            ? "Unlimited"
+            : (subStatus?.days_remaining != null
+              ? (hi ? `${subStatus.days_remaining} din` : `${subStatus.days_remaining} days`)
+              : "--")],
+          [hi ? "Trial ends" : "Trial ends", isAdmin ? "Not applicable" : formatDateSafe(user?.trial_ends_at)],
           [hi ? "Member since" : "Member since", formatDateSafe(user?.created_at)],
         ].map(([l, v]) => (
           <Row key={l} style={{ justifyContent: "space-between",
@@ -6828,7 +6846,33 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
     } catch {}
   }
 
-  const isAdmin = userFresh?.role==="admin" || userFresh?.is_admin;
+  const isAdmin = userFresh?.role==="admin" || !!userFresh?.is_admin;
+  const serverSubscriptionStatus = subStatus?.subscription_status
+    || userFresh?.subscription_status
+    || "trial";
+  const subscriptionDaysRemaining = Number(subStatus?.days_remaining ?? 0);
+  const effectiveSubscriptionStatus = isAdmin ? "active" : serverSubscriptionStatus;
+  const subscriptionExpired = !isAdmin && (
+    effectiveSubscriptionStatus === "expired"
+    || (effectiveSubscriptionStatus === "trial" && subscriptionDaysRemaining <= 0)
+  );
+  const trialEndingSoon = !isAdmin
+    && effectiveSubscriptionStatus === "trial"
+    && subscriptionDaysRemaining > 0
+    && subscriptionDaysRemaining <= 2;
+  const displayUser = {
+    ...(userFresh || user || {}),
+    subscription_status: effectiveSubscriptionStatus,
+    is_admin: !!isAdmin,
+  };
+  const displaySubStatus = isAdmin
+    ? {
+        ...(subStatus || {}),
+        subscription_status: "active",
+        days_remaining: null,
+        unlimited: true,
+      }
+    : subStatus;
 
   const tabs = [
     { id: "home", icon: "🏠", label: lang === "hi" ? "होम" : "Home" },
@@ -6888,13 +6932,13 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
               </Text>
             </View>
           </Row>
-          <Tag label={userFresh?.subscription_status?.toUpperCase()||"TRIAL"}
-            color={userFresh?.subscription_status==="active"?C.green:C.accent} />
+          <Tag label={isAdmin ? "ADMIN" : effectiveSubscriptionStatus.toUpperCase()}
+            color={isAdmin || effectiveSubscriptionStatus==="active" ? C.green : C.accent} />
         </Row>
       </View>
 
       {/* Subscription warning */}
-      {userFresh?.subscription_status !== "active" && (
+      {subscriptionExpired && (
         <TouchableOpacity
           onPress={() => navigateTo("more")}
           style={{ backgroundColor: C.redLo, borderRadius: 12,
@@ -6904,6 +6948,16 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
             fontSize: 13 }}>⚠️ Trial khatam — Subscribe karo → ₹1,999/month</Text>
         </TouchableOpacity>
       )}
+      {trialEndingSoon && (
+        <TouchableOpacity
+          onPress={() => navigateTo("more")}
+          style={{ backgroundColor: C.goldLo, borderRadius: 12,
+            padding: 14, margin: 16, marginBottom: 0,
+            borderWidth: 1, borderColor: C.gold+"55" }}>
+          <Text style={{ color: C.gold, fontWeight: "900",
+            fontSize: 13 }}>⏳ Trial {subscriptionDaysRemaining} din me khatam hoga — ₹1,999/month</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Content */}
       <ScrollView style={{ flex: 1 }}
@@ -6911,7 +6965,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
         <OtaStatusBanner />
 
         {activeTab === "home" && (
-          <HomeTab user={userFresh} subStatus={subStatus} token={token}
+          <HomeTab user={displayUser} subStatus={displaySubStatus} token={token}
             setActiveTab={navigateTo} onSubscribe={() => navigateTo("more")} lang={lang} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
@@ -6919,7 +6973,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
         {activeTab === "trade" && <TradeTab token={token} />}
         {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
         {activeTab === "tools" && <ToolsTab lang={lang} navigateTo={navigateTo} />}
-        {activeTab === "more" && <MoreTab token={token} user={userFresh} lang={lang} setLang={setLang} isAdmin={isAdmin} />}
+        {activeTab === "more" && <MoreTab token={token} user={displayUser} lang={lang} setLang={setLang} isAdmin={isAdmin} />}
         {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
         {activeTab === "bot" && <BotTab token={token} lang={lang} />}
         {activeTab === "broker" && <BrokerTab token={token} lang={lang} />}
@@ -6929,14 +6983,14 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
         {activeTab === "servertest" && <ServerTestTab token={token} />}
         {activeTab === "herozero" && <HeroZeroTab token={token} />}
         {activeTab === "plans" && (
-          <PlansTab token={token} user={userFresh}
+          <PlansTab token={token} user={displayUser}
             onSuccess={refreshUser} />
         )}
         {activeTab === "admin" && isAdmin && (
           <AdminTab token={token} user={userFresh} lang={lang} />
         )}
         {activeTab === "account" && (
-          <TabErrorBoundary><AccountTab user={userFresh} subStatus={subStatus} onLogout={onLogout} onRefresh={refreshUser} lang={lang} /></TabErrorBoundary>
+          <TabErrorBoundary><AccountTab user={displayUser} subStatus={displaySubStatus} onLogout={onLogout} onRefresh={refreshUser} lang={lang} /></TabErrorBoundary>
         )}
       </ScrollView>
 
