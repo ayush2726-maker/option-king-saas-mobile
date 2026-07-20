@@ -1,0 +1,140 @@
+name: Build Fresh APK v1.0.1
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - "App.js"
+      - "app.json"
+      - "eas.json"
+      - "index.js"
+      - "src/**"
+      - ".github/workflows/build-fresh-apk-v101.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout fresh APK branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || 'agent/fresh-apk-v101' }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Railway server
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --retry 5 --retry-delay 5 \
+            https://option-king-saas-production.up.railway.app/health \
+            | tee /tmp/health.json
+          grep -q 'healthy' /tmp/health.json
+
+          curl --fail --show-error --silent --retry 5 --retry-delay 5 \
+            https://option-king-saas-production.up.railway.app/auth/registration-disclosure \
+            | tee /tmp/disclosure.json
+          grep -q 'OKAI-RISK-2026-07-20-v1' /tmp/disclosure.json
+
+      - name: Validate current Android JavaScript bundle
+        env:
+          CI: "1"
+        run: |
+          npx expo export --platform android --output-dir /tmp/okai-v101-export
+          grep -q 'Risk & Rules Acknowledgement' App.js
+          grep -q 'Forgot Login ID' App.js
+          grep -q 'Pay ₹1,999 with PhonePe / UPI' App.js
+
+      - name: Build signed APK on EAS
+        id: eas_build
+        env:
+          CI: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          eas build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --wait \
+            --json > /tmp/eas-build.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path('/tmp/eas-build.json').read_text())
+          if isinstance(data, list):
+              build = data[-1]
+          elif isinstance(data, dict) and isinstance(data.get('builds'), list):
+              build = data['builds'][-1]
+          else:
+              build = data
+
+          artifacts = build.get('artifacts') or {}
+          url = (
+              artifacts.get('applicationArchiveUrl')
+              or artifacts.get('buildUrl')
+              or build.get('applicationArchiveUrl')
+          )
+          build_id = build.get('id') or ''
+          build_page = build.get('buildDetailsPageUrl') or build.get('url') or ''
+          if not url:
+              raise SystemExit(f'APK URL missing in EAS response keys: {sorted(build.keys())}')
+
+          with open(Path(__import__('os').environ['GITHUB_OUTPUT']), 'a') as out:
+              out.write(f'apk_url={url}\n')
+              out.write(f'build_id={build_id}\n')
+              out.write(f'build_page={build_page}\n')
+          print(f'EAS build ID: {build_id}')
+          print(f'EAS build page: {build_page}')
+          PY
+
+      - name: Download APK
+        shell: bash
+        env:
+          APK_URL: ${{ steps.eas_build.outputs.apk_url }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-delay 5 \
+            "$APK_URL" --output Option-King-AI-v1.0.1.apk
+          test "$(stat -c%s Option-King-AI-v1.0.1.apk)" -gt 5000000
+          sha256sum Option-King-AI-v1.0.1.apk | tee Option-King-AI-v1.0.1.apk.sha256
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Option-King-AI-v1.0.1-APK
+          path: |
+            Option-King-AI-v1.0.1.apk
+            Option-King-AI-v1.0.1.apk.sha256
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish production OTA for runtime 1.0.1
+        env:
+          CI: "1"
+        run: >-
+          eas update
+          --channel production
+          --message "Fresh APK v1.0.1 registration and server connectivity fix"
+          --non-interactive
