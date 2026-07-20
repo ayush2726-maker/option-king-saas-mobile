@@ -116,6 +116,26 @@ const C = {
 };
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
+const REGISTRATION_POLICY_VERSION = "OKAI-RISK-2026-07-20-v1";
+
+const REGISTRATION_RISK_POINTS = {
+  hi: [
+    "Options/derivatives me poora trading capital loss ho sakta hai.",
+    "Koi guaranteed profit, return, accuracy ya loss recovery nahi hai.",
+    "Backtest aur past performance future result ki guarantee nahi hain.",
+    "Internet, market data, mobile, server, broker API ya exchange failure se order delay, reject, miss ya duplicate ho sakta hai.",
+    "Live mode, broker account, capital, strategy settings aur risk limits ki zimmedari user ki rahegi.",
+    "Subscription software access ke liye hai; guaranteed return ke liye nahi.",
+  ],
+  en: [
+    "Options and derivatives can cause loss of the entire trading capital.",
+    "There is no guaranteed profit, return, accuracy or loss recovery.",
+    "Backtests and past performance do not guarantee future results.",
+    "Internet, market-data, mobile, server, broker API or exchange failures may delay, reject, miss or duplicate orders.",
+    "The user remains responsible for live mode, broker account, capital, strategy settings and risk limits.",
+    "The subscription is for software access, not guaranteed returns.",
+  ],
+};
 
 // ── API Helpers ──────────────────────────────────────────
 async function apiPost(path, body) {
@@ -286,15 +306,62 @@ function RegisterScreen({ onLogin, onBack, lang }) {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [riskAcknowledged, setRiskAcknowledged] = useState(false);
+  const [algoOrderAuthorized, setAlgoOrderAuthorized] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
+  const [showFullTerms, setShowFullTerms] = useState(false);
+
+  function ConsentRow({ checked, onPress, text }) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.75}
+        style={{ flexDirection: "row", alignItems: "flex-start", marginTop: 11 }}>
+        <View style={{ width: 22, height: 22, borderRadius: 5, marginRight: 10,
+          borderWidth: 1.5, borderColor: checked ? C.green : C.border2,
+          backgroundColor: checked ? C.green : C.s1,
+          alignItems: "center", justifyContent: "center" }}>
+          {checked && <Text style={{ color: C.bg, fontSize: 14, fontWeight: "900" }}>✓</Text>}
+        </View>
+        <Text style={{ flex: 1, color: checked ? C.text : C.sub,
+          fontSize: 12, lineHeight: 18 }}>{text}</Text>
+      </TouchableOpacity>
+    );
+  }
 
   async function handleRegister() {
     setError("");
     if (password !== confirm) { setError(hi ? "Passwords match nahi karte" : "Passwords do not match"); return; }
     if (password.length < 6) { setError(hi ? "Password kam se kam 6 characters" : "Password must be at least 6 characters"); return; }
+    const phoneDigits = String(phone || "").replace(/\D/g, "");
+    if (phoneDigits.length < 10) {
+      setError(hi ? "Valid WhatsApp number daalo" : "Enter a valid WhatsApp number");
+      return;
+    }
+    const allAccepted = ageConfirmed && riskAcknowledged && algoOrderAuthorized
+      && termsAccepted && privacyAccepted && whatsappOptIn;
+    if (!allAccepted) {
+      setError(hi
+        ? "Registration ke liye sabhi mandatory acknowledgements accept karo"
+        : "Accept all mandatory acknowledgements to register");
+      return;
+    }
     setLoading(true);
     try {
-      const d = await apiPost("/auth/register",
-        { name, email, phone, password });
+      const d = await apiPost("/auth/register", {
+        name,
+        email,
+        phone,
+        password,
+        policy_version: REGISTRATION_POLICY_VERSION,
+        age_confirmed: ageConfirmed,
+        risk_acknowledged: riskAcknowledged,
+        algo_order_authorized: algoOrderAuthorized,
+        terms_accepted: termsAccepted,
+        privacy_accepted: privacyAccepted,
+        whatsapp_trade_alert_opt_in: whatsappOptIn,
+      });
       if (d.token) { onLogin(d.token, d.user); }
       else setError(d.detail || (hi ? "Registration fail ho gaya" : "Registration failed"));
     } catch { setError(hi ? "Server se connect nahi ho paya" : "Could not connect to server"); }
@@ -319,10 +386,10 @@ function RegisterScreen({ onLogin, onBack, lang }) {
           <TextInput style={st.input} value={email} onChangeText={setEmail}
             placeholder={hi ? "aapki@email.com" : "your@email.com"} placeholderTextColor={C.muted}
             autoCapitalize="none" keyboardType="email-address" />
-          <Label text={hi ? "Phone (Optional)" : "Phone (Optional)"} />
+          <Label text={hi ? "WhatsApp Number *" : "WhatsApp Number *"} />
           <TextInput style={st.input} value={phone} onChangeText={setPhone}
-            placeholder="9999999999" placeholderTextColor={C.muted}
-            keyboardType="phone-pad" />
+            placeholder={hi ? "10 digit mobile number" : "10-digit mobile number"}
+            placeholderTextColor={C.muted} keyboardType="phone-pad" />
           <Label text={hi ? "New Password *" : "New Password *"} />
           <TextInput style={st.input} value={password}
             onChangeText={setPassword} placeholder={hi ? "Kam se kam 6 characters" : "At least 6 characters"}
@@ -332,6 +399,83 @@ function RegisterScreen({ onLogin, onBack, lang }) {
             value={confirm} onChangeText={setConfirm}
             placeholder={hi ? "Password dobara daalo" : "Re-enter password"}
             placeholderTextColor={C.muted} secureTextEntry />
+          <View style={{ backgroundColor: C.s1, borderRadius: 12, padding: 13,
+            marginBottom: 16, borderWidth: 1, borderColor: C.gold + "55" }}>
+            <Row style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={{ color: C.gold, fontSize: 14, fontWeight: "900" }}>
+                  ⚠️ {hi ? "Risk & Rules Acknowledgement" : "Risk & Rules Acknowledgement"}
+                </Text>
+                <Text style={{ color: C.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }}>
+                  {hi
+                    ? "Register karne se pehle har point padhkar alag se agree karna mandatory hai."
+                    : "Read each point and accept it separately before registration."}
+                </Text>
+              </View>
+              <Tag label="MANDATORY" color={C.gold} />
+            </Row>
+
+            <TouchableOpacity onPress={() => setShowFullTerms(!showFullTerms)}
+              style={{ paddingVertical: 10 }}>
+              <Text style={{ color: C.blue, fontSize: 12, fontWeight: "800" }}>
+                {showFullTerms
+                  ? (hi ? "▲ Detailed risk points band karo" : "▲ Hide detailed risk points")
+                  : (hi ? "▼ Detailed risk points padho" : "▼ Read detailed risk points")}
+              </Text>
+            </TouchableOpacity>
+
+            {showFullTerms && (
+              <View style={{ backgroundColor: C.s2, borderRadius: 9, padding: 10,
+                borderWidth: 1, borderColor: C.border }}>
+                {REGISTRATION_RISK_POINTS[hi ? "hi" : "en"].map((point, index) => (
+                  <Text key={String(index)} style={{ color: C.sub, fontSize: 11,
+                    lineHeight: 17, marginBottom: index === 5 ? 0 : 6 }}>
+                    {index + 1}. {point}
+                  </Text>
+                ))}
+                <Text style={{ color: C.muted, fontSize: 10, lineHeight: 15, marginTop: 9 }}>
+                  {hi
+                    ? "Ye acknowledgement user ke statutory rights ko khatam nahi karta aur SEBI/exchange/broker compliance ka replacement nahi hai."
+                    : "This acknowledgement does not remove statutory rights and does not replace SEBI, exchange or broker compliance."}
+                </Text>
+              </View>
+            )}
+
+            <ConsentRow checked={ageConfirmed} onPress={() => setAgeConfirmed(!ageConfirmed)}
+              text={hi
+                ? "Main confirm karta/karti hoon ki meri age 18 saal ya usse zyada hai."
+                : "I confirm that I am at least 18 years old."} />
+            <ConsentRow checked={riskAcknowledged}
+              onPress={() => setRiskAcknowledged(!riskAcknowledged)}
+              text={hi
+                ? "Main options trading ka high risk, poore capital ke loss ka risk, aur no-profit-guarantee rule samajhta/samajhti hoon."
+                : "I understand the high risk, possible loss of all trading capital, and that no profit or return is guaranteed."} />
+            <ConsentRow checked={algoOrderAuthorized}
+              onPress={() => setAlgoOrderAuthorized(!algoOrderAuthorized)}
+              text={hi
+                ? "Main required broker/exchange/legal approvals ke baad automated orders request karta/karti hoon; live mode, capital aur settings ki zimmedari meri hai."
+                : "I request automated orders only after required broker/exchange/legal approvals; I remain responsible for live mode, capital and settings."} />
+            <ConsentRow checked={termsAccepted}
+              onPress={() => setTermsAccepted(!termsAccepted)}
+              text={hi
+                ? "Maine Terms of Use aur Risk Disclosure padhkar accept kiya hai."
+                : "I have read and accept the Terms of Use and Risk Disclosure."} />
+            <ConsentRow checked={privacyAccepted}
+              onPress={() => setPrivacyAccepted(!privacyAccepted)}
+              text={hi
+                ? "Maine Privacy Notice padhkar service aur audit ke liye zaroori data processing accept ki hai."
+                : "I have read the Privacy Notice and accept necessary data processing for service and audit."} />
+            <ConsentRow checked={whatsappOptIn}
+              onPress={() => setWhatsappOptIn(!whatsappOptIn)}
+              text={hi
+                ? "Mujhe diye gaye WhatsApp number par sirf mere executed PAPER/LIVE trade alerts aur essential account messages bheje ja sakte hain."
+                : "I agree to receive only my executed PAPER/LIVE trade alerts and essential account messages on WhatsApp."} />
+
+            <Text style={{ color: C.muted, fontSize: 10, lineHeight: 15, marginTop: 12 }}>
+              Policy: {REGISTRATION_POLICY_VERSION}
+            </Text>
+          </View>
+
           <Btn label={hi ? "Register Karo" : "Register"} icon="🚀" color={C.green}
             onPress={handleRegister} loading={loading} />
         </Card>
