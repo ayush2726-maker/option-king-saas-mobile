@@ -3,7 +3,8 @@ import * as Updates from "expo-updates";
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator, StatusBar, Alert,
-  Platform, KeyboardAvoidingView, RefreshControl
+  Platform, KeyboardAvoidingView, RefreshControl,
+  BackHandler
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 const AiDecisionCard = require("./src/components/AiDecisionCard");
@@ -4887,7 +4888,200 @@ function BacktestTab({ token, lang }) {
   );
 }
 
-function MoreTab({ token, user, lang, setLang, isAdmin, setActiveTab }) {
+function ToolsTab({
+  lang,
+  navigateTo,
+}) {
+  const hi = lang === "hi";
+
+  const tools = [
+    {
+      id: "broker",
+      icon: "🔗",
+      title: hi
+        ? "ब्रोकर"
+        : "Broker",
+      subtitle: "Angel One • Upstox • Zerodha",
+      color: C.blue,
+    },
+    {
+      id: "telegram",
+      icon: "🔔",
+      title: hi
+        ? "टेलीग्राम"
+        : "Telegram",
+      subtitle: "Alerts and reports",
+      color: C.green,
+    },
+    {
+      id: "strategybuilder",
+      icon: "🧠",
+      title: hi
+        ? "स्ट्रेटेजी"
+        : "Strategy",
+      subtitle: "Builder and scoring",
+      color: C.purple,
+    },
+    {
+      id: "backtest",
+      icon: "🧪",
+      title: hi
+        ? "बैकटेस्ट"
+        : "Backtest",
+      subtitle: "Daily and monthly tests",
+      color: C.gold,
+    },
+    {
+      id: "livefeed",
+      icon: "📡",
+      title: hi
+        ? "लाइव फीड"
+        : "Live Feed",
+      subtitle: "Market data status",
+      color: C.green,
+    },
+    {
+      id: "servertest",
+      icon: "🖥️",
+      title: hi
+        ? "सर्वर टेस्ट"
+        : "Server Test",
+      subtitle: "Backend health check",
+      color: C.orange,
+    },
+    {
+      id: "herozero",
+      icon: "🚀",
+      title: "Hero Zero",
+      subtitle: "Expiry-day mode",
+      color: C.red,
+    },
+    {
+      id: "guide",
+      icon: "📘",
+      title: hi
+        ? "ऐप गाइड"
+        : "App Guide",
+      subtitle: "Setup and usage help",
+      color: C.accent,
+    },
+  ];
+
+  return (
+    <ScrollView
+      style={{
+        flex: 1,
+      }}
+      contentContainerStyle={{
+        padding: 16,
+        paddingBottom: 115,
+      }}
+    >
+      <Card glow={C.accent}>
+        <Text style={{
+          color: C.text,
+          fontSize: 20,
+          fontWeight: "900",
+        }}>
+          🧰 {hi
+            ? "टूल्स"
+            : "Tools"}
+        </Text>
+
+        <Text style={{
+          color: C.muted,
+          fontSize: 11,
+          lineHeight: 17,
+          marginTop: 5,
+        }}>
+          {hi
+            ? "सभी जरूरी सेटिंग और टेस्ट सीधे यहां से खोलें।"
+            : "Open every important setting and test directly from here."}
+        </Text>
+      </Card>
+
+      <View style={{
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 10,
+        marginTop: 12,
+      }}>
+        {tools.map((tool) => (
+          <TouchableOpacity
+            key={tool.id}
+            onPress={() =>
+              navigateTo(tool.id)
+            }
+            style={{
+              width: "48.3%",
+              minHeight: 125,
+              backgroundColor: C.s2,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor:
+                tool.color + "55",
+              padding: 14,
+              justifyContent:
+                "space-between",
+            }}
+          >
+            <View>
+              <View style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                alignItems: "center",
+                justifyContent:
+                  "center",
+                backgroundColor:
+                  tool.color + "20",
+                borderWidth: 1,
+                borderColor:
+                  tool.color + "55",
+              }}>
+                <Text style={{
+                  fontSize: 21,
+                }}>
+                  {tool.icon}
+                </Text>
+              </View>
+
+              <Text style={{
+                color: C.text,
+                fontSize: 14,
+                fontWeight: "900",
+                marginTop: 10,
+              }}>
+                {tool.title}
+              </Text>
+
+              <Text style={{
+                color: C.muted,
+                fontSize: 9,
+                lineHeight: 14,
+                marginTop: 3,
+              }}>
+                {tool.subtitle}
+              </Text>
+            </View>
+
+            <Text style={{
+              color: tool.color,
+              fontSize: 11,
+              fontWeight: "900",
+              marginTop: 8,
+            }}>
+              OPEN →
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+
+function MoreTab({ token, user, lang, setLang, isAdmin }) {
   const hi = lang === "hi";
   const [profile, setProfile] = useState(null);
   const [report, setReport] = useState(null);
@@ -4997,29 +5191,6 @@ function MoreTab({ token, user, lang, setLang, isAdmin, setActiveTab }) {
   return (
     <ScrollView style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}>
-
-            <Card glow={C.accent}>
-        <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
-          textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Tools</Text>
-        {[
-          [hi ? "Broker Credentials" : "Broker Credentials", "🔗", "broker"],
-          [hi ? "Telegram Settings" : "Telegram Settings", "🔔", "telegram"],
-          [hi ? "Strategy Builder" : "Strategy Builder", "🧠", "strategybuilder"],
-          [hi ? "Backtest" : "Backtest", "🧪", "backtest"],
-          [hi ? "Live Price / Feed" : "Live Price / Feed", "📡", "livefeed"],
-          [hi ? "Server Test" : "Server Test", "🖥️", "servertest"],
-          [hi ? "Hero Zero Mode" : "Hero Zero Mode", "🚀", "herozero"],
-          [hi ? "App Guide" : "App Guide", "📘", "guide"],
-        ].map(([label, icon, tab]) => (
-          <TouchableOpacity key={tab} onPress={() => setActiveTab && setActiveTab(tab)}
-            style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12,
-              borderBottomWidth: 1, borderBottomColor: C.border }}>
-            <Text style={{ fontSize: 18, width: 30 }}>{icon}</Text>
-            <Text style={{ color: C.text, fontSize: 13, fontWeight: "800", flex: 1 }}>{label}</Text>
-            <Text style={{ color: C.muted, fontSize: 16 }}>›</Text>
-          </TouchableOpacity>
-        ))}
-      </Card>
 
 <Card glow={C.blue}>
         <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 6 }}>
@@ -5818,12 +5989,92 @@ function OtaStatusBanner() {
 // ── Dashboard Screen ──────────────────────────────────────
 function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
   const [activeTab, setActiveTab] = useState("home");
+  const navigationHistoryRef = useRef(["home"]);
+  const [navigationDepth, setNavigationDepth] = useState(1);
   const lang = initialLang || "en";
   const setLang = onLangChange || (() => {});
   const [subStatus, setSubStatus] = useState(null);
   const [userFresh, setUserFresh] = useState(user);
 
   useEffect(() => { refreshUser(); }, []);
+
+  function navigateTo(tab, options = {}) {
+    const nextTab = String(tab || "home");
+
+    if (nextTab === activeTab) {
+      return;
+    }
+
+    const replaceCurrent = !!options.replace;
+    let history = [
+      ...navigationHistoryRef.current
+    ];
+
+    if (replaceCurrent && history.length) {
+      history[history.length - 1] = nextTab;
+    } else {
+      history.push(nextTab);
+    }
+
+    if (history.length > 30) {
+      history = history.slice(-30);
+    }
+
+    navigationHistoryRef.current = history;
+    setNavigationDepth(history.length);
+    setActiveTab(nextTab);
+  }
+
+  function goBackInApp() {
+    let history = [
+      ...navigationHistoryRef.current
+    ];
+
+    if (history.length > 1) {
+      history.pop();
+
+      const previousTab =
+        history[history.length - 1]
+        || "home";
+
+      navigationHistoryRef.current =
+        history;
+      setNavigationDepth(
+        history.length
+      );
+      setActiveTab(previousTab);
+
+      return true;
+    }
+
+    if (activeTab !== "home") {
+      navigationHistoryRef.current = [
+        "home"
+      ];
+      setNavigationDepth(1);
+      setActiveTab("home");
+
+      return true;
+    }
+
+    return false;
+  }
+
+  useEffect(() => {
+    if (Platform.OS !== "android") {
+      return undefined;
+    }
+
+    const subscription =
+      BackHandler.addEventListener(
+        "hardwareBackPress",
+        goBackInApp,
+      );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [activeTab]);
 
   async function refreshUser() {
     try {
@@ -5840,6 +6091,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
     { id: "home", icon: "🏠", label: lang === "hi" ? "होम" : "Home" },
     { id: "trade", icon: "🧾", label: lang === "hi" ? "ट्रेड" : "Trade" },
     { id: "bot", icon: "🤖", label: lang === "hi" ? "बॉट" : "Bot" },
+    { id: "tools", icon: "🧰", label: lang === "hi" ? "टूल्स" : "Tools" },
     { id: "more", icon: "⚙️", label: lang === "hi" ? "अधिक" : "More" },
     { id: "account", icon: "👤", label: lang === "hi" ? "खाता" : "Account" },
   ];
@@ -5854,6 +6106,30 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
         borderBottomWidth: 1, borderBottomColor: C.border }}>
         <Row style={{ justifyContent: "space-between" }}>
           <Row style={{ gap: 10 }}>
+            {navigationDepth > 1 && (
+              <TouchableOpacity
+                onPress={goBackInApp}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: C.s3,
+                  borderWidth: 1,
+                  borderColor: C.border2,
+                }}
+              >
+                <Text style={{
+                  color: C.text,
+                  fontSize: 21,
+                  fontWeight: "900",
+                }}>
+                  ‹
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <View style={{ width: 38, height: 38, borderRadius: 10,
               backgroundColor: C.accentLo, borderWidth: 1,
               borderColor: C.accent+"55", alignItems: "center",
@@ -5877,7 +6153,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
       {/* Subscription warning */}
       {userFresh?.subscription_status !== "active" && (
         <TouchableOpacity
-          onPress={() => setActiveTab("more")}
+          onPress={() => navigateTo("more")}
           style={{ backgroundColor: C.redLo, borderRadius: 12,
             padding: 14, margin: 16, marginBottom: 0,
             borderWidth: 1, borderColor: C.red+"55" }}>
@@ -5893,13 +6169,14 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
 
         {activeTab === "home" && (
           <HomeTab user={userFresh} subStatus={subStatus} token={token}
-            setActiveTab={setActiveTab} onSubscribe={() => setActiveTab("more")} lang={lang} />
+            setActiveTab={navigateTo} onSubscribe={() => navigateTo("more")} lang={lang} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}
         {activeTab === "markets" && <MarketsTab token={token} lang={lang} />}
         {activeTab === "trade" && <TradeTab token={token} />}
         {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
-        {activeTab === "more" && <MoreTab token={token} user={userFresh} lang={lang} setLang={setLang} isAdmin={isAdmin} setActiveTab={setActiveTab} />}
+        {activeTab === "tools" && <ToolsTab lang={lang} navigateTo={navigateTo} />}
+        {activeTab === "more" && <MoreTab token={token} user={userFresh} lang={lang} setLang={setLang} isAdmin={isAdmin} />}
         {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
         {activeTab === "bot" && <BotTab token={token} lang={lang} />}
         {activeTab === "broker" && <BrokerTab token={token} lang={lang} />}
@@ -5927,11 +6204,11 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
         paddingBottom: Platform.OS==="ios"?24:10, paddingTop: 10 }}>
         {tabs.map(t => (
           <TouchableOpacity key={t.id}
-            onPress={() => setActiveTab(t.id)}
-            style={{ flex: 1, alignItems: "center", gap: 4 }}>
-            <Text style={{ fontSize: 18 }}>{t.icon}</Text>
+            onPress={() => navigateTo(t.id)}
+            style={{ flex: 1, alignItems: "center", gap: 3 }}>
+            <Text style={{ fontSize: 16 }}>{t.icon}</Text>
             <Text style={{ color: activeTab===t.id?C.accent:C.muted,
-              fontSize: 10, fontWeight: "900" }}>{t.label}</Text>
+              fontSize: 8.5, fontWeight: "900" }}>{t.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
