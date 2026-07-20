@@ -2535,6 +2535,7 @@ function aggregateChartCandles(
 function CandlestickIndicatorChart({
   candles,
   height = 310,
+  emptyMessage,
 }) {
   const scrollRef = useRef(null);
   const followLatestRef = useRef(true);
@@ -3095,8 +3096,9 @@ function CandlestickIndicatorChart({
                   fontSize: 11,
                   textAlign: "center",
                 }}>
-                  Bot start hone ke baad
-                  real candles yahan aayengi.
+                  {emptyMessage || (
+                    "Real candles load ho rahi hain."
+                  )}
                 </Text>
               </View>
             )}
@@ -3290,6 +3292,30 @@ function BotTab({ token, lang }) {
   const brokerNotConnected = rawStatus === "CONNECT_BROKER_FOR_REAL_SIGNAL";
   const engineWarmingUp = rawStatus === "ENGINE_WARMING_UP";
   const noRealData = brokerNotConnected || engineWarmingUp || signal?.signal === "NO_DATA";
+
+  const chartRuntimeStatus =
+    chartMeta?.status ||
+    chartMeta?.runtime_status ||
+    "";
+
+  const chartEmptyMessage = (
+    chartMeta?.message ||
+    (
+      chartRuntimeStatus === "AUTO_RESTARTING"
+        ? "Broker engine auto-restart ho gaya. Candles load ho rahi hain..."
+        : chartRuntimeStatus === "STARTING"
+        ? "Broker engine start ho raha hai..."
+        : chartRuntimeStatus === "LOGGED_IN"
+        ? "Broker login ho gaya. Candles prepare ho rahi hain..."
+        : chartRuntimeStatus === "WAITING_CANDLES"
+        ? "Market candles ka wait ho raha hai..."
+        : chartMeta?.reason === "BOT_STOPPED"
+        ? "Bot stopped hai. Start Bot dabao."
+        : chartMeta?.reason === "BROKER_NOT_CONNECTED"
+        ? "Active broker connect nahi hai."
+        : "Chart engine status check ho raha hai..."
+    )
+  );
 
   const chartHistory = history
     .filter((point) => (
@@ -3624,6 +3650,7 @@ function BotTab({ token, lang }) {
         <CandlestickIndicatorChart
           candles={displayCandles}
           height={310}
+          emptyMessage={chartEmptyMessage}
         />
       </Card>
 
