@@ -2462,6 +2462,665 @@ function DetailedLineChart({
   );
 }
 
+function aggregateChartCandles(
+  candles,
+  groupSize = 3,
+) {
+  const clean = (candles || [])
+    .map((candle) => ({
+      ...candle,
+      open: Number(candle?.open),
+      high: Number(candle?.high),
+      low: Number(candle?.low),
+      close: Number(candle?.close),
+      ema9: Number(candle?.ema9),
+      ema21: Number(candle?.ema21),
+      vwap: Number(candle?.vwap),
+      supertrend: Number(
+        candle?.supertrend
+      ),
+    }))
+    .filter((candle) => (
+      Number.isFinite(candle.open) &&
+      Number.isFinite(candle.high) &&
+      Number.isFinite(candle.low) &&
+      Number.isFinite(candle.close)
+    ));
+
+  const result = [];
+
+  for (
+    let index = 0;
+    index < clean.length;
+    index += groupSize
+  ) {
+    const group = clean.slice(
+      index,
+      index + groupSize
+    );
+
+    if (!group.length) continue;
+
+    const first = group[0];
+    const last = group[group.length - 1];
+
+    result.push({
+      time: first.time,
+      open: first.open,
+      high: Math.max(
+        ...group.map(
+          (candle) => candle.high
+        )
+      ),
+      low: Math.min(
+        ...group.map(
+          (candle) => candle.low
+        )
+      ),
+      close: last.close,
+      ema9: last.ema9,
+      ema21: last.ema21,
+      vwap: last.vwap,
+      supertrend: last.supertrend,
+      supertrend_dir:
+        last.supertrend_dir ||
+        "NEUTRAL",
+      adx: Number(last.adx || 0),
+    });
+  }
+
+  return result;
+}
+
+function CandlestickIndicatorChart({
+  candles,
+  height = 310,
+}) {
+  const scrollRef = useRef(null);
+  const followLatestRef = useRef(true);
+  const [viewportWidth, setViewportWidth] =
+    useState(0);
+
+  const clean = (candles || []).filter(
+    (candle) => (
+      Number.isFinite(Number(candle?.open)) &&
+      Number.isFinite(Number(candle?.high)) &&
+      Number.isFinite(Number(candle?.low)) &&
+      Number.isFinite(Number(candle?.close))
+    )
+  );
+
+  const yAxisWidth = 72;
+  const legendHeight = 30;
+  const bottomPad = 38;
+  const topPad = 12;
+  const chartHeight =
+    height - legendHeight;
+  const plotHeight =
+    chartHeight - topPad - bottomPad;
+  const candleSpacing = 15;
+  const bodyWidth = 8;
+
+  const availablePlotWidth = Math.max(
+    viewportWidth - yAxisWidth,
+    220
+  );
+
+  const contentWidth = Math.max(
+    availablePlotWidth,
+    clean.length * candleSpacing + 24
+  );
+
+  const allValues = [];
+
+  clean.forEach((candle) => {
+    [
+      candle.low,
+      candle.high,
+      candle.ema9,
+      candle.ema21,
+      candle.vwap,
+      candle.supertrend,
+    ].forEach((value) => {
+      const number = Number(value);
+      if (Number.isFinite(number)) {
+        allValues.push(number);
+      }
+    });
+  });
+
+  let low = allValues.length
+    ? Math.min(...allValues)
+    : 0;
+  let high = allValues.length
+    ? Math.max(...allValues)
+    : 1;
+
+  if (low === high) {
+    low -= 1;
+    high += 1;
+  }
+
+  const padding = Math.max(
+    (high - low) * 0.08,
+    0.5
+  );
+
+  low -= padding;
+  high += padding;
+
+  const range = Math.max(
+    high - low,
+    0.0001
+  );
+
+  const yFor = (value) => (
+    topPad +
+    plotHeight -
+    (
+      (Number(value) - low) /
+      range
+    ) *
+      plotHeight
+  );
+
+  const xFor = (index) => (
+    12 +
+    index * candleSpacing +
+    candleSpacing / 2
+  );
+
+  const yTicks = Array.from(
+    { length: 5 },
+    (_, index) => {
+      const ratio = index / 4;
+
+      return {
+        value: high - ratio * range,
+        y:
+          legendHeight +
+          topPad +
+          ratio * plotHeight,
+      };
+    }
+  );
+
+  const labelStep =
+    clean.length > 100
+      ? 20
+      : clean.length > 50
+      ? 10
+      : 5;
+
+  const labelIndexes = clean
+    .map((_, index) => index)
+    .filter((index) => (
+      index === 0 ||
+      index === clean.length - 1 ||
+      index % labelStep === 0
+    ));
+
+  function renderIndicator(
+    field,
+    color,
+    keyPrefix,
+  ) {
+    const segments = [];
+
+    for (
+      let index = 0;
+      index < clean.length - 1;
+      index += 1
+    ) {
+      const current = Number(
+        clean[index]?.[field]
+      );
+      const next = Number(
+        clean[index + 1]?.[field]
+      );
+
+      if (
+        !Number.isFinite(current) ||
+        !Number.isFinite(next)
+      ) {
+        continue;
+      }
+
+      const x1 = xFor(index);
+      const x2 = xFor(index + 1);
+      const y1 = yFor(current);
+      const y2 = yFor(next);
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const length = Math.sqrt(
+        dx * dx + dy * dy
+      );
+      const angle =
+        Math.atan2(dy, dx) *
+        180 /
+        Math.PI;
+
+      segments.push(
+        <View
+          key={`${keyPrefix}-${index}`}
+          style={{
+            position: "absolute",
+            left:
+              (x1 + x2 - length) / 2,
+            top:
+              (y1 + y2 - 2) / 2,
+            width: length,
+            height: 2,
+            borderRadius: 2,
+            backgroundColor: color,
+            transform: [{
+              rotateZ: `${angle}deg`,
+            }],
+          }}
+        />
+      );
+    }
+
+    return segments;
+  }
+
+  function renderSupertrend() {
+    const segments = [];
+
+    for (
+      let index = 0;
+      index < clean.length - 1;
+      index += 1
+    ) {
+      const current = Number(
+        clean[index]?.supertrend
+      );
+      const next = Number(
+        clean[index + 1]?.supertrend
+      );
+
+      if (
+        !Number.isFinite(current) ||
+        !Number.isFinite(next)
+      ) {
+        continue;
+      }
+
+      const x1 = xFor(index);
+      const x2 = xFor(index + 1);
+      const y1 = yFor(current);
+      const y2 = yFor(next);
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const length = Math.sqrt(
+        dx * dx + dy * dy
+      );
+      const angle =
+        Math.atan2(dy, dx) *
+        180 /
+        Math.PI;
+      const direction = String(
+        clean[index + 1]
+          ?.supertrend_dir ||
+        clean[index]
+          ?.supertrend_dir ||
+        "NEUTRAL"
+      ).toUpperCase();
+
+      segments.push(
+        <View
+          key={`st-${index}`}
+          style={{
+            position: "absolute",
+            left:
+              (x1 + x2 - length) / 2,
+            top:
+              (y1 + y2 - 2) / 2,
+            width: length,
+            height: 2,
+            borderRadius: 2,
+            backgroundColor:
+              direction === "UP"
+                ? C.green
+                : direction === "DOWN"
+                ? C.red
+                : C.muted,
+            transform: [{
+              rotateZ: `${angle}deg`,
+            }],
+          }}
+        />
+      );
+    }
+
+    return segments;
+  }
+
+  return (
+    <View
+      onLayout={(event) => {
+        const width =
+          event.nativeEvent.layout.width;
+
+        if (
+          width &&
+          Math.abs(
+            width - viewportWidth
+          ) > 1
+        ) {
+          setViewportWidth(width);
+        }
+      }}
+      style={{
+        height,
+        width: "100%",
+      }}
+    >
+      <View style={{
+        height: legendHeight,
+        flexDirection: "row",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 9,
+        paddingLeft: yAxisWidth,
+      }}>
+        {[
+          ["Candle", C.green],
+          ["EMA9", C.gold],
+          ["EMA21", C.accent],
+          ["VWAP", C.blue],
+          ["ST", C.red],
+        ].map(([label, color]) => (
+          <View
+            key={label}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <View style={{
+              width: 11,
+              height: 3,
+              borderRadius: 2,
+              backgroundColor: color,
+            }} />
+            <Text style={{
+              color: C.muted,
+              fontSize: 8,
+              fontWeight: "800",
+            }}>
+              {label}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={{
+        height: chartHeight,
+        position: "relative",
+      }}>
+        <Text style={{
+          position: "absolute",
+          left: 0,
+          top: 0,
+          color: C.muted,
+          fontSize: 9,
+          fontWeight: "800",
+        }}>
+          Price
+        </Text>
+
+        {yTicks.map((tick, index) => (
+          <Text
+            key={`price-tick-${index}`}
+            numberOfLines={1}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: tick.y - legendHeight - 7,
+              width: yAxisWidth - 6,
+              textAlign: "right",
+              color: C.muted,
+              fontSize: 9,
+              fontWeight: "700",
+            }}
+          >
+            {chartPriceNumber(tick.value)}
+          </Text>
+        ))}
+
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator
+          scrollEventThrottle={16}
+          style={{
+            position: "absolute",
+            left: yAxisWidth,
+            right: 0,
+            top: 0,
+            height: chartHeight,
+          }}
+          onScroll={(event) => {
+            const {
+              contentOffset,
+              contentSize,
+              layoutMeasurement,
+            } = event.nativeEvent;
+
+            const remaining =
+              contentSize.width -
+              (
+                contentOffset.x +
+                layoutMeasurement.width
+              );
+
+            followLatestRef.current =
+              remaining < 45;
+          }}
+          onContentSizeChange={() => {
+            if (
+              followLatestRef.current &&
+              scrollRef.current
+            ) {
+              requestAnimationFrame(() => {
+                scrollRef.current
+                  ?.scrollToEnd({
+                    animated: false,
+                  });
+              });
+            }
+          }}
+        >
+          <View style={{
+            width: contentWidth,
+            height: chartHeight,
+            position: "relative",
+          }}>
+            {yTicks.map((tick, index) => (
+              <View
+                key={`candle-grid-${index}`}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top:
+                    tick.y -
+                    legendHeight,
+                  width: contentWidth,
+                  borderTopWidth: 1,
+                  borderTopColor: C.border2,
+                  borderStyle: "dashed",
+                }}
+              />
+            ))}
+
+            {clean.map((candle, index) => {
+              const open = Number(
+                candle.open
+              );
+              const close = Number(
+                candle.close
+              );
+              const highValue = Number(
+                candle.high
+              );
+              const lowValue = Number(
+                candle.low
+              );
+              const bullish =
+                close >= open;
+              const candleColor =
+                bullish
+                  ? C.green
+                  : C.red;
+              const x = xFor(index);
+              const highY = yFor(
+                highValue
+              );
+              const lowY = yFor(
+                lowValue
+              );
+              const openY = yFor(open);
+              const closeY = yFor(close);
+              const bodyTop = Math.min(
+                openY,
+                closeY
+              );
+              const bodyHeight = Math.max(
+                2,
+                Math.abs(
+                  closeY - openY
+                )
+              );
+
+              return (
+                <React.Fragment
+                  key={`candle-${index}`}
+                >
+                  <View style={{
+                    position: "absolute",
+                    left: x - 0.75,
+                    top: highY,
+                    width: 1.5,
+                    height: Math.max(
+                      1,
+                      lowY - highY
+                    ),
+                    backgroundColor:
+                      candleColor,
+                  }} />
+                  <View style={{
+                    position: "absolute",
+                    left:
+                      x -
+                      bodyWidth / 2,
+                    top: bodyTop,
+                    width: bodyWidth,
+                    height: bodyHeight,
+                    borderRadius: 1,
+                    backgroundColor:
+                      candleColor,
+                    borderWidth: 1,
+                    borderColor:
+                      candleColor,
+                  }} />
+                </React.Fragment>
+              );
+            })}
+
+            {renderIndicator(
+              "ema9",
+              C.gold,
+              "ema9"
+            )}
+            {renderIndicator(
+              "ema21",
+              C.accent,
+              "ema21"
+            )}
+            {renderIndicator(
+              "vwap",
+              C.blue,
+              "vwap"
+            )}
+            {renderSupertrend()}
+
+            {labelIndexes.map((index) => {
+              const candle =
+                clean[index];
+
+              if (!candle) return null;
+
+              return (
+                <Text
+                  key={`candle-label-${index}`}
+                  numberOfLines={2}
+                  style={{
+                    position: "absolute",
+                    left:
+                      xFor(index) - 25,
+                    top:
+                      topPad +
+                      plotHeight +
+                      5,
+                    width: 50,
+                    textAlign: "center",
+                    color: C.muted,
+                    fontSize: 8,
+                    lineHeight: 10,
+                    fontWeight: "700",
+                  }}
+                >
+                  {chartDateTimeLabel(
+                    candle.time
+                  )}
+                </Text>
+              );
+            })}
+
+            {!clean.length && (
+              <View style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 0,
+                height: plotHeight,
+                alignItems: "center",
+                justifyContent: "center",
+              }}>
+                <Text style={{
+                  color: C.muted,
+                  fontSize: 11,
+                  textAlign: "center",
+                }}>
+                  Bot start hone ke baad
+                  real candles yahan aayengi.
+                </Text>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+
+        <Text style={{
+          position: "absolute",
+          left: yAxisWidth,
+          right: 0,
+          bottom: 0,
+          textAlign: "center",
+          color: C.muted,
+          fontSize: 9,
+          fontWeight: "800",
+        }}>
+          Swipe left/right • Date & Time (IST)
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+
 const BOT_STATUS_MESSAGES_HI = {
   PAPER_RUNNING: "Paper mode running — real TQU data",
   LIVE_RUNNING: "Live mode running — real TQU data",
@@ -2485,6 +3144,8 @@ function BotTab({ token, lang }) {
   const [settings, setSettings] = useState(null);
   const [history, setHistory] = useState([]);
   const [paperTrades, setPaperTrades] = useState([]);
+  const [chartCandles, setChartCandles] = useState([]);
+  const [chartMeta, setChartMeta] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -2497,8 +3158,31 @@ function BotTab({ token, lang }) {
       setSignal(sig);
       const strat = await apiGet("/strategy/settings", token);
       if (strat && strat.settings) setSettings(strat.settings);
-      const hist = await apiGet("/bot/signal-history", token);
-      if (hist && hist.points) setHistory(hist.points);
+      const hist = await apiGet(
+        "/bot/signal-history?limit=200",
+        token
+      );
+      if (hist && hist.points) {
+        setHistory(hist.points);
+      }
+
+      try {
+        const chart = await apiGet(
+          "/bot/chart-data",
+          token
+        );
+
+        if (
+          chart &&
+          Array.isArray(chart.candles)
+        ) {
+          setChartCandles(
+            chart.candles
+          );
+          setChartMeta(chart);
+        }
+      } catch {}
+
       const trades = await apiGet("/history/paper", token);
       if (trades && trades.paper_trades) setPaperTrades(trades.paper_trades);
     } catch (e) {
@@ -2684,15 +3368,47 @@ function BotTab({ token, lang }) {
         ].value
       : null;
 
+  const displayCandles =
+    aggregateChartCandles(
+      chartCandles,
+      3
+    );
+
+  const latestRawCandle =
+    chartCandles.length > 0
+      ? chartCandles[
+          chartCandles.length - 1
+        ]
+      : null;
+
+  const firstRawCandle =
+    chartCandles.length > 0
+      ? chartCandles[0]
+      : null;
+
   const latestPrice =
-    pricePoints.length > 0
+    latestRawCandle &&
+    Number.isFinite(
+      Number(latestRawCandle.close)
+    )
+      ? Number(
+          latestRawCandle.close
+        )
+      : pricePoints.length > 0
       ? pricePoints[
           pricePoints.length - 1
         ].value
       : null;
 
   const firstPrice =
-    pricePoints.length > 0
+    firstRawCandle &&
+    Number.isFinite(
+      Number(firstRawCandle.open)
+    )
+      ? Number(
+          firstRawCandle.open
+        )
+      : pricePoints.length > 0
       ? pricePoints[0].value
       : null;
 
@@ -2725,6 +3441,7 @@ function BotTab({ token, lang }) {
       : C.red;
 
   const primaryInstrument =
+    chartMeta?.instrument ||
     signal?.primary_instrument ||
     settings?.primary_instrument ||
     "NIFTY";
@@ -2868,6 +3585,14 @@ function BotTab({ token, lang }) {
             }}>
               {primaryInstrument}
             </Text>
+            <Text style={{
+              color: C.muted,
+              fontSize: 9,
+              fontWeight: "700",
+              marginTop: 3,
+            }}>
+              3-minute candles • Swipe left/right
+            </Text>
           </View>
 
           <View style={{
@@ -2896,16 +3621,9 @@ function BotTab({ token, lang }) {
           </View>
         </Row>
 
-        <DetailedLineChart
-          points={pricePoints}
-          color={C.blue}
-          height={220}
-          yAxisTitle="Price"
-          yAxisWidth={74}
-          valueFormatter={chartPriceNumber}
-          emptyMessage={
-            "Bot aur broker engine start hone ke baad poore din ki price movement yahan fill hogi."
-          }
+        <CandlestickIndicatorChart
+          candles={displayCandles}
+          height={310}
         />
       </Card>
 
