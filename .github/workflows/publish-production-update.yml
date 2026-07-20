@@ -12,6 +12,9 @@ on:
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/publish-production-update.yml"
+  pull_request:
+    branches: [main]
+    types: [closed]
   workflow_dispatch:
 
 permissions:
@@ -23,6 +26,7 @@ concurrency:
 
 jobs:
   publish:
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
