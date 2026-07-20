@@ -1,0 +1,58 @@
+name: Apply Trial Banner Admin Fix
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-trial-banner-admin-v1
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply patch when needed
+        run: |
+          if grep -q 'subscriptionExpired' App.js; then
+            echo 'Patch already applied'
+          else
+            python scripts/patch_trial_banner_admin.py
+          fi
+
+      - name: Validate Android bundle and conditions
+        env:
+          CI: "1"
+        run: |
+          npm ci
+          npx expo export --platform android --output-dir /tmp/okai-trial-banner-fix
+          grep -q 'subscriptionExpired' App.js
+          grep -q 'trialEndingSoon' App.js
+          grep -q 'ADMIN' App.js
+          grep -q 'Unlimited' App.js
+          if grep -q 'userFresh?.subscription_status !== "active"' App.js; then
+            echo 'Old unconditional trial banner condition still exists'
+            exit 1
+          fi
+
+      - name: Commit patched branch
+        run: |
+          rm -f scripts/patch_trial_banner_admin.py
+          rm -f .github/workflows/apply-trial-banner-admin-fix.yml
+          git config user.name "okai-trial-banner-fix-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Fix trial expiry banner and admin unlimited access"
+          git push origin HEAD:agent/fix-trial-banner-admin-v1
