@@ -8,7 +8,13 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import App from "./App";
+const { installPullToRefreshEnhancement } = require(
+  "./src/runtime/PullToRefreshEnhancement"
+);
+installPullToRefreshEnhancement();
+
+const AppModule = require("./App");
+const App = AppModule.default || AppModule;
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
 
