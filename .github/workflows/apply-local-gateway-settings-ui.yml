@@ -1,0 +1,73 @@
+name: Apply Local Gateway Settings UI
+
+on:
+  push:
+    branches:
+      - feature/local-gateway-settings-ui
+    paths:
+      - "App.js"
+      - "src/screens/LocalGatewayScreen.js"
+      - "scripts/inject-local-gateway-ui.py"
+      - ".github/workflows/apply-local-gateway-settings-ui.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "App.js"
+      - "src/screens/LocalGatewayScreen.js"
+      - "scripts/inject-local-gateway-ui.py"
+      - ".github/workflows/apply-local-gateway-settings-ui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/local-gateway-settings-ui
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Inject hidden More -> Advanced Setup route
+        run: python scripts/inject-local-gateway-ui.py
+
+      - name: Validate injection markers
+        run: |
+          python scripts/inject-local-gateway-ui.py
+          grep -q 'LOCAL_GATEWAY_ADVANCED_SETUP_V1' App.js
+          grep -q 'activeTab === "localgateway"' App.js
+          grep -q 'LocalGatewayScreen' App.js
+          grep -q 'Disarm New LIVE Entries' src/screens/LocalGatewayScreen.js
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install mobile dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Expo Android export smoke test
+        env:
+          EXPO_NO_TELEMETRY: "1"
+          CI: "1"
+        run: npx expo export --platform android --output-dir /tmp/okai-local-gateway-export
+
+      - name: Commit generated App.js integration
+        run: |
+          if git diff --quiet -- App.js; then
+            echo "App.js already contains the hidden gateway UI"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "Wire local gateway into hidden Advanced Setup"
+          git push origin HEAD:feature/local-gateway-settings-ui
