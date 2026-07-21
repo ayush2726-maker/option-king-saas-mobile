@@ -9,6 +9,14 @@ on:
       - "src/screens/LocalGatewayScreen.js"
       - "scripts/inject-local-gateway-ui.py"
       - ".github/workflows/apply-local-gateway-settings-ui.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "App.js"
+      - "src/screens/LocalGatewayScreen.js"
+      - "scripts/inject-local-gateway-ui.py"
+      - ".github/workflows/apply-local-gateway-settings-ui.yml"
   workflow_dispatch:
 
 permissions:
