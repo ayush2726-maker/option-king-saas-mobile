@@ -3852,14 +3852,15 @@ function BotTab({ token, lang }) {
     )
   );
 
+  const chartPointLimit = chartRangeDays === 1 ? 120 : 320;
   const chartHistory = history
     .filter((point) => (
       Number.isFinite(Number(point?.score)) ||
       Number.isFinite(Number(point?.price))
     ))
-    .slice(-80);
+    .slice(-chartPointLimit);
 
-  const scorePoints = chartHistory
+  const savedScorePoints = chartHistory
     .filter((point) =>
       Number.isFinite(Number(point?.score))
     )
@@ -3868,7 +3869,34 @@ function BotTab({ token, lang }) {
       label: chartDateTimeLabel(
         chartPointTimestamp(point)
       ),
+      source: "LIVE_SAVED",
     }));
+
+  const replayScorePoints = chartCandles
+    .filter((candle) =>
+      Number.isFinite(Number(candle?.score))
+    )
+    .slice(-chartPointLimit)
+    .map((candle) => ({
+      value: Number(candle.score),
+      label: chartDateTimeLabel(candle.time),
+      source: candle.score_source || "HISTORICAL_REPLAY",
+      signal: candle.signal || "WAIT",
+    }));
+
+  const scorePoints = (
+    chartRangeDays > 1 && replayScorePoints.length > 0
+      ? replayScorePoints
+      : savedScorePoints.length > 0
+      ? savedScorePoints
+      : replayScorePoints
+  );
+
+  const scoreSourceLabel = (
+    scorePoints.length > 0 && scorePoints[0]?.source === "HISTORICAL_REPLAY"
+      ? "HISTORICAL REPLAY"
+      : "LIVE SAVED"
+  );
 
   const pricePoints = chartHistory
     .filter((point) =>
@@ -4422,7 +4450,7 @@ function BotTab({ token, lang }) {
         <Text style={{ color: C.muted, fontSize: 9, marginTop: 9, textAlign: "center" }}>
           {chartLoading
             ? "History load ho rahi hai..."
-            : `${chartMeta?.count || chartCandles.length || 0} candles • ${chartMeta?.source || "LIVE"}`}
+            : `${chartMeta?.count || chartCandles.length || 0} candles • ${chartMeta?.score_count || replayScorePoints.length || savedScorePoints.length || 0} score points • ${chartMeta?.source || "LIVE"}`}
         </Text>
       </Card>
 
@@ -4448,7 +4476,7 @@ function BotTab({ token, lang }) {
               fontSize: 9,
               marginTop: 3,
             }}>
-              {`Signal quality • Entry line ${activeEntryThreshold}`}
+              {`Signal quality • Entry line ${activeEntryThreshold} • ${scoreSourceLabel}`}
             </Text>
           </View>
 
@@ -4483,7 +4511,9 @@ function BotTab({ token, lang }) {
             Number(value).toFixed(0)
           }
           emptyMessage={
-            "Bot start hone aur real signal points aane ke baad score line dikhegi."
+            chartRangeDays > 1
+              ? "Historical candles par strategy replay score prepare ho raha hai. Pull-down refresh karein."
+              : "Bot start hone aur real signal points aane ke baad score line dikhegi."
           }
         />
       </Card>
