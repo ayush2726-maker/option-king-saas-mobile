@@ -1,0 +1,53 @@
+name: Validate AUTO Index Breakdown V1
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/auto-index-breakdown-v1
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply breakdown patch
+        run: |
+          if grep -q 'AUTO Index Breakdown' App.js; then
+            echo 'AUTO breakdown already applied'
+          else
+            python scripts/patch_auto_index_breakdown_v1.py
+          fi
+
+      - name: Validate Android export
+        env:
+          CI: "1"
+        run: |
+          npm ci
+          npx expo export --platform android --output-dir /tmp/okai-auto-breakdown
+          grep -q 'AUTO Index Breakdown' App.js
+          grep -q 'generated_trades' App.js
+          grep -q 'selected_trades' App.js
+          grep -q 'volume_neutral_days' App.js
+
+      - name: Commit production UI
+        run: |
+          rm -f scripts/patch_auto_index_breakdown_v1.py
+          rm -f .github/workflows/apply-auto-index-breakdown-v1.yml
+          git config user.name "okai-auto-index-ui-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "Show AUTO index breakdown in monthly backtest"
+          git push origin HEAD:agent/auto-index-breakdown-v1
