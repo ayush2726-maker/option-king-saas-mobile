@@ -11,6 +11,7 @@ const AiDecisionCard = require("./src/components/AiDecisionCard");
 const StrategyBuilderTab = require("./src/screens/StrategyBuilderTab");
 const UpstoxSetupGuide = require("./src/components/UpstoxSetupGuide");
 const RecoveryScreen = require("./src/screens/RecoveryScreen").default;
+const LocalGatewayScreen = require("./src/screens/LocalGatewayScreen").default;
 
 
 // ── Global crash catcher (temporary debug tool) ──────────────
@@ -5943,7 +5944,7 @@ function ToolsTab({
 }
 
 
-function MoreTab({ token, user, lang, setLang, isAdmin }) {
+function MoreTab({ token, user, lang, setLang, isAdmin, navigateTo }) {
   const hi = lang === "hi";
   const [profile, setProfile] = useState(null);
   const [report, setReport] = useState(null);
@@ -5955,6 +5956,7 @@ function MoreTab({ token, user, lang, setLang, isAdmin }) {
   const [paymentState, setPaymentState] = useState("");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showAdvancedGateway, setShowAdvancedGateway] = useState(false);
 
   async function changeLang(next) {
     setLang(next);
@@ -6126,6 +6128,50 @@ function MoreTab({ token, user, lang, setLang, isAdmin }) {
           <Btn label={hi ? "अंग्रेज़ी" : "English"} icon="🇬🇧" color={lang==="en"?C.blue:C.muted}
             onPress={() => changeLang("en")} style={{ flex: 1 }} />
         </Row>
+      </Card>
+
+      {/* LOCAL_GATEWAY_ADVANCED_SETUP_V1 */}
+      <Card glow={C.purple}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showAdvancedGateway }}
+          onPress={() => setShowAdvancedGateway(!showAdvancedGateway)}
+          style={{ flexDirection: "row", justifyContent: "space-between",
+            alignItems: "center", gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: "900" }}>
+              🛡️ {hi ? "Advanced Setup" : "Advanced Setup"}
+            </Text>
+            <Text style={{ color: C.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }}>
+              {hi
+                ? "सिर्फ अपने static-IP phone/desktop से LIVE orders चलाने वाले users के लिए"
+                : "Only for users running LIVE orders through their own static-IP phone or desktop"}
+            </Text>
+          </View>
+          <Text style={{ color: C.purple, fontSize: 20, fontWeight: "900" }}>
+            {showAdvancedGateway ? "⌃" : "⌄"}
+          </Text>
+        </TouchableOpacity>
+
+        {showAdvancedGateway && (
+          <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1,
+            borderTopColor: C.border }}>
+            <View style={{ backgroundColor: C.goldLo, borderRadius: 10, padding: 10,
+              borderWidth: 1, borderColor: C.gold + "44", marginBottom: 11 }}>
+              <Text style={{ color: C.gold, fontSize: 10, lineHeight: 16, fontWeight: "800" }}>
+                {hi
+                  ? "Angel API key, MPIN और TOTP app में नहीं भरने हैं। वे केवल user के gateway device पर रहेंगे।"
+                  : "Do not enter Angel API key, MPIN or TOTP in the app. They stay only on the user's gateway device."}
+              </Text>
+            </View>
+            <Btn
+              label={hi ? "Local Gateway खोलें" : "Open Local Gateway"}
+              icon="🖥️"
+              color={C.purple}
+              onPress={() => navigateTo && navigateTo("localgateway")}
+            />
+          </View>
+        )}
       </Card>
 
       <Card glow={C.green}>
@@ -7203,7 +7249,8 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
         {activeTab === "trade" && <TradeTab token={token} />}
         {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
         {activeTab === "tools" && <ToolsTab lang={lang} navigateTo={navigateTo} />}
-        {activeTab === "more" && <MoreTab token={token} user={displayUser} lang={lang} setLang={setLang} isAdmin={isAdmin} />}
+        {activeTab === "more" && <MoreTab token={token} user={displayUser} lang={lang} setLang={setLang} isAdmin={isAdmin} navigateTo={navigateTo} />}
+        {activeTab === "localgateway" && <LocalGatewayScreen token={token} lang={lang} />}
         {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
         {activeTab === "bot" && <BotTab token={token} lang={lang} />}
         {activeTab === "broker" && <BrokerTab token={token} lang={lang} />}
