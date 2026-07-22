@@ -20,13 +20,19 @@ const { installTradeMarkerChartEnhancement } = require(
 const { installLiveChartEnhancement } = require(
   "./src/runtime/LiveChartEnhancement"
 );
+const {
+  installTradeLivePriceEnhancement,
+  updateTradeLiveSnapshot,
+} = require("./src/runtime/TradeLivePriceEnhancement");
 
 // Order matters. Live chart wraps only the actual candlestick component;
-// trade markers stay outside it and both runtime enhancements remain isolated.
+// trade markers stay outside it. The Trade-tab patch only replaces the old
+// delayed Current row with the monitor-updated live option price row.
 installFreshDataEnhancement();
 installPullToRefreshEnhancement();
 installLiveChartEnhancement();
 installTradeMarkerChartEnhancement();
+installTradeLivePriceEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
@@ -43,6 +49,7 @@ function ManualExitOverlay() {
     try {
       const savedToken = await AsyncStorage.getItem("saas_token");
       if (!savedToken) {
+        updateTradeLiveSnapshot({ open: false, trade: null });
         if (aliveRef.current) {
           setToken(null);
           setTrade(null);
@@ -50,28 +57,30 @@ function ManualExitOverlay() {
         return;
       }
 
-      const response = await fetch(SAAS_URL + "/bot/signal", {
+      const response = await fetch(SAAS_URL + "/bot/trade-live", {
         headers: { Authorization: "Bearer " + savedToken },
       });
       const data = await response.json();
       const openTrade =
-        data?.active_trade?.status === "OPEN"
-          ? data.active_trade
+        data?.success && data?.open && data?.trade?.status === "OPEN"
+          ? data.trade
           : null;
+
+      updateTradeLiveSnapshot(data || { open: false, trade: null });
 
       if (aliveRef.current) {
         setToken(savedToken);
         setTrade(openTrade);
       }
     } catch (_) {
-      // Keep the last known state during a temporary network failure.
+      // Keep the last known live value during a temporary network failure.
     }
   }
 
   useEffect(() => {
     aliveRef.current = true;
     loadOpenTrade();
-    const timer = setInterval(loadOpenTrade, 2000);
+    const timer = setInterval(loadOpenTrade, 1000);
     return () => {
       aliveRef.current = false;
       clearInterval(timer);
@@ -110,8 +119,8 @@ function ManualExitOverlay() {
     if (!trade || busy) return;
     Alert.alert(
       "Exit Trade Now?",
-      `${trade.symbol || "Open trade"}\nCurrent: ₹${
-        trade.current_price ?? trade.entry_price ?? "--"
+      `${trade.symbol || "Open trade"}\nLive: ₹${
+        trade.live_price ?? trade.current_price ?? trade.entry_price ?? "--"
       }\n\nMarket exit request turant bheji jayegi.`,
       [
         { text: "Cancel", style: "cancel" },
