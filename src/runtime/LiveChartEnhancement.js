@@ -11,11 +11,13 @@ const SAAS_URL =
   "https://option-king-saas-production.up.railway.app";
 
 const COLORS = {
+  card: "#0f0f1a",
+  border: "#252540",
   text: "#e8e8f0",
   muted: "#777792",
   green: "#00d4a0",
-  border: "#252540",
-  card: "#0f0f1a",
+  red: "#ff4d6d",
+  gold: "#f5c842",
 };
 
 let installed = false;
@@ -43,7 +45,7 @@ function queryValue(url, key) {
   }
 }
 
-function publishContext() {
+function notifyContext() {
   contextListeners.forEach((listener) => {
     try {
       listener({ ...chartContext });
@@ -67,35 +69,31 @@ function trackChartRequest(input) {
     ? requestedDays
     : 1;
 
-  if (
-    instrument === chartContext.instrument &&
-    days === chartContext.days
-  ) {
-    return;
-  }
-
   chartContext = {
     instrument,
     days,
     revision: chartContext.revision + 1,
   };
-  publishContext();
+  notifyContext();
 }
 
 function installChartTracking() {
   if (
     typeof global.fetch !== "function" ||
-    global.__OKAI_LIVE_CHART_FETCH_PATCHED__
+    global.__OKAI_LIVE_QUOTE_TRACKING_PATCHED__
   ) {
     return;
   }
 
   const previousFetch = global.fetch.bind(global);
-  global.fetch = function okaiLiveChartFetch(input, init) {
+  global.fetch = function okaiLiveQuoteTrackingFetch(
+    input,
+    init
+  ) {
     trackChartRequest(input);
     return previousFetch(input, init);
   };
-  global.__OKAI_LIVE_CHART_FETCH_PATCHED__ = true;
+  global.__OKAI_LIVE_QUOTE_TRACKING_PATCHED__ = true;
 }
 
 function useChartContext() {
@@ -137,16 +135,17 @@ function parseDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function threeMinuteBucketStart(milliseconds) {
+function threeMinuteBucket(milliseconds) {
   const istOffset = 330 * 60 * 1000;
-  const bucket = 3 * 60 * 1000;
+  const bucketSize = 3 * 60 * 1000;
   return (
-    Math.floor((milliseconds + istOffset) / bucket) * bucket -
+    Math.floor((milliseconds + istOffset) / bucketSize) *
+      bucketSize -
     istOffset
   );
 }
 
-function mergeLiveQuoteIntoCandles(candles, quote, days) {
+function mergeQuoteIntoCandles(candles, quote, days) {
   const source = Array.isArray(candles) ? candles : [];
   if (
     Number(days) !== 1 ||
@@ -160,25 +159,23 @@ function mergeLiveQuoteIntoCandles(candles, quote, days) {
 
   const ltp = Number(quote.ltp);
   const quoteDate = parseDate(quote.as_of) || new Date();
-  const quoteBucket = threeMinuteBucketStart(
-    quoteDate.getTime()
-  );
+  const quoteBucket = threeMinuteBucket(quoteDate.getTime());
   const next = source.map((candle) => ({ ...candle }));
   const last = next[next.length - 1];
   const lastDate = parseDate(last?.time);
   const lastBucket = lastDate
-    ? threeMinuteBucketStart(lastDate.getTime())
+    ? threeMinuteBucket(lastDate.getTime())
     : null;
 
   if (lastBucket === quoteBucket) {
-    const previousHigh = Number(last.high);
-    const previousLow = Number(last.low);
+    const oldHigh = Number(last.high);
+    const oldLow = Number(last.low);
     last.close = ltp;
-    last.high = Number.isFinite(previousHigh)
-      ? Math.max(previousHigh, ltp)
+    last.high = Number.isFinite(oldHigh)
+      ? Math.max(oldHigh, ltp)
       : ltp;
-    last.low = Number.isFinite(previousLow)
-      ? Math.min(previousLow, ltp)
+    last.low = Number.isFinite(oldLow)
+      ? Math.min(oldLow, ltp)
       : ltp;
     last.live = true;
     last.live_as_of = quote.as_of;
@@ -190,6 +187,7 @@ function mergeLiveQuoteIntoCandles(candles, quote, days) {
     const open = Number.isFinite(previousClose)
       ? previousClose
       : ltp;
+
     next.push({
       time: new Date(quoteBucket).toISOString(),
       open,
@@ -216,16 +214,13 @@ function formatPrice(value) {
   if (!Number.isFinite(number)) return "--";
   return number.toLocaleString("en-IN", {
     maximumFractionDigits: 2,
-    minimumFractionDigits: 0,
   });
 }
 
 function formatTime(value) {
   const parsed = parseDate(value);
   if (!parsed) return "--:--:--";
-  const ist = new Date(
-    parsed.getTime() + 330 * 60 * 1000
-  );
+  const ist = new Date(parsed.getTime() + 330 * 60 * 1000);
   return [
     String(ist.getUTCHours()).padStart(2, "0"),
     String(ist.getUTCMinutes()).padStart(2, "0"),
@@ -233,11 +228,10 @@ function formatTime(value) {
   ].join(":");
 }
 
-function LiveChartBridge(props) {
-  const OriginalChart = props.__okaiLiveOriginalChart;
+function LiveTradeMarkerBridge(props) {
+  const OriginalBridge = props.__okaiLiveOriginalBridge;
   const cleanProps = { ...props };
-  delete cleanProps.__okaiLiveOriginalChart;
-  cleanProps.__okaiLiveChartBypass = true;
+  delete cleanProps.__okaiLiveOriginalBridge;
 
   const context = useChartContext();
   const [quote, setQuote] = React.useState(null);
@@ -259,9 +253,7 @@ function LiveChartBridge(props) {
       if (busy) return;
       busy = true;
       try {
-        const token = await AsyncStorage.getItem(
-          "saas_token"
-        );
+        const token = await AsyncStorage.getItem("saas_token");
         if (!token) return;
 
         const response = await global.fetch(
@@ -303,15 +295,11 @@ function LiveChartBridge(props) {
       alive = false;
       clearInterval(timer);
     };
-  }, [
-    context.instrument,
-    context.days,
-    context.revision,
-  ]);
+  }, [context.instrument, context.days]);
 
   const liveCandles = React.useMemo(
     () =>
-      mergeLiveQuoteIntoCandles(
+      mergeQuoteIntoCandles(
         cleanProps.candles,
         quote,
         context.days
@@ -319,27 +307,8 @@ function LiveChartBridge(props) {
     [cleanProps.candles, quote, context.days]
   );
 
-  if (
-    typeof OriginalChart !== "function" &&
-    typeof OriginalChart !== "string"
-  ) {
-    return React.createElement(
-      View,
-      {
-        style: {
-          padding: 12,
-          borderWidth: 1,
-          borderColor: COLORS.border,
-          borderRadius: 10,
-        },
-      },
-      React.createElement(
-        Text,
-        { style: { color: COLORS.muted, fontSize: 10 } },
-        "Chart component reconnecting..."
-      )
-    );
-  }
+  const marketOpen = !!quote?.market_open;
+  const liveConnected = !!quote?.success;
 
   return React.createElement(
     View,
@@ -357,7 +326,7 @@ function LiveChartBridge(props) {
               paddingVertical: 8,
               borderRadius: 10,
               borderWidth: 1,
-              borderColor: quote?.success
+              borderColor: liveConnected
                 ? COLORS.green + "66"
                 : COLORS.border,
               backgroundColor: COLORS.card,
@@ -370,15 +339,19 @@ function LiveChartBridge(props) {
               Text,
               {
                 style: {
-                  color: quote?.success
-                    ? COLORS.green
+                  color: liveConnected
+                    ? marketOpen
+                      ? COLORS.green
+                      : COLORS.gold
                     : COLORS.muted,
                   fontSize: 10,
                   fontWeight: "900",
                 },
               },
-              quote?.success
-                ? `● LIVE ${context.instrument}`
+              liveConnected
+                ? `${marketOpen ? "● LIVE" : "● CLOSED"} ${
+                    context.instrument
+                  }`
                 : `○ ${context.instrument}`
             ),
             React.createElement(
@@ -390,7 +363,7 @@ function LiveChartBridge(props) {
                   marginTop: 2,
                 },
               },
-              quote?.success
+              liveConnected
                 ? `Updated ${formatTime(
                     quote.as_of
                   )} IST • 1 sec display feed`
@@ -410,61 +383,61 @@ function LiveChartBridge(props) {
           )
         )
       : null,
-    React.createElement(OriginalChart, {
+    React.createElement(OriginalBridge, {
       ...cleanProps,
       candles: liveCandles,
+      __okaiLiveBridgeBypass: true,
+      __okaiTradeMarkerBypass: true,
     })
   );
 }
 
-LiveChartBridge.displayName = "OKAILiveChartBridge";
+LiveTradeMarkerBridge.displayName =
+  "OKAILiveTradeMarkerBridge";
 
-function isCandlestickChart(type, props) {
+function isTradeMarkerBridge(type, props) {
   if (
     !type ||
-    props?.__okaiLiveChartBypass ||
-    props?.__okaiLiveOriginalChart ||
-    props?.__okaiOriginalChart
+    props?.__okaiLiveBridgeBypass ||
+    typeof type !== "function"
   ) {
     return false;
   }
-  if (typeof type !== "function") return false;
 
-  const name = String(
-    type.displayName || type.name || ""
+  const name = String(type.displayName || type.name || "");
+  if (name === "TradeMarkerChartBridge") return true;
+
+  return (
+    Object.prototype.hasOwnProperty.call(
+      props || {},
+      "__okaiOriginalChart"
+    ) &&
+    Array.isArray(props?.candles)
   );
-
-  // Only wrap the real chart component. The earlier broad shape check also
-  // matched our runtime wrapper components and caused recursive wrapping.
-  return name === "CandlestickIndicatorChart";
 }
 
 function installReactBridge() {
-  if (React.__OKAI_LIVE_CHART_PATCHED__) return;
+  if (React.__OKAI_LIVE_TRADE_BRIDGE_PATCHED__) return;
 
   const previousCreateElement =
     React.createElement.bind(React);
 
-  React.createElement = function okaiLiveCreateElement(
+  React.createElement = function okaiLiveBridgeCreateElement(
     type,
     props,
     ...children
   ) {
-    if (isCandlestickChart(type, props)) {
+    if (isTradeMarkerBridge(type, props)) {
       return previousCreateElement(
-        LiveChartBridge,
+        LiveTradeMarkerBridge,
         {
           ...(props || {}),
-          __okaiLiveOriginalChart: type,
+          __okaiLiveOriginalBridge: type,
         },
         ...children
       );
     }
-    return previousCreateElement(
-      type,
-      props,
-      ...children
-    );
+    return previousCreateElement(type, props, ...children);
   };
 
   try {
@@ -472,17 +445,17 @@ function installReactBridge() {
     ["jsx", "jsxs"].forEach((key) => {
       const previous = jsxRuntime[key];
       if (typeof previous !== "function") return;
-      jsxRuntime[key] = function okaiLiveJsx(
+      jsxRuntime[key] = function okaiLiveBridgeJsx(
         type,
         props,
         reactKey
       ) {
-        if (isCandlestickChart(type, props)) {
+        if (isTradeMarkerBridge(type, props)) {
           return previous(
-            LiveChartBridge,
+            LiveTradeMarkerBridge,
             {
               ...(props || {}),
-              __okaiLiveOriginalChart: type,
+              __okaiLiveOriginalBridge: type,
             },
             reactKey
           );
@@ -492,7 +465,7 @@ function installReactBridge() {
     });
   } catch (_) {}
 
-  React.__OKAI_LIVE_CHART_PATCHED__ = true;
+  React.__OKAI_LIVE_TRADE_BRIDGE_PATCHED__ = true;
 }
 
 function installLiveChartEnhancement() {
@@ -504,5 +477,5 @@ function installLiveChartEnhancement() {
 
 module.exports = {
   installLiveChartEnhancement,
-  mergeLiveQuoteIntoCandles,
+  mergeQuoteIntoCandles,
 };
