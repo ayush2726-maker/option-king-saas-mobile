@@ -11,7 +11,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const { installPullToRefreshEnhancement } = require(
   "./src/runtime/PullToRefreshEnhancement"
 );
+const { installTradeMarkerChartEnhancement } = require(
+  "./src/runtime/TradeMarkerChartEnhancement"
+);
+
 installPullToRefreshEnhancement();
+installTradeMarkerChartEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
