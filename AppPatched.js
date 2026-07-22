@@ -17,12 +17,17 @@ const { installPullToRefreshEnhancement } = require(
 const { installTradeMarkerChartEnhancement } = require(
   "./src/runtime/TradeMarkerChartEnhancement"
 );
+const { installLiveChartEnhancement } = require(
+  "./src/runtime/LiveChartEnhancement"
+);
 
 // Order matters: all later app GET requests, including chart/trade marker
-// requests, first receive cache-busting and no-cache headers.
+// requests, first receive cache-busting and no-cache headers. The live chart
+// bridge is installed last so it can preserve the existing trade-marker bridge.
 installFreshDataEnhancement();
 installPullToRefreshEnhancement();
 installTradeMarkerChartEnhancement();
+installLiveChartEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
