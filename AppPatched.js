@@ -27,17 +27,22 @@ const {
 const { installRangeBacktestEnhancement } = require(
   "./src/runtime/RangeBacktestEnhancement"
 );
+const { installRangeBacktestReliableEnhancement } = require(
+  "./src/runtime/RangeBacktestReliableEnhancement"
+);
 
 // Order matters. Live chart wraps only the actual candlestick component;
 // trade markers stay outside it. The Trade-tab patch only replaces the old
 // delayed Current row with the monitor-updated live option price row.
-// Range backtest wraps only BacktestTab and must be installed before App loads.
+// The reliable range mount runs last because production minification can change
+// the BacktestTab function name used by the original lightweight wrapper.
 installFreshDataEnhancement();
 installPullToRefreshEnhancement();
 installLiveChartEnhancement();
 installTradeMarkerChartEnhancement();
 installTradeLivePriceEnhancement();
 installRangeBacktestEnhancement();
+installRangeBacktestReliableEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
