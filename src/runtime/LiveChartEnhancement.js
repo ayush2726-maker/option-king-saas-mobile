@@ -13,9 +13,7 @@ const SAAS_URL =
 const COLORS = {
   text: "#e8e8f0",
   muted: "#777792",
-  blue: "#4d9fff",
   green: "#00d4a0",
-  red: "#ff4d6d",
   border: "#252540",
   card: "#0f0f1a",
 };
@@ -45,7 +43,7 @@ function queryValue(url, key) {
   }
 }
 
-function notifyContext() {
+function publishContext() {
   contextListeners.forEach((listener) => {
     try {
       listener({ ...chartContext });
@@ -81,7 +79,7 @@ function trackChartRequest(input) {
     days,
     revision: chartContext.revision + 1,
   };
-  notifyContext();
+  publishContext();
 }
 
 function installChartTracking() {
@@ -114,7 +112,7 @@ function useChartContext() {
   return context;
 }
 
-function parseChartDate(value) {
+function parseDate(value) {
   if (value == null || value === "") return null;
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? null : value;
@@ -161,14 +159,13 @@ function mergeLiveQuoteIntoCandles(candles, quote, days) {
   }
 
   const ltp = Number(quote.ltp);
-  const quoteDate =
-    parseChartDate(quote.as_of) || new Date();
+  const quoteDate = parseDate(quote.as_of) || new Date();
   const quoteBucket = threeMinuteBucketStart(
     quoteDate.getTime()
   );
   const next = source.map((candle) => ({ ...candle }));
   const last = next[next.length - 1];
-  const lastDate = parseChartDate(last?.time);
+  const lastDate = parseDate(last?.time);
   const lastBucket = lastDate
     ? threeMinuteBucketStart(lastDate.getTime())
     : null;
@@ -223,8 +220,8 @@ function formatPrice(value) {
   });
 }
 
-function formatLiveTime(value) {
-  const parsed = parseChartDate(value);
+function formatTime(value) {
+  const parsed = parseDate(value);
   if (!parsed) return "--:--:--";
   const ist = new Date(
     parsed.getTime() + 330 * 60 * 1000
@@ -322,6 +319,28 @@ function LiveChartBridge(props) {
     [cleanProps.candles, quote, context.days]
   );
 
+  if (
+    typeof OriginalChart !== "function" &&
+    typeof OriginalChart !== "string"
+  ) {
+    return React.createElement(
+      View,
+      {
+        style: {
+          padding: 12,
+          borderWidth: 1,
+          borderColor: COLORS.border,
+          borderRadius: 10,
+        },
+      },
+      React.createElement(
+        Text,
+        { style: { color: COLORS.muted, fontSize: 10 } },
+        "Chart component reconnecting..."
+      )
+    );
+  }
+
   return React.createElement(
     View,
     { style: { width: "100%" } },
@@ -356,7 +375,6 @@ function LiveChartBridge(props) {
                     : COLORS.muted,
                   fontSize: 10,
                   fontWeight: "900",
-                  letterSpacing: 0.6,
                 },
               },
               quote?.success
@@ -373,7 +391,7 @@ function LiveChartBridge(props) {
                 },
               },
               quote?.success
-                ? `Updated ${formatLiveTime(
+                ? `Updated ${formatTime(
                     quote.as_of
                   )} IST • 1 sec display feed`
                 : feedError || "Connecting live quote..."
@@ -399,8 +417,15 @@ function LiveChartBridge(props) {
   );
 }
 
+LiveChartBridge.displayName = "OKAILiveChartBridge";
+
 function isCandlestickChart(type, props) {
-  if (!type || props?.__okaiLiveChartBypass) {
+  if (
+    !type ||
+    props?.__okaiLiveChartBypass ||
+    props?.__okaiLiveOriginalChart ||
+    props?.__okaiOriginalChart
+  ) {
     return false;
   }
   if (typeof type !== "function") return false;
@@ -408,18 +433,10 @@ function isCandlestickChart(type, props) {
   const name = String(
     type.displayName || type.name || ""
   );
-  if (name === "CandlestickIndicatorChart") {
-    return true;
-  }
 
-  return (
-    Array.isArray(props?.candles) &&
-    Number(props?.height || 0) >= 300 &&
-    Object.prototype.hasOwnProperty.call(
-      props || {},
-      "emptyMessage"
-    )
-  );
+  // Only wrap the real chart component. The earlier broad shape check also
+  // matched our runtime wrapper components and caused recursive wrapping.
+  return name === "CandlestickIndicatorChart";
 }
 
 function installReactBridge() {
