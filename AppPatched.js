@@ -24,15 +24,20 @@ const {
   installTradeLivePriceEnhancement,
   updateTradeLiveSnapshot,
 } = require("./src/runtime/TradeLivePriceEnhancement");
+const { installRangeBacktestEnhancement } = require(
+  "./src/runtime/RangeBacktestEnhancement"
+);
 
 // Order matters. Live chart wraps only the actual candlestick component;
 // trade markers stay outside it. The Trade-tab patch only replaces the old
 // delayed Current row with the monitor-updated live option price row.
+// Range backtest wraps only BacktestTab and must be installed before App loads.
 installFreshDataEnhancement();
 installPullToRefreshEnhancement();
 installLiveChartEnhancement();
 installTradeMarkerChartEnhancement();
 installTradeLivePriceEnhancement();
+installRangeBacktestEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
