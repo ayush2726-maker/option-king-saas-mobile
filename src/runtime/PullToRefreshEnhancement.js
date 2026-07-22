@@ -21,14 +21,8 @@ function componentName(element) {
   return String(type?.displayName || type?.name || "");
 }
 
-function isAlreadyEnhanced(props) {
-  return Boolean(
-    props?.refreshControl || props?.__okaiPullRefreshEnhanced
-  );
-}
-
 function isDashboardContentScroll(props, children) {
-  if (isAlreadyEnhanced(props)) return false;
+  if (props?.horizontal || props?.__okaiDashboardHost) return false;
 
   const style = flattenStyle(props?.style);
   const contentStyle = flattenStyle(props?.contentContainerStyle);
@@ -42,9 +36,6 @@ function isDashboardContentScroll(props, children) {
     (child) => componentName(child) === "OtaStatusBanner"
   );
 
-  // OtaStatusBanner is the exact dashboard marker. The fallback keeps this
-  // compatible with minified production bundles where function names may be
-  // shortened, while avoiding normal tab ScrollViews that use page padding.
   const productionFallback =
     childList.length >= 2 &&
     contentStyle.padding == null &&
@@ -54,19 +45,23 @@ function isDashboardContentScroll(props, children) {
 }
 
 function isTabRootScroll(props) {
-  if (isAlreadyEnhanced(props) || props?.horizontal) return false;
+  if (
+    props?.horizontal ||
+    props?.__okaiPullRefreshEnhanced ||
+    props?.__okaiDashboardHost
+  ) {
+    return false;
+  }
 
   const style = flattenStyle(props?.style);
   const contentStyle = flattenStyle(props?.contentContainerStyle);
   const bottomPadding = Number(contentStyle.paddingBottom || 0);
 
-  // Every main Option King tab uses a full-height vertical ScrollView with
-  // bottom padding for the fixed navigation bar. Child chart scrollers do not.
   return style.flex === 1 && bottomPadding >= 80;
 }
 
 function collectRefreshCallbacks(node, output, depth = 0) {
-  if (depth > 5 || !React.isValidElement(node)) return;
+  if (depth > 6 || !React.isValidElement(node)) return;
 
   const props = node.props || {};
   for (const propName of ["onPageRefresh", "onRefresh"]) {
@@ -83,6 +78,13 @@ function collectRefreshCallbacks(node, output, depth = 0) {
 
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function refreshControlHandler(refreshControl) {
+  if (!React.isValidElement(refreshControl)) return null;
+  return typeof refreshControl.props?.onRefresh === "function"
+    ? refreshControl.props.onRefresh
+    : null;
 }
 
 function installPullToRefreshEnhancement() {
@@ -103,88 +105,43 @@ function installPullToRefreshEnhancement() {
     });
   }
 
-  function DashboardPullRefreshScroll({
-    scrollType,
-    scrollProps,
-    childNodes,
-  }) {
-    const [refreshing, setRefreshing] = React.useState(false);
-    const [refreshVersion, setRefreshVersion] = React.useState(0);
-    const aliveRef = React.useRef(true);
-    const busyRef = React.useRef(false);
-    const childNodesRef = React.useRef(childNodes);
-    childNodesRef.current = childNodes;
-
-    async function refreshCurrentPage() {
-      if (busyRef.current) return;
-      busyRef.current = true;
-      if (aliveRef.current) setRefreshing(true);
-
-      try {
-        const callbacks = [];
-        React.Children.forEach(childNodesRef.current, (child) => {
-          collectRefreshCallbacks(child, callbacks);
-        });
-
-        if (callbacks.length > 0) {
-          await Promise.race([
-            Promise.allSettled(
-              callbacks.map((callback) =>
-                Promise.resolve().then(() => callback())
-              )
-            ),
-            delay(2500),
-          ]);
-        }
-
-        // Every active tab loads its data in useEffect. Changing its key
-        // remounts only the current page and keeps the selected tab open.
-        if (aliveRef.current) {
-          setRefreshVersion((value) => value + 1);
-          await delay(350);
-        }
-      } finally {
-        busyRef.current = false;
-        if (aliveRef.current) setRefreshing(false);
-      }
-    }
+  function DashboardContentHost({ childNodes }) {
+    const callbacksRef = React.useRef([]);
+    callbacksRef.current = [];
+    React.Children.forEach(childNodes, (child) => {
+      collectRefreshCallbacks(child, callbacksRef.current);
+    });
 
     React.useEffect(() => {
-      aliveRef.current = true;
-      dashboardRefreshHandler = refreshCurrentPage;
+      dashboardRefreshHandler = async () => {
+        const callbacks = callbacksRef.current.slice();
+        if (!callbacks.length) return;
+        await Promise.race([
+          Promise.allSettled(
+            callbacks.map((callback) =>
+              Promise.resolve().then(() => callback())
+            )
+          ),
+          delay(4000),
+        ]);
+      };
 
       return () => {
-        aliveRef.current = false;
-        if (dashboardRefreshHandler === refreshCurrentPage) {
-          dashboardRefreshHandler = null;
-        }
+        dashboardRefreshHandler = null;
       };
     }, []);
 
-    const refreshedChildren = React.Children.toArray(childNodes).map(
-      (child, index) => {
-        if (!React.isValidElement(child)) return child;
-        const oldKey = child.key == null ? index : child.key;
-        return React.cloneElement(child, {
-          key: `okai-refresh-${refreshVersion}-${oldKey}`,
-        });
-      }
-    );
-
+    // The old layout used a ScrollView outside every tab, while tabs already
+    // had their own ScrollViews. That nested pair swallowed pull gestures and
+    // sometimes made refresh appear stuck. A plain flex View leaves scrolling
+    // and RefreshControl to the active tab only.
     return previousCreateElement(
-      scrollType,
+      RN.View,
       {
-        ...scrollProps,
-        __okaiPullRefreshEnhanced: true,
-        refreshControl: makeRefreshControl(
-          refreshing,
-          refreshCurrentPage
-        ),
-        alwaysBounceVertical: true,
-        overScrollMode: "always",
-        nestedScrollEnabled: true,
+        style: { flex: 1 },
+        __okaiDashboardHost: true,
       },
-      ...refreshedChildren
+      ...React.Children.toArray(childNodes)
     );
   }
 
@@ -207,13 +164,36 @@ function installPullToRefreshEnhancement() {
     async function refreshFromActiveTab() {
       if (busyRef.current) return;
       busyRef.current = true;
-      setRefreshing(true);
+      if (aliveRef.current) setRefreshing(true);
 
       try {
-        if (typeof dashboardRefreshHandler === "function") {
-          await dashboardRefreshHandler();
+        const ownHandler = refreshControlHandler(
+          scrollProps?.refreshControl
+        );
+
+        if (typeof ownHandler === "function") {
+          await Promise.race([
+            Promise.resolve().then(() => ownHandler()),
+            delay(5000),
+          ]);
+        } else if (typeof dashboardRefreshHandler === "function") {
+          await Promise.race([
+            dashboardRefreshHandler(),
+            delay(5000),
+          ]);
         } else {
-          await delay(500);
+          const callbacks = [];
+          React.Children.forEach(childNodes, (child) => {
+            collectRefreshCallbacks(child, callbacks);
+          });
+          await Promise.race([
+            Promise.allSettled(
+              callbacks.map((callback) =>
+                Promise.resolve().then(() => callback())
+              )
+            ),
+            delay(3000),
+          ]);
         }
       } finally {
         busyRef.current = false;
@@ -232,22 +212,20 @@ function installPullToRefreshEnhancement() {
         ),
         alwaysBounceVertical: true,
         overScrollMode: "always",
-        nestedScrollEnabled: true,
+        nestedScrollEnabled: false,
       },
       ...React.Children.toArray(childNodes)
     );
   }
 
-  function patchedCreateElement(type, props, ...children) {
+  function transformElement(type, props, children) {
     const safeProps = props || {};
 
     if (
       type === RN.ScrollView &&
       isDashboardContentScroll(safeProps, children)
     ) {
-      return previousCreateElement(DashboardPullRefreshScroll, {
-        scrollType: type,
-        scrollProps: safeProps,
+      return previousCreateElement(DashboardContentHost, {
         childNodes: children,
       });
     }
@@ -260,10 +238,36 @@ function installPullToRefreshEnhancement() {
       });
     }
 
-    return previousCreateElement(type, safeProps, ...children);
+    return null;
   }
 
-  React.createElement = patchedCreateElement;
+  React.createElement = function patchedCreateElement(
+    type,
+    props,
+    ...children
+  ) {
+    return (
+      transformElement(type, props, children) ||
+      previousCreateElement(type, props || {}, ...children)
+    );
+  };
+
+  // Expo may compile JSX through react/jsx-runtime instead of
+  // React.createElement. Patch both paths so release builds behave like dev.
+  try {
+    const jsxRuntime = require("react/jsx-runtime");
+    ["jsx", "jsxs"].forEach((key) => {
+      const original = jsxRuntime[key];
+      if (typeof original !== "function") return;
+
+      jsxRuntime[key] = function patchedJsx(type, props, reactKey) {
+        const children = React.Children.toArray(props?.children);
+        const transformed = transformElement(type, props, children);
+        if (transformed) return transformed;
+        return original(type, props, reactKey);
+      };
+    });
+  } catch (_) {}
 }
 
 module.exports = { installPullToRefreshEnhancement };
