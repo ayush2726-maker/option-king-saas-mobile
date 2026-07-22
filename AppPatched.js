@@ -8,6 +8,9 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const { installFreshDataEnhancement } = require(
+  "./src/runtime/FreshDataEnhancement"
+);
 const { installPullToRefreshEnhancement } = require(
   "./src/runtime/PullToRefreshEnhancement"
 );
@@ -15,6 +18,9 @@ const { installTradeMarkerChartEnhancement } = require(
   "./src/runtime/TradeMarkerChartEnhancement"
 );
 
+// Order matters: all later app GET requests, including chart/trade marker
+// requests, first receive cache-busting and no-cache headers.
+installFreshDataEnhancement();
 installPullToRefreshEnhancement();
 installTradeMarkerChartEnhancement();
 
