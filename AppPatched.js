@@ -21,13 +21,12 @@ const { installLiveChartEnhancement } = require(
   "./src/runtime/LiveChartEnhancement"
 );
 
-// Order matters: all later app GET requests, including chart/trade marker
-// requests, first receive cache-busting and no-cache headers. The live chart
-// bridge is installed last so it can preserve the existing trade-marker bridge.
+// Order matters. Live chart wraps only the actual candlestick component;
+// trade markers stay outside it and both runtime enhancements remain isolated.
 installFreshDataEnhancement();
 installPullToRefreshEnhancement();
-installTradeMarkerChartEnhancement();
 installLiveChartEnhancement();
+installTradeMarkerChartEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
