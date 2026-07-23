@@ -5,6 +5,7 @@ const COLORS = {
   muted: "#606080",
   gold: "#f5c842",
   green: "#00d4a0",
+  red: "#ff4d6d",
 };
 
 let installed = false;
@@ -55,18 +56,20 @@ function rowChildren(props, childArgs) {
   return fromProps == null ? [] : [fromProps];
 }
 
-function isTradeCurrentRow(type, props, childArgs) {
-  if (!type || props?.__okaiTradeLivePriceBypass) return false;
-  if (typeof type !== "function") return false;
+function tradeLiveRowKind(type, props, childArgs) {
+  if (!type || props?.__okaiTradeLivePriceBypass) return null;
+  if (typeof type !== "function") return null;
 
   const children = rowChildren(props, childArgs);
-  if (children.length < 2) return false;
+  if (children.length < 2) return null;
 
   const label = nodeText(children[0]).trim();
-  if (label !== "Current") return false;
-
   const valueStyle = flattenStyle(children[1]?.props?.style);
-  return String(valueStyle.color || "").toLowerCase() === COLORS.gold;
+  const color = String(valueStyle.color || "").toLowerCase();
+
+  if (label === "Current" && color === COLORS.gold) return "PRICE";
+  if (label === "SL" && color === COLORS.red) return "SL";
+  return null;
 }
 
 function formatPrice(value) {
@@ -78,12 +81,20 @@ function formatPrice(value) {
   })}`;
 }
 
-function TradeLivePriceRow({ originalProps }) {
+function TradeLiveValueRow({ originalProps, kind }) {
   const snapshot = useTradeLiveSnapshot();
-  const livePrice = snapshot?.open
-    ? snapshot?.trade?.live_price ?? snapshot?.live_price
+  const value = snapshot?.open
+    ? kind === "SL"
+      ? snapshot?.trade?.sl_price
+      : snapshot?.trade?.live_price ?? snapshot?.live_price
     : null;
-  const available = Number.isFinite(Number(livePrice));
+  const available = Number.isFinite(Number(value));
+  const label = kind === "SL" ? "Live SL" : "Live Price";
+  const color = kind === "SL"
+    ? COLORS.red
+    : available
+    ? COLORS.green
+    : COLORS.gold;
 
   return React.createElement(
     View,
@@ -92,6 +103,7 @@ function TradeLivePriceRow({ originalProps }) {
         {
           flexDirection: "row",
           alignItems: "center",
+          justifyContent: "space-between",
         },
         originalProps?.style,
       ],
@@ -100,17 +112,17 @@ function TradeLivePriceRow({ originalProps }) {
     React.createElement(
       Text,
       { style: { color: COLORS.muted } },
-      "Live Price"
+      label
     ),
     React.createElement(
       Text,
       {
         style: {
-          color: available ? COLORS.green : COLORS.gold,
+          color,
           fontWeight: "900",
         },
       },
-      available ? formatPrice(livePrice) : "--"
+      available ? formatPrice(value) : "--"
     )
   );
 }
@@ -124,9 +136,11 @@ function installCreateElementPatch() {
     props,
     ...children
   ) {
-    if (isTradeCurrentRow(type, props, children)) {
-      return previousCreateElement(TradeLivePriceRow, {
+    const kind = tradeLiveRowKind(type, props, children);
+    if (kind) {
+      return previousCreateElement(TradeLiveValueRow, {
         originalProps: props || {},
+        kind,
       });
     }
     return previousCreateElement(type, props, ...children);
@@ -145,10 +159,11 @@ function installJsxRuntimePatch() {
       if (typeof previous !== "function") return;
 
       jsxRuntime[key] = function okaiTradeLiveJsx(type, props, reactKey) {
-        if (isTradeCurrentRow(type, props, [])) {
+        const kind = tradeLiveRowKind(type, props, []);
+        if (kind) {
           return previous(
-            TradeLivePriceRow,
-            { originalProps: props || {} },
+            TradeLiveValueRow,
+            { originalProps: props || {}, kind },
             reactKey
           );
         }
@@ -170,4 +185,5 @@ function installTradeLivePriceEnhancement() {
 module.exports = {
   installTradeLivePriceEnhancement,
   updateTradeLiveSnapshot,
+  useTradeLiveSnapshot,
 };
