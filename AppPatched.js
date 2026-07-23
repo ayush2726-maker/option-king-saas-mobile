@@ -30,12 +30,14 @@ const { installRangeBacktestEnhancement } = require(
 const { installRangeBacktestReliableEnhancement } = require(
   "./src/runtime/RangeBacktestReliableEnhancement"
 );
+const { installTradeStatusEnhancement } = require(
+  "./src/runtime/TradeStatusEnhancement"
+);
 
 // Order matters. Live chart wraps only the actual candlestick component;
-// trade markers stay outside it. The Trade-tab patch only replaces the old
-// delayed Current row with the monitor-updated live option price row.
-// The reliable range mount runs last because production minification can change
-// the BacktestTab function name used by the original lightweight wrapper.
+// trade markers stay outside it. Live price and live SL share the same
+// one-second monitor snapshot. The trade/status patch runs last so it can
+// replace production-minified TradeTab and wrap BotTab reliably.
 installFreshDataEnhancement();
 installPullToRefreshEnhancement();
 installLiveChartEnhancement();
@@ -43,6 +45,7 @@ installTradeMarkerChartEnhancement();
 installTradeLivePriceEnhancement();
 installRangeBacktestEnhancement();
 installRangeBacktestReliableEnhancement();
+installTradeStatusEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
@@ -83,7 +86,7 @@ function ManualExitOverlay() {
         setTrade(openTrade);
       }
     } catch (_) {
-      // Keep the last known live value during a temporary network failure.
+      // Keep the last known live price and SL during a temporary network failure.
     }
   }
 
