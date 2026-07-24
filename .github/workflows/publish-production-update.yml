@@ -22,7 +22,7 @@ permissions:
 
 concurrency:
   group: production-ota
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -69,5 +69,5 @@ jobs:
         run: >-
           eas update
           --channel production
-          --message "Email OTP, Forgot Login ID, password reset and password visibility"
+          --message "EOD re-entry guard, full testing access and universal PnL sync"
           --non-interactive
