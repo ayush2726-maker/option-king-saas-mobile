@@ -35,7 +35,30 @@ async function apiGet(path, token) {
   const response = await fetch(SAAS_URL + path, {
     headers: { Authorization: "Bearer " + token },
   });
-  return response.json();
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (_) {
+    throw new Error(`Invalid server response for ${path}`);
+  }
+  if (!response.ok || data?.success === false) {
+    throw new Error(data?.message || data?.detail || `Request failed: ${path}`);
+  }
+  return data;
+}
+
+async function loadHistory(token) {
+  try {
+    return await apiGet("/bot/trade-history", token);
+  } catch (_) {
+    const legacy = await apiGet("/history/paper", token);
+    return {
+      ...legacy,
+      paper_trades: Array.isArray(legacy?.paper_trades)
+        ? legacy.paper_trades
+        : [],
+    };
+  }
 }
 
 function number(value, fallback = 0) {
@@ -74,6 +97,9 @@ function parseBackendDate(value) {
   let text = String(value).trim();
   if (!text) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) text += "T00:00:00Z";
+  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(text)) {
+    text = text.replace(/\s+/, "T");
+  }
   if (
     /^\d{4}-\d{2}-\d{2}T/.test(text) &&
     !/(Z|[+-]\d{2}:?\d{2})$/.test(text)
@@ -112,14 +138,29 @@ function tradeTimestamp(trade, preferExit = false) {
   const exitValue =
     trade?.exit_time || trade?.closed_at || trade?.updated_at || null;
   const entryValue =
-    trade?.entry_time || trade?.created_at || trade?.timestamp || trade?.time || trade?.date || null;
+    trade?.entry_time ||
+    trade?.created_at ||
+    trade?.timestamp ||
+    trade?.time ||
+    trade?.date ||
+    null;
   return preferExit ? exitValue || entryValue : entryValue || exitValue;
+}
+
+function tradePnl(trade) {
+  return number(
+    trade?.net_pnl ?? trade?.unrealized_pnl ?? trade?.pnl,
+    0
+  );
 }
 
 function dateLabel(value) {
   const parts = istParts(value);
   if (!parts) return "DATE NOT AVAILABLE";
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
   const key = `${parts.year}-${String(parts.month + 1).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
   const relative = key === todayIstKey(0)
     ? "TODAY"
@@ -206,22 +247,37 @@ function ValueRow({ label, value, color = C.text }) {
     React.createElement(Text, { style: { color: C.muted, fontSize: 13 } }, label),
     React.createElement(
       Text,
-      { style: { color, fontSize: 13, fontWeight: "900", maxWidth: "68%", textAlign: "right" } },
+      {
+        style: {
+          color,
+          fontSize: 13,
+          fontWeight: "900",
+          maxWidth: "68%",
+          textAlign: "right",
+        },
+      },
       value
     )
   );
 }
 
+function openOnly(trade) {
+  return String(trade?.status || "").toUpperCase() === "OPEN"
+    ? trade
+    : null;
+}
+
 function mergeLiveTrade(signalTrade, snapshot) {
-  const liveTrade = snapshot?.open ? snapshot?.trade : null;
-  if (!liveTrade) return signalTrade || null;
-  if (!signalTrade) return liveTrade;
+  const baseTrade = openOnly(signalTrade);
+  const liveTrade = snapshot?.open ? openOnly(snapshot?.trade) : null;
+  if (!liveTrade) return baseTrade;
+  if (!baseTrade) return liveTrade;
 
   const sameTrade =
-    (liveTrade.id && signalTrade.id && String(liveTrade.id) === String(signalTrade.id)) ||
-    (liveTrade.symbol && signalTrade.symbol && String(liveTrade.symbol) === String(signalTrade.symbol));
+    (liveTrade.id && baseTrade.id && String(liveTrade.id) === String(baseTrade.id)) ||
+    (liveTrade.symbol && baseTrade.symbol && String(liveTrade.symbol) === String(baseTrade.symbol));
 
-  return sameTrade ? { ...signalTrade, ...liveTrade } : liveTrade;
+  return sameTrade ? { ...baseTrade, ...liveTrade } : liveTrade;
 }
 
 function EnhancedTradeTab({ token }) {
@@ -237,14 +293,18 @@ function EnhancedTradeTab({ token }) {
     try {
       const [sig, hist, live] = await Promise.all([
         apiGet("/bot/signal", token),
-        apiGet("/history/paper", token),
+        loadHistory(token),
         apiGet("/bot/trade-live", token),
       ]);
       setSignal(sig || {});
-      setHistory(Array.isArray(hist?.paper_trades) ? hist.paper_trades : []);
-      if (live && typeof live === "object") updateTradeLiveSnapshot(live);
-    } catch (_) {
-      if (!silent) setMsg("Trade data load failed");
+      if (Array.isArray(hist?.paper_trades)) {
+        setHistory(hist.paper_trades);
+      }
+      if (live && typeof live === "object") {
+        updateTradeLiveSnapshot(live);
+      }
+    } catch (error) {
+      if (!silent) setMsg(error?.message || "Trade data load failed");
     }
     if (!silent) setLoading(false);
   }, [token]);
@@ -255,11 +315,10 @@ function EnhancedTradeTab({ token }) {
     return () => clearInterval(timer);
   }, [loadTrade]);
 
-  const baseTrade = signal?.active_trade || signal?.latest_trade || null;
-  const trade = mergeLiveTrade(baseTrade, snapshot);
+  const trade = mergeLiveTrade(signal?.active_trade, snapshot);
   const isLiveMode = (trade?.trading_mode || signal?.trading_mode || "paper") === "live";
-  const pnl = number(trade?.unrealized_pnl ?? trade?.pnl, 0);
-  const isOpen = String(trade?.status || "").toUpperCase() === "OPEN";
+  const pnl = tradePnl(trade);
+  const isOpen = !!trade;
   const lastUpdate = snapshot?.as_of ? timeLabel(snapshot.as_of) : "--:--";
 
   return React.createElement(
@@ -291,12 +350,18 @@ function EnhancedTradeTab({ token }) {
           React.createElement(
             Text,
             { style: { color: C.muted, fontSize: 9, marginTop: 4 } },
-            `Live price + SL refresh together • Updated ${lastUpdate} IST`
+            isOpen
+              ? `Live price + SL refresh together • Updated ${lastUpdate} IST`
+              : "Closed trade ko active position nahi dikhaya jayega."
           )
         ),
         React.createElement(
           TouchableOpacity,
-          { onPress: () => loadTrade(false), disabled: loading, style: { paddingVertical: 8, paddingLeft: 8 } },
+          {
+            onPress: () => loadTrade(false),
+            disabled: loading,
+            style: { paddingVertical: 8, paddingLeft: 8 },
+          },
           loading
             ? React.createElement(ActivityIndicator, { color: C.blue, size: "small" })
             : React.createElement(Text, { style: { color: C.blue, fontWeight: "900" } }, "Refresh")
@@ -306,7 +371,7 @@ function EnhancedTradeTab({ token }) {
         ? React.createElement(
             Text,
             { style: { color: C.muted, fontSize: 13, lineHeight: 19 } },
-            "Abhi koi active trade nahi hai. Score 82+ hone par real signal ke basis par trade create hogi."
+            "Abhi koi active trade nahi hai. Sirf fully qualified signal par nayi trade create hogi."
           )
         : React.createElement(
             View,
@@ -325,19 +390,29 @@ function EnhancedTradeTab({ token }) {
               color: C.red,
             }),
             React.createElement(ValueRow, { label: "Target", value: price(trade.target_price), color: C.green }),
-            React.createElement(ValueRow, { label: "Exit", value: price(trade.exit_price) }),
             React.createElement(ValueRow, {
-              label: "P&L",
+              label: "Net P&L",
               value: money(pnl, true),
               color: pnl >= 0 ? C.green : C.red,
             }),
+            trade?.total_charges != null
+              ? React.createElement(ValueRow, {
+                  label: "Est. Charges",
+                  value: money(trade.total_charges, false),
+                  color: C.gold,
+                })
+              : null,
             React.createElement(ValueRow, {
               label: "Status",
-              value: String(trade.status || "--").toUpperCase(),
-              color: isOpen ? C.green : C.gold,
+              value: "OPEN",
+              color: C.green,
             }),
             trade.reason
-              ? React.createElement(Text, { style: { color: C.muted, fontSize: 12, marginTop: 10, lineHeight: 17 } }, trade.reason)
+              ? React.createElement(
+                  Text,
+                  { style: { color: C.muted, fontSize: 12, marginTop: 10, lineHeight: 17 } },
+                  trade.reason
+                )
               : null
           ),
       msg
@@ -354,9 +429,9 @@ function EnhancedTradeTab({ token }) {
         React.createElement(Text, { style: { color: C.muted, fontSize: 10 } }, `${history.length} trades`)
       ),
       history.length === 0
-        ? React.createElement(Text, { style: { color: C.muted } }, "Abhi trade history nahi hai.")
-        : history.slice(0, 60).map((item, index) => {
-            const itemPnl = number(item?.pnl, 0);
+        ? React.createElement(Text, { style: { color: C.muted } }, "History load nahi hui. Pull-down refresh karein.")
+        : history.slice(0, 100).map((item, index) => {
+            const itemPnl = tradePnl(item);
             const itemStatus = String(item?.status || "--").toUpperCase();
             const entryTime = item?.entry_time || item?.created_at || item?.timestamp || item?.time || item?.date;
             const exitTime = item?.exit_time || item?.closed_at || item?.updated_at;
@@ -386,7 +461,7 @@ function EnhancedTradeTab({ token }) {
                   React.createElement(
                     Text,
                     { style: { color: C.muted, fontSize: 10, marginTop: 3 } },
-                    `Entry ${timeLabel(entryTime)}${exitTime ? ` • Exit ${timeLabel(exitTime)}` : " • OPEN"} IST`
+                    `Entry ${timeLabel(entryTime)}${exitTime ? ` • Exit ${timeLabel(exitTime)}` : itemStatus === "OPEN" ? " • OPEN" : ""} IST`
                   )
                 ),
                 React.createElement(StatusTag, {
@@ -410,7 +485,7 @@ function EnhancedTradeTab({ token }) {
                     lineHeight: 17,
                   },
                 },
-                `${money(itemPnl, true)} • ${item?.reason || "--"}`
+                `${money(itemPnl, true)} NET • ${item?.reason || "--"}`
               )
             );
           })
@@ -421,11 +496,15 @@ function EnhancedTradeTab({ token }) {
 function TodayPerformanceStrip({ token }) {
   const snapshot = useTradeLiveSnapshot();
   const [history, setHistory] = React.useState([]);
+  const [serverToday, setServerToday] = React.useState(null);
 
   const load = React.useCallback(async () => {
     try {
-      const data = await apiGet("/history/paper", token);
-      setHistory(Array.isArray(data?.paper_trades) ? data.paper_trades : []);
+      const data = await loadHistory(token);
+      if (Array.isArray(data?.paper_trades)) {
+        setHistory(data.paper_trades);
+      }
+      setServerToday(data?.today || null);
     } catch (_) {}
   }, [token]);
 
@@ -443,9 +522,24 @@ function TodayPerformanceStrip({ token }) {
   const closedToday = todayTrades.filter(
     (trade) => String(trade?.status || "").toUpperCase() !== "OPEN"
   );
-  const realized = closedToday.reduce((sum, trade) => sum + number(trade?.pnl, 0), 0);
-  const openPnl = snapshot?.open ? number(snapshot?.trade?.unrealized_pnl ?? snapshot?.trade?.pnl, 0) : 0;
-  const total = realized + openPnl;
+  const computedRealized = closedToday.reduce(
+    (sum, trade) => sum + tradePnl(trade),
+    0
+  );
+  const computedOpen = snapshot?.open ? tradePnl(snapshot?.trade) : 0;
+
+  const realized = serverToday
+    ? number(serverToday.closed_pnl, computedRealized)
+    : computedRealized;
+  const openPnl = serverToday
+    ? number(serverToday.open_pnl, computedOpen)
+    : computedOpen;
+  const tradeCount = serverToday
+    ? number(serverToday.trades, todayTrades.length)
+    : todayTrades.length;
+  const total = serverToday
+    ? number(serverToday.total_pnl, realized + openPnl)
+    : realized + openPnl;
   const color = total >= 0 ? C.green : C.red;
 
   return React.createElement(
@@ -473,13 +567,13 @@ function TodayPerformanceStrip({ token }) {
       React.createElement(
         View,
         null,
-        React.createElement(Text, { style: { color: C.muted, fontSize: 9, fontWeight: "900", letterSpacing: 1 } }, "TODAY TOTAL P&L"),
+        React.createElement(Text, { style: { color: C.muted, fontSize: 9, fontWeight: "900", letterSpacing: 1 } }, "TODAY NET P&L"),
         React.createElement(Text, { style: { color, fontSize: 20, fontWeight: "900", marginTop: 2 } }, money(total, true))
       ),
       React.createElement(
         View,
         { style: { alignItems: "flex-end" } },
-        React.createElement(Text, { style: { color: C.sub, fontSize: 10, fontWeight: "800" } }, `Trades ${todayTrades.length}`),
+        React.createElement(Text, { style: { color: C.sub, fontSize: 10, fontWeight: "800" } }, `Trades ${tradeCount}`),
         React.createElement(Text, { style: { color: C.muted, fontSize: 9, marginTop: 3 } }, `Closed ${money(realized, true)} • Open ${money(openPnl, true)}`)
       )
     )
