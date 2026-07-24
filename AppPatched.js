@@ -33,11 +33,14 @@ const { installRangeBacktestReliableEnhancement } = require(
 const { installTradeStatusEnhancement } = require(
   "./src/runtime/TradeStatusEnhancement"
 );
+const { installMoneyDisplayEnhancement } = require(
+  "./src/runtime/MoneyDisplayEnhancement"
+);
 
 // Order matters. Live chart wraps only the actual candlestick component;
 // trade markers stay outside it. Live price and live SL share the same
-// one-second monitor snapshot. The trade/status patch runs last so it can
-// replace production-minified TradeTab and wrap BotTab reliably.
+// one-second monitor snapshot. Money formatting runs last so every old/new
+// P&L label is normalized to exactly two decimal places.
 installFreshDataEnhancement();
 installPullToRefreshEnhancement();
 installLiveChartEnhancement();
@@ -46,6 +49,7 @@ installTradeLivePriceEnhancement();
 installRangeBacktestEnhancement();
 installRangeBacktestReliableEnhancement();
 installTradeStatusEnhancement();
+installMoneyDisplayEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
