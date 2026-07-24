@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "App.js"
+      - "AppPatched.js"
       - "index.js"
       - "src/**"
       - "app.json"
@@ -69,5 +70,5 @@ jobs:
         run: >-
           eas update
           --channel production
-          --message "EOD re-entry guard, full testing access and universal PnL sync"
+          --message "Reliable trade PnL chart and two-loss cooldown sync"
           --non-interactive
