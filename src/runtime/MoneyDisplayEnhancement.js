@@ -33,8 +33,16 @@ function formatMoneyText(value) {
   );
 }
 
+function normalizeStatusText(value) {
+  if (value === "READY_WAIT") return "WAITING";
+  if (value === "READY_NO_DATA") return "WAITING FOR DATA";
+  return value;
+}
+
 function normalizeValue(value) {
-  if (typeof value === "string") return formatMoneyText(value);
+  if (typeof value === "string") {
+    return normalizeStatusText(formatMoneyText(value));
+  }
   if (Array.isArray(value)) return value.map(normalizeValue);
   return value;
 }
