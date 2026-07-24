@@ -11,6 +11,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const { installFreshDataEnhancement } = require(
   "./src/runtime/FreshDataEnhancement"
 );
+const { installPaperHistoryChartBridgeEnhancement } = require(
+  "./src/runtime/PaperHistoryChartBridgeEnhancement"
+);
 const { installPullToRefreshEnhancement } = require(
   "./src/runtime/PullToRefreshEnhancement"
 );
@@ -40,10 +43,10 @@ const { installMoneyDisplayEnhancement } = require(
   "./src/runtime/MoneyDisplayEnhancement"
 );
 
-// Order matters. The unlimited interceptor must be installed after the legacy
-// range wrapper and before the reliable wrapper so it can replace the old
-// 366-day modal without changing the original Backtest tab.
+// Order matters. The reliable Paper-history bridge wraps the fresh-data fetch
+// layer so Bot P&L and Today P&L always read the same server trade rows.
 installFreshDataEnhancement();
+installPaperHistoryChartBridgeEnhancement();
 installPullToRefreshEnhancement();
 installLiveChartEnhancement();
 installTradeMarkerChartEnhancement();
