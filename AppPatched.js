@@ -27,6 +27,9 @@ const {
 const { installRangeBacktestEnhancement } = require(
   "./src/runtime/RangeBacktestEnhancement"
 );
+const { installUnlimitedRangeBacktestEnhancement } = require(
+  "./src/runtime/UnlimitedRangeBacktestEnhancement"
+);
 const { installRangeBacktestReliableEnhancement } = require(
   "./src/runtime/RangeBacktestReliableEnhancement"
 );
@@ -37,16 +40,16 @@ const { installMoneyDisplayEnhancement } = require(
   "./src/runtime/MoneyDisplayEnhancement"
 );
 
-// Order matters. Live chart wraps only the actual candlestick component;
-// trade markers stay outside it. Live price and live SL share the same
-// one-second monitor snapshot. Money formatting runs last so every old/new
-// P&L label is normalized to exactly two decimal places.
+// Order matters. The unlimited interceptor must be installed after the legacy
+// range wrapper and before the reliable wrapper so it can replace the old
+// 366-day modal without changing the original Backtest tab.
 installFreshDataEnhancement();
 installPullToRefreshEnhancement();
 installLiveChartEnhancement();
 installTradeMarkerChartEnhancement();
 installTradeLivePriceEnhancement();
 installRangeBacktestEnhancement();
+installUnlimitedRangeBacktestEnhancement();
 installRangeBacktestReliableEnhancement();
 installTradeStatusEnhancement();
 installMoneyDisplayEnhancement();
