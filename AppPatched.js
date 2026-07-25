@@ -48,11 +48,9 @@ const { installMoneyDisplayEnhancement } = require(
 const { installBrokerSelectionFetchEnhancement } = require(
   "./src/runtime/BrokerSelectionFetchEnhancement"
 );
-const SelectedBrokerOverlayModule = require(
-  "./src/components/SelectedBrokerOverlay"
+const { installBrokerPanelPlacementEnhancement } = require(
+  "./src/runtime/BrokerPanelPlacementEnhancement"
 );
-const SelectedBrokerOverlay =
-  SelectedBrokerOverlayModule.default || SelectedBrokerOverlayModule;
 
 // Install language normalization before any screen module is loaded. This keeps
 // Hindi in Devanagari and English in English across JSX, alerts, placeholders,
@@ -73,6 +71,9 @@ installRangeBacktestReliableEnhancement();
 installTradeStatusEnhancement();
 installMoneyDisplayEnhancement();
 installBrokerSelectionFetchEnhancement();
+// Install before App.js is loaded so the selector is inserted only inside the
+// Tools > Broker ScrollView, directly above the Connect Broker card.
+installBrokerPanelPlacementEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
@@ -233,7 +234,6 @@ function ManualExitOverlay() {
 export default function AppPatched() {
   return (
     <View style={{ flex: 1, backgroundColor: "#0a0a0f" }}>
-      <SelectedBrokerOverlay />
       <View style={{ flex: 1 }}>
         <App />
       </View>
