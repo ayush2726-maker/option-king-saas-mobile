@@ -1,0 +1,44 @@
+name: Validate Mobile App
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: JavaScript and language tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check AppPatched.js
+          node --check src/components/AiDecisionCard.js
+          node --check src/i18n/professionalCopy.js
+          node --check src/i18n/ProfessionalLanguageEnhancement.js
+
+      - name: Run AI tests
+        run: npm run ai:test
+
+      - name: Run professional language tests
+        run: npm run language:test
