@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
+  StatusBar,
   Text,
   TouchableOpacity,
   View,
@@ -34,6 +36,7 @@ export default function SelectedBrokerOverlay() {
           setToken(null);
           setSelected(null);
           setBrokers([]);
+          setExpanded(false);
         }
         return;
       }
@@ -113,53 +116,112 @@ export default function SelectedBrokerOverlay() {
 
   if (!token || brokers.length === 0) return null;
 
+  const androidStatusPadding =
+    Platform.OS === "android" ? Number(StatusBar.currentHeight || 0) : 0;
+
   return (
     <View
-      pointerEvents="box-none"
       style={{
-        position: "absolute",
-        left: 12,
-        right: 12,
-        top: 0,
-        bottom: 0,
+        backgroundColor: "#0d1018",
+        borderBottomWidth: 1,
+        borderBottomColor: "#252540",
+        paddingTop: androidStatusPadding,
+        paddingHorizontal: 12,
+        paddingBottom: 8,
       }}
     >
       <View
         style={{
-          position: "absolute",
-          left: 0,
-          bottom: 88,
-          alignItems: "flex-start",
+          minHeight: 42,
+          paddingHorizontal: 12,
+          paddingVertical: 8,
+          borderRadius: 12,
+          backgroundColor: "#121d23",
+          borderWidth: 1,
+          borderColor: "#00d4a088",
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
-        {expanded && (
-          <View
+        <View style={{ flex: 1, paddingRight: 10 }}>
+          <Text
             style={{
-              width: 210,
-              marginBottom: 8,
-              padding: 10,
-              borderRadius: 14,
-              backgroundColor: "#13131f",
-              borderWidth: 1,
-              borderColor: "#34345a",
-              elevation: 16,
-              shadowColor: "#000",
-              shadowOpacity: 0.4,
-              shadowRadius: 8,
+              color: "#7d879b",
+              fontSize: 9,
+              fontWeight: "900",
+              letterSpacing: 0.8,
             }}
           >
+            SELECTED DATA & ORDER BROKER
+          </Text>
+          <Text
+            style={{
+              color: "#00d4a0",
+              fontSize: 13,
+              fontWeight: "900",
+              marginTop: 2,
+            }}
+          >
+            🔗 {labelFor(selected)}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => setExpanded((value) => !value)}
+          disabled={busy}
+          activeOpacity={0.85}
+          style={{
+            minWidth: 88,
+            paddingHorizontal: 11,
+            paddingVertical: 8,
+            borderRadius: 10,
+            backgroundColor: "#1a1a2e",
+            borderWidth: 1,
+            borderColor: "#34345a",
+            alignItems: "center",
+          }}
+        >
+          {busy ? (
+            <ActivityIndicator color="#00d4a0" size="small" />
+          ) : (
             <Text
               style={{
-                color: "#a0a0c0",
+                color: "#e8e8f0",
                 fontSize: 10,
                 fontWeight: "900",
-                marginBottom: 7,
-                letterSpacing: 0.7,
               }}
             >
-              SELECTED DATA & ORDER BROKER
+              {expanded ? "CLOSE ▲" : "CHANGE ▼"}
             </Text>
+          )}
+        </TouchableOpacity>
+      </View>
 
+      {expanded && (
+        <View
+          style={{
+            marginTop: 8,
+            padding: 8,
+            borderRadius: 12,
+            backgroundColor: "#13131f",
+            borderWidth: 1,
+            borderColor: "#34345a",
+          }}
+        >
+          <Text
+            style={{
+              color: "#a0a0c0",
+              fontSize: 9,
+              fontWeight: "900",
+              letterSpacing: 0.7,
+              marginBottom: 2,
+            }}
+          >
+            CHOOSE SAVED BROKER
+          </Text>
+
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
             {brokers.map((name) => {
               const active = name === selected;
               return (
@@ -168,22 +230,21 @@ export default function SelectedBrokerOverlay() {
                   onPress={() => selectBroker(name)}
                   disabled={busy}
                   style={{
+                    minWidth: 98,
                     paddingHorizontal: 11,
-                    paddingVertical: 10,
+                    paddingVertical: 9,
                     borderRadius: 10,
                     marginTop: 6,
                     backgroundColor: active ? "#00d4a022" : "#1a1a2e",
                     borderWidth: 1,
                     borderColor: active ? "#00d4a0" : "#252540",
-                    flexDirection: "row",
                     alignItems: "center",
-                    justifyContent: "space-between",
                   }}
                 >
                   <Text
                     style={{
                       color: active ? "#00d4a0" : "#e8e8f0",
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: "900",
                     }}
                   >
@@ -192,8 +253,9 @@ export default function SelectedBrokerOverlay() {
                   <Text
                     style={{
                       color: active ? "#00d4a0" : "#606080",
-                      fontSize: 10,
+                      fontSize: 8,
                       fontWeight: "900",
+                      marginTop: 2,
                     }}
                   >
                     {active ? "SELECTED" : "USE"}
@@ -202,43 +264,8 @@ export default function SelectedBrokerOverlay() {
               );
             })}
           </View>
-        )}
-
-        <TouchableOpacity
-          onPress={() => setExpanded((value) => !value)}
-          activeOpacity={0.85}
-          style={{
-            minWidth: 150,
-            paddingHorizontal: 13,
-            paddingVertical: 10,
-            borderRadius: 13,
-            backgroundColor: "#121d23",
-            borderWidth: 1,
-            borderColor: "#00d4a0aa",
-            elevation: 12,
-            shadowColor: "#000",
-            shadowOpacity: 0.35,
-            shadowRadius: 7,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {busy ? (
-            <ActivityIndicator color="#00d4a0" size="small" />
-          ) : (
-            <Text
-              style={{
-                color: "#00d4a0",
-                fontSize: 11,
-                fontWeight: "900",
-              }}
-            >
-              🔗 Broker: {labelFor(selected)}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
     </View>
   );
 }
