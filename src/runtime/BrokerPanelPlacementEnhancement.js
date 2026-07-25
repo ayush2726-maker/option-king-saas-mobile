@@ -4,6 +4,17 @@ const SelectedBrokerPanelModule = require("../components/SelectedBrokerOverlay")
 const SelectedBrokerPanel =
   SelectedBrokerPanelModule.default || SelectedBrokerPanelModule;
 
+let automaticJsxRuntime = null;
+let automaticJsxDevRuntime = null;
+
+try {
+  automaticJsxRuntime = require("react/jsx-runtime");
+} catch (_) {}
+
+try {
+  automaticJsxDevRuntime = require("react/jsx-dev-runtime");
+} catch (_) {}
+
 let installed = false;
 let injecting = false;
 
@@ -119,9 +130,10 @@ function patchReactNativeScrollViewExport(baseCreateElement) {
   ReactNative.__OKAI_BROKER_SCROLLVIEW_PATCHED__ = replaced;
 }
 
-function patchAutomaticRuntime(moduleName, baseCreateElement, originalScrollView) {
+function patchAutomaticRuntime(runtime, baseCreateElement, originalScrollView) {
+  if (!runtime || typeof runtime !== "object") return;
+
   try {
-    const runtime = require(moduleName);
     for (const functionName of ["jsx", "jsxs", "jsxDEV"]) {
       const original = runtime?.[functionName];
       if (typeof original !== "function") continue;
@@ -181,8 +193,8 @@ function installBrokerPanelPlacementEnhancement() {
     return baseCreateElement(type, props, ...children);
   };
 
-  patchAutomaticRuntime("react/jsx-runtime", baseCreateElement, originalScrollView);
-  patchAutomaticRuntime("react/jsx-dev-runtime", baseCreateElement, originalScrollView);
+  patchAutomaticRuntime(automaticJsxRuntime, baseCreateElement, originalScrollView);
+  patchAutomaticRuntime(automaticJsxDevRuntime, baseCreateElement, originalScrollView);
 }
 
 module.exports = {
