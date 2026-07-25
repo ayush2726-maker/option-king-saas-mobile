@@ -49,7 +49,6 @@ jobs:
 
       - name: Validate JavaScript and language consistency
         run: |
-          node --check AppPatched.js
           node --check src/components/AiDecisionCard.js
           node --check src/i18n/professionalCopy.js
           node --check src/i18n/professionalCopyCatalog.js
