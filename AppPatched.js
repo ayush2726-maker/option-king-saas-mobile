@@ -232,9 +232,11 @@ function ManualExitOverlay() {
 
 export default function AppPatched() {
   return (
-    <View style={{ flex: 1 }}>
-      <App />
+    <View style={{ flex: 1, backgroundColor: "#0a0a0f" }}>
       <SelectedBrokerOverlay />
+      <View style={{ flex: 1 }}>
+        <App />
+      </View>
       <ManualExitOverlay />
     </View>
   );
