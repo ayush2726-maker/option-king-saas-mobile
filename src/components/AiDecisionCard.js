@@ -7,6 +7,7 @@ const SAAS_URL = "https://option-king-saas-production.up.railway.app";
 
 const COLORS = {
   surface: "#13131f",
+  surface2: "#0f0f1a",
   border: "#252540",
   text: "#e8e8f0",
   muted: "#80809f",
@@ -14,6 +15,7 @@ const COLORS = {
   red: "#ff4d6d",
   gold: "#f5c842",
   blue: "#4d9fff",
+  purple: "#b06deb",
 };
 
 function firstValue(...values) {
@@ -99,7 +101,26 @@ function probabilityRow(label, value, color) {
       },
     },
     React.createElement(Text, { style: { color: COLORS.muted, fontSize: 10, fontWeight: "800" } }, label),
-    React.createElement(Text, { style: { color, fontSize: 18, fontWeight: "900", marginTop: 3 } }, `${value}%`)
+    React.createElement(Text, { style: { color, fontSize: 18, fontWeight: "900", marginTop: 3 } }, `${Number(value || 0)}%`)
+  );
+}
+
+function metricCell(label, value, color) {
+  return React.createElement(
+    View,
+    {
+      key: label,
+      style: {
+        width: "48%",
+        padding: 10,
+        borderRadius: 10,
+        backgroundColor: COLORS.surface2,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+      },
+    },
+    React.createElement(Text, { style: { color: COLORS.muted, fontSize: 9, fontWeight: "800" } }, label),
+    React.createElement(Text, { style: { color: color || COLORS.text, fontSize: 13, fontWeight: "900", marginTop: 4 } }, String(value ?? "--"))
   );
 }
 
@@ -116,10 +137,44 @@ function normalizeRemotePrediction(data) {
   };
 }
 
+function normalizeAdvancedReport(data) {
+  if (!data || data.success !== true) return null;
+  const latest = Array.isArray(data.recent_decisions) ? data.recent_decisions[0] : null;
+  const option = latest?.option_summary || {};
+  const summary = data.summary || {};
+  const models = data.adaptive_models?.models || [];
+  const model15 = models.find((item) => Number(item?.horizon_minutes) === 15) || models[0] || {};
+  const decision = latest?.advanced_decision || "COLLECTING";
+  const confidence = Number(latest?.advanced_confidence || 0);
+  return {
+    version: data.version || "OKAI-ADVANCED-V2",
+    broker: String(latest?.broker || data.active_broker || "waiting").toUpperCase(),
+    decision,
+    confidence,
+    probabilities: latest?.advanced_probabilities || {},
+    optionDecision: latest?.option_decision || option.option_direction || "--",
+    optionConfidence: Number(latest?.option_confidence || option.option_confidence || 0),
+    coverage: Number(latest?.data_coverage_score || option.data_coverage_score || 0),
+    optionRisk: Number(latest?.option_risk_score || option.risk_score || 0),
+    pcr: option.pcr,
+    maxPain: option.max_pain,
+    modelStatus: model15.status || "COLLECTING",
+    modelSamples: Number(model15.sample_count || 0),
+    modelRequired: Number(data.adaptive_models?.minimum_training_samples || 300),
+    evaluated15m: Number(summary.evaluated_15m || 0),
+    hitRate15m: summary.advanced_15m_hit_rate_percent,
+    netBenefit15m: summary.advanced_vs_base_net_benefit_rupees_per_lot_15m,
+    reasons: Array.isArray(latest?.reasons) ? latest.reasons : [],
+    shadowOnly: data.trade_blocking === false && data.order_execution === false,
+  };
+}
+
 function AiDecisionCard({ signal, token }) {
   const [storedToken, setStoredToken] = React.useState(token || "");
   const [remotePrediction, setRemotePrediction] = React.useState(null);
+  const [advancedReport, setAdvancedReport] = React.useState(null);
   const [remoteError, setRemoteError] = React.useState("");
+  const [advancedError, setAdvancedError] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
@@ -140,31 +195,55 @@ function AiDecisionCard({ signal, token }) {
     let active = true;
     let timer = null;
 
-    async function loadRailwayDecision() {
+    async function fetchJson(path) {
+      const response = await fetch(`${SAAS_URL}${path}`, {
+        headers: { Authorization: `Bearer ${storedToken}` },
+      });
+      let data = null;
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      if (!response.ok) {
+        throw new Error(data?.detail || data?.message || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    async function loadRailwayData() {
       if (!storedToken) return;
       if (active) setLoading(true);
+
       try {
-        const response = await fetch(`${SAAS_URL}/bot/ai-decision`, {
-          headers: { Authorization: `Bearer ${storedToken}` },
-        });
-        const data = await response.json();
+        const data = await fetchJson("/bot/ai-decision");
         const normalized = normalizeRemotePrediction(data);
-        if (!response.ok || !normalized) {
-          throw new Error(data?.detail || data?.message || `HTTP ${response.status}`);
-        }
+        if (!normalized) throw new Error("Invalid Railway AI response");
         if (active) {
           setRemotePrediction(normalized);
           setRemoteError("");
         }
       } catch (error) {
         if (active) setRemoteError(String(error?.message || "Railway AI unavailable"));
-      } finally {
-        if (active) setLoading(false);
       }
+
+      try {
+        const data = await fetchJson("/bot/ai-advanced-monitor?recent_limit=1");
+        const normalized = normalizeAdvancedReport(data);
+        if (!normalized) throw new Error("Invalid Advanced AI response");
+        if (active) {
+          setAdvancedReport(normalized);
+          setAdvancedError("");
+        }
+      } catch (error) {
+        if (active) setAdvancedError(String(error?.message || "Advanced AI unavailable"));
+      }
+
+      if (active) setLoading(false);
     }
 
-    loadRailwayDecision();
-    timer = setInterval(loadRailwayDecision, 15000);
+    loadRailwayData();
+    timer = setInterval(loadRailwayData, 15000);
     return () => {
       active = false;
       if (timer) clearInterval(timer);
@@ -182,6 +261,107 @@ function AiDecisionCard({ signal, token }) {
     : prediction.decision === "PE"
       ? COLORS.red
       : COLORS.gold;
+
+  const advancedDecision = advancedReport?.decision || "COLLECTING";
+  const advancedColor = advancedDecision === "CE"
+    ? COLORS.green
+    : advancedDecision === "PE"
+      ? COLORS.red
+      : advancedDecision === "NO_TRADE"
+        ? COLORS.gold
+        : COLORS.purple;
+
+  const advancedSection = React.createElement(
+    View,
+    {
+      style: {
+        marginTop: 14,
+        paddingTop: 14,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+      },
+    },
+    React.createElement(
+      View,
+      { style: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 9 } },
+      React.createElement(
+        View,
+        { style: { flex: 1, paddingRight: 8 } },
+        React.createElement(Text, { style: { color: COLORS.text, fontSize: 14, fontWeight: "900" } }, "🧬 Advanced AI V2"),
+        React.createElement(
+          Text,
+          { style: { color: COLORS.muted, fontSize: 9, lineHeight: 14, marginTop: 3 } },
+          advancedReport
+            ? `${advancedReport.broker} • Option OI/Greeks/Depth + News + Global`
+            : "Angel One • Upstox • Zerodha • Railway shadow"
+        )
+      ),
+      React.createElement(
+        View,
+        { style: { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, backgroundColor: advancedColor + "22" } },
+        React.createElement(Text, { style: { color: advancedColor, fontSize: 10, fontWeight: "900" } }, advancedDecision)
+      )
+    ),
+    advancedReport && advancedReport.decision !== "COLLECTING"
+      ? React.createElement(
+          View,
+          { style: { flexDirection: "row", gap: 7, marginBottom: 10 } },
+          probabilityRow("CE", advancedReport.probabilities.CE, COLORS.green),
+          probabilityRow("PE", advancedReport.probabilities.PE, COLORS.red),
+          probabilityRow("NO TRADE", advancedReport.probabilities.NO_TRADE, COLORS.gold)
+        )
+      : null,
+    React.createElement(
+      View,
+      { style: { flexDirection: "row", flexWrap: "wrap", gap: 8 } },
+      metricCell("BROKER", advancedReport?.broker || "WAITING", COLORS.blue),
+      metricCell("OPTION VIEW", advancedReport?.optionDecision || "--", advancedColor),
+      metricCell("DATA COVERAGE", advancedReport ? `${advancedReport.coverage}%` : "--", advancedReport?.coverage >= 65 ? COLORS.green : COLORS.gold),
+      metricCell("OPTION RISK", advancedReport ? `${advancedReport.optionRisk}/100` : "--", advancedReport?.optionRisk >= 60 ? COLORS.red : COLORS.green),
+      metricCell("PCR", advancedReport?.pcr != null ? Number(advancedReport.pcr).toFixed(2) : "--", COLORS.blue),
+      metricCell("MAX PAIN", advancedReport?.maxPain != null ? advancedReport.maxPain : "--", COLORS.purple),
+      metricCell(
+        "MODEL",
+        advancedReport ? `${advancedReport.modelStatus} ${advancedReport.modelSamples}/${advancedReport.modelRequired}` : "COLLECTING",
+        advancedReport?.modelStatus === "ACTIVE_SHADOW" ? COLORS.green : COLORS.gold
+      ),
+      metricCell(
+        "15M RESULT",
+        advancedReport?.hitRate15m != null
+          ? `${advancedReport.hitRate15m}% • ${advancedReport.evaluated15m}`
+          : `${advancedReport?.evaluated15m || 0} evaluated`,
+        COLORS.purple
+      )
+    ),
+    advancedReport?.netBenefit15m != null
+      ? React.createElement(
+          Text,
+          {
+            style: {
+              color: Number(advancedReport.netBenefit15m) >= 0 ? COLORS.green : COLORS.red,
+              fontSize: 10,
+              fontWeight: "900",
+              marginTop: 9,
+            },
+          },
+          `Advanced vs base: ${Number(advancedReport.netBenefit15m) >= 0 ? "+" : ""}₹${advancedReport.netBenefit15m} per lot (15m evaluated)`
+        )
+      : null,
+    React.createElement(
+      Text,
+      { style: { color: advancedError ? COLORS.gold : COLORS.muted, fontSize: 9, lineHeight: 14, marginTop: 9 } },
+      advancedError
+        ? `Advanced monitor retrying: ${advancedError}`
+        : advancedReport?.reasons?.length
+          ? advancedReport.reasons.slice(0, 4).join(" • ")
+          : "Exact option outcomes collect ho rahe hain. 300 valid samples ke baad validated adaptive model shadow mode me active hoga."
+    ),
+    React.createElement(
+      Text,
+      { style: { color: COLORS.blue, fontSize: 9, fontWeight: "900", marginTop: 6 } },
+      "MONITOR ONLY • Trade blocking OFF • Order execution OFF"
+    )
+  );
 
   return React.createElement(
     View,
@@ -247,7 +427,8 @@ function AiDecisionCard({ signal, token }) {
             ? "Railway AI refreshing..."
             : "Same Railway AI model personal bot aur SaaS dono ke liye. Order execution OFF."
       )
-    )
+    ),
+    advancedSection
   );
 }
 
