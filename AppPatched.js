@@ -8,6 +8,9 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const { installProfessionalLanguageEnhancement } = require(
+  "./src/i18n/ProfessionalLanguageEnhancement"
+);
 const { installFreshDataEnhancement } = require(
   "./src/runtime/FreshDataEnhancement"
 );
@@ -50,6 +53,11 @@ const SelectedBrokerOverlayModule = require(
 );
 const SelectedBrokerOverlay =
   SelectedBrokerOverlayModule.default || SelectedBrokerOverlayModule;
+
+// Install language normalization before any screen module is loaded. This keeps
+// Hindi in Devanagari and English in English across JSX, alerts, placeholders,
+// runtime enhancements, and common backend messages.
+installProfessionalLanguageEnhancement();
 
 // Order matters. The reliable Paper-history bridge wraps the fresh-data fetch
 // layer so Bot P&L and Today P&L always read the same server trade rows.

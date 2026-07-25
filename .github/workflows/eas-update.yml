@@ -47,10 +47,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate JavaScript
+      - name: Validate JavaScript and language consistency
         run: |
           node --check src/components/AiDecisionCard.js
+          node --check src/i18n/professionalCopy.js
+          node --check src/i18n/professionalCopyCatalog.js
+          node --check src/i18n/professionalFeatureCatalog.js
+          node --check src/i18n/professionalLocalizer.js
+          node --check src/i18n/ProfessionalLanguageEnhancement.js
           npm run ai:test
+          npm run language:test
 
       - name: Publish production OTA
         shell: bash
@@ -58,5 +64,5 @@ jobs:
           SHORT_SHA="${GITHUB_SHA::7}"
           eas update \
             --channel production \
-            --message "OKAI production ${SHORT_SHA}: Advanced AI V2" \
+            --message "OKAI production ${SHORT_SHA}: Professional bilingual UI" \
             --non-interactive
