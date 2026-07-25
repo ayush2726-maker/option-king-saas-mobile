@@ -2,8 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Platform,
-  StatusBar,
   Text,
   TouchableOpacity,
   View,
@@ -57,7 +55,7 @@ export default function SelectedBrokerOverlay() {
           : []
       );
     } catch (_) {
-      // Preserve the last known selected broker during a temporary network failure.
+      // Keep the last known broker during a temporary network failure.
     }
   }
 
@@ -116,29 +114,19 @@ export default function SelectedBrokerOverlay() {
 
   if (!token || brokers.length === 0) return null;
 
-  const androidStatusPadding =
-    Platform.OS === "android" ? Number(StatusBar.currentHeight || 0) : 0;
-
   return (
     <View
       style={{
-        backgroundColor: "#0d1018",
-        borderBottomWidth: 1,
-        borderBottomColor: "#252540",
-        paddingTop: androidStatusPadding,
-        paddingHorizontal: 12,
-        paddingBottom: 8,
+        padding: 14,
+        borderRadius: 16,
+        backgroundColor: "#121d23",
+        borderWidth: 1,
+        borderColor: "#00d4a088",
       }}
     >
       <View
         style={{
-          minHeight: 42,
-          paddingHorizontal: 12,
-          paddingVertical: 8,
-          borderRadius: 12,
-          backgroundColor: "#121d23",
-          borderWidth: 1,
-          borderColor: "#00d4a088",
+          minHeight: 46,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
@@ -158,9 +146,9 @@ export default function SelectedBrokerOverlay() {
           <Text
             style={{
               color: "#00d4a0",
-              fontSize: 13,
+              fontSize: 15,
               fontWeight: "900",
-              marginTop: 2,
+              marginTop: 4,
             }}
           >
             🔗 {labelFor(selected)}
@@ -172,13 +160,13 @@ export default function SelectedBrokerOverlay() {
           disabled={busy}
           activeOpacity={0.85}
           style={{
-            minWidth: 88,
-            paddingHorizontal: 11,
-            paddingVertical: 8,
-            borderRadius: 10,
+            minWidth: 96,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            borderRadius: 11,
             backgroundColor: "#1a1a2e",
             borderWidth: 1,
-            borderColor: "#34345a",
+            borderColor: "#4b4675",
             alignItems: "center",
           }}
         >
@@ -201,12 +189,10 @@ export default function SelectedBrokerOverlay() {
       {expanded && (
         <View
           style={{
-            marginTop: 8,
-            padding: 8,
-            borderRadius: 12,
-            backgroundColor: "#13131f",
-            borderWidth: 1,
-            borderColor: "#34345a",
+            marginTop: 12,
+            paddingTop: 10,
+            borderTopWidth: 1,
+            borderTopColor: "#34345a",
           }}
         >
           <Text
@@ -215,7 +201,7 @@ export default function SelectedBrokerOverlay() {
               fontSize: 9,
               fontWeight: "900",
               letterSpacing: 0.7,
-              marginBottom: 2,
+              marginBottom: 4,
             }}
           >
             CHOOSE SAVED BROKER
@@ -230,14 +216,14 @@ export default function SelectedBrokerOverlay() {
                   onPress={() => selectBroker(name)}
                   disabled={busy}
                   style={{
-                    minWidth: 98,
-                    paddingHorizontal: 11,
-                    paddingVertical: 9,
+                    minWidth: 102,
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
                     borderRadius: 10,
                     marginTop: 6,
                     backgroundColor: active ? "#00d4a022" : "#1a1a2e",
                     borderWidth: 1,
-                    borderColor: active ? "#00d4a0" : "#252540",
+                    borderColor: active ? "#00d4a0" : "#34345a",
                     alignItems: "center",
                   }}
                 >
