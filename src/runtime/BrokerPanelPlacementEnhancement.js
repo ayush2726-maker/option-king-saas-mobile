@@ -4,6 +4,17 @@ const SelectedBrokerPanelModule = require("../components/SelectedBrokerOverlay")
 const SelectedBrokerPanel =
   SelectedBrokerPanelModule.default || SelectedBrokerPanelModule;
 
+let automaticJsxRuntime = null;
+let automaticJsxDevRuntime = null;
+
+try {
+  automaticJsxRuntime = require("react/jsx-runtime");
+} catch (_) {}
+
+try {
+  automaticJsxDevRuntime = require("react/jsx-dev-runtime");
+} catch (_) {}
+
 let installed = false;
 let injecting = false;
 
@@ -55,9 +66,10 @@ function prependPanel(children, originalCreateElement) {
   return Array.isArray(children) ? [panel, ...children] : [panel, children];
 }
 
-function patchAutomaticRuntime(moduleName, originalCreateElement) {
+function patchAutomaticRuntime(runtime, originalCreateElement) {
+  if (!runtime || typeof runtime !== "object") return;
+
   try {
-    const runtime = require(moduleName);
     for (const functionName of ["jsx", "jsxs", "jsxDEV"]) {
       const original = runtime?.[functionName];
       if (typeof original !== "function") continue;
@@ -111,8 +123,8 @@ function installBrokerPanelPlacementEnhancement() {
     return originalCreateElement(type, props, ...children);
   };
 
-  patchAutomaticRuntime("react/jsx-runtime", originalCreateElement);
-  patchAutomaticRuntime("react/jsx-dev-runtime", originalCreateElement);
+  patchAutomaticRuntime(automaticJsxRuntime, originalCreateElement);
+  patchAutomaticRuntime(automaticJsxDevRuntime, originalCreateElement);
 }
 
 module.exports = {
