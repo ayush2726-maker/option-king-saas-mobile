@@ -42,6 +42,14 @@ const { installTradeStatusEnhancement } = require(
 const { installMoneyDisplayEnhancement } = require(
   "./src/runtime/MoneyDisplayEnhancement"
 );
+const { installBrokerSelectionFetchEnhancement } = require(
+  "./src/runtime/BrokerSelectionFetchEnhancement"
+);
+const SelectedBrokerOverlayModule = require(
+  "./src/components/SelectedBrokerOverlay"
+);
+const SelectedBrokerOverlay =
+  SelectedBrokerOverlayModule.default || SelectedBrokerOverlayModule;
 
 // Order matters. The reliable Paper-history bridge wraps the fresh-data fetch
 // layer so Bot P&L and Today P&L always read the same server trade rows.
@@ -56,6 +64,7 @@ installUnlimitedRangeBacktestEnhancement();
 installRangeBacktestReliableEnhancement();
 installTradeStatusEnhancement();
 installMoneyDisplayEnhancement();
+installBrokerSelectionFetchEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
@@ -217,6 +226,7 @@ export default function AppPatched() {
   return (
     <View style={{ flex: 1 }}>
       <App />
+      <SelectedBrokerOverlay />
       <ManualExitOverlay />
     </View>
   );
