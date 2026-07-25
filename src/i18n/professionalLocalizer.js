@@ -1,6 +1,7 @@
 const base = require("./professionalCopy");
 const { localizeCatalogText } = require("./professionalCopyCatalog");
 const { localizeFeatureText } = require("./professionalFeatureCatalog");
+const { localizeOverlayText } = require("./professionalOverlayCatalog");
 
 function preserveOuterWhitespace(source, translated) {
   const leading = String(source).match(/^\s*/)?.[0] || "";
@@ -16,6 +17,9 @@ function localizeText(value, language = "en") {
 
   const feature = localizeFeatureText(value, language);
   if (feature != null) return preserveOuterWhitespace(value, feature);
+
+  const overlay = localizeOverlayText(value, language);
+  if (overlay != null) return preserveOuterWhitespace(value, overlay);
 
   return base.localizeText(value, language);
 }
