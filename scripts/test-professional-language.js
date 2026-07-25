@@ -28,6 +28,14 @@ expect("Main confirm karta/karti hoon ki meri age 18 saal ya usse zyada hai.", "
 expect("Main confirm karta/karti hoon ki meri age 18 saal ya usse zyada hai.", "en", "I confirm that I am at least 18 years old.");
 expect("Exact option outcomes collect ho rahe hain. 300 valid samples ke baad validated adaptive model shadow mode me active hoga.", "hi", "सटीक ऑप्शन परिणाम एकत्र किए जा रहे हैं। 300 मान्य नमूनों के बाद सत्यापित अनुकूली मॉडल शैडो मोड में सक्रिय होगा।");
 expect("Exact option outcomes collect ho rahe hain. 300 valid samples ke baad validated adaptive model shadow mode me active hoga.", "en", "Exact option outcomes are being collected. The validated adaptive model will activate in shadow mode after 300 valid samples.");
+expect("✅ Strategy save ho gayi. Weights 100 me normalize ho gaye.", "hi", "✅ रणनीति सुरक्षित हो गई। वेट 100 के आधार पर सामान्यीकृत हो गए।");
+expect("✅ Strategy save ho gayi. Weights 100 me normalize ho gaye.", "en", "✅ Strategy saved. Enabled weights were normalized to 100.");
+expect("App create karne se API Key, Secret aur daily Access Token OKAI me save karne tak poora process.", "hi", "ऐप बनाने से लेकर API कुंजी, सीक्रेट और दैनिक एक्सेस टोकन को OKAI में सुरक्षित करने तक की पूरी प्रक्रिया।");
+expect("App create karne se API Key, Secret aur daily Access Token OKAI me save karne tak poora process.", "en", "Complete process from creating the app to saving the API key, secret, and daily access token in OKAI.");
+expect("Registered naam aur mobile number daalo", "hi", "पंजीकृत नाम और मोबाइल नंबर दर्ज करें");
+expect("Registered naam aur mobile number daalo", "en", "Enter the registered name and mobile number");
+expect("Angel One LIVE orders आपके अपने static-IP phone/desktop से जाएंगे।", "hi", "Angel One के लाइव ऑर्डर आपके अपने स्थिर-IP फ़ोन या डेस्कटॉप से भेजे जाएँगे।");
+expect("Angel One LIVE orders आपके अपने static-IP phone/desktop से जाएंगे।", "en", "Angel One LIVE orders leave from your own static-IP phone or desktop.");
 expect("NIFTY", "hi", "NIFTY");
 expect("ayush@example.com", "hi", "ayush@example.com");
 expect("₹1,999.00", "hi", "₹1,999.00");
@@ -41,6 +49,10 @@ const hindiSamples = [
   "Bot start/stop, signal, strategy save aur backtest result Telegram par bhejo.",
   "Options/derivatives me poora trading capital loss ho sakta hai.",
   "Main options trading ka high risk, poore capital ke loss ka risk, aur no-profit-guarantee rule samajhta/samajhti hoon.",
+  "✅ Strategy save ho gayi. Weights 100 me normalize ho gaye.",
+  "App create karne se API Key, Secret aur daily Access Token OKAI me save karne tak poora process.",
+  "Registered naam aur mobile number daalo",
+  "Angel One LIVE orders आपके अपने static-IP phone/desktop से जाएंगे।",
 ];
 
 hindiSamples.forEach((source) => {
@@ -59,6 +71,9 @@ const englishSamples = [
   "Koi user nahi mila",
   "Options/derivatives me poora trading capital loss ho sakta hai.",
   "Maine Privacy Notice padhkar service aur audit ke liye zaroori data processing accept ki hai.",
+  "✅ Strategy save ho gayi. Weights 100 me normalize ho gaye.",
+  "Registered naam aur mobile number daalo",
+  "Angel One LIVE orders आपके अपने static-IP phone/desktop से जाएंगे।",
 ];
 
 englishSamples.forEach((source) => {
