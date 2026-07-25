@@ -1,0 +1,10 @@
+{
+  "release": "advanced-ai-v2",
+  "channel": "production",
+  "requested_at": "2026-07-25T16:45:00+05:30",
+  "features": [
+    "Angel One, Upstox and Zerodha Advanced AI V2",
+    "Option OI, Greeks, depth, PCR and Max Pain",
+    "Exact option outcome collection and adaptive model status"
+  ]
+}
