@@ -36,6 +36,12 @@ expect("Registered naam aur mobile number daalo", "hi", "पंजीकृत �
 expect("Registered naam aur mobile number daalo", "en", "Enter the registered name and mobile number");
 expect("Angel One LIVE orders आपके अपने static-IP phone/desktop से जाएंगे।", "hi", "Angel One के लाइव ऑर्डर आपके अपने स्थिर-IP फ़ोन या डेस्कटॉप से भेजे जाएँगे।");
 expect("Angel One LIVE orders आपके अपने static-IP phone/desktop से जाएंगे।", "en", "Angel One LIVE orders leave from your own static-IP phone or desktop.");
+expect("SELECTED DATA & ORDER BROKER", "hi", "चयनित डेटा और ऑर्डर ब्रोकर");
+expect("SELECTED DATA & ORDER BROKER", "en", "SELECTED DATA & ORDER BROKER");
+expect("Broker: Angel One", "hi", "ब्रोकर: Angel One");
+expect("Broker: Angel One", "en", "Broker: Angel One");
+expect("Angel One will now be used by the bot, paper/live data and backtests. Start Bot again.", "hi", "Angel One अब बॉट, पेपर/लाइव डेटा और बैकटेस्ट के लिए उपयोग होगा। बॉट को दोबारा प्रारंभ करें।");
+expect("Angel One will now be used by the bot, paper/live data and backtests. Start Bot again.", "en", "Angel One will now be used by the bot, paper/live data, and backtests. Start the bot again.");
 expect("NIFTY", "hi", "NIFTY");
 expect("ayush@example.com", "hi", "ayush@example.com");
 expect("₹1,999.00", "hi", "₹1,999.00");
@@ -53,6 +59,8 @@ const hindiSamples = [
   "App create karne se API Key, Secret aur daily Access Token OKAI me save karne tak poora process.",
   "Registered naam aur mobile number daalo",
   "Angel One LIVE orders आपके अपने static-IP phone/desktop से जाएंगे।",
+  "SELECTED DATA & ORDER BROKER",
+  "Broker: Angel One",
 ];
 
 hindiSamples.forEach((source) => {
@@ -74,6 +82,8 @@ const englishSamples = [
   "✅ Strategy save ho gayi. Weights 100 me normalize ho gaye.",
   "Registered naam aur mobile number daalo",
   "Angel One LIVE orders आपके अपने static-IP phone/desktop से जाएंगे।",
+  "SELECTED DATA & ORDER BROKER",
+  "Broker: Angel One",
 ];
 
 englishSamples.forEach((source) => {
