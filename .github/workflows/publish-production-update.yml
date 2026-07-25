@@ -62,7 +62,19 @@ jobs:
       - name: Validate Android export
         env:
           CI: "1"
-        run: npx expo export --platform android --output-dir /tmp/okai-ota-export
+        shell: bash
+        run: |
+          set -o pipefail
+          npx expo export --platform android --output-dir /tmp/okai-ota-export 2>&1 | tee /tmp/okai-android-export.log
+
+      - name: Upload Android export diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: okai-android-export-diagnostics
+          path: /tmp/okai-android-export.log
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Publish production update
         env:
@@ -70,5 +82,5 @@ jobs:
         run: >-
           eas update
           --channel production
-          --message "Selected broker source for bot, paper/live data and backtests"
+          --message "AI accordion dropdown cards"
           --non-interactive
