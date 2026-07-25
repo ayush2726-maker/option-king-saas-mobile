@@ -1,7 +1,7 @@
 const React = require("react");
 const AsyncStorage = require("@react-native-async-storage/async-storage").default;
 const { Alert } = require("react-native");
-const { localizeText, localizeValue } = require("./professionalCopy");
+const { localizeText, localizeValue } = require("./professionalLocalizer");
 
 let installed = false;
 let currentLanguage = "en";
@@ -53,24 +53,28 @@ function normalizeProps(props) {
 function patchStorageLanguageSync() {
   if (AsyncStorage.__OKAI_LANGUAGE_SYNC_PATCHED__) return;
 
-  const originalSetItem = AsyncStorage.setItem.bind(AsyncStorage);
-  AsyncStorage.setItem = function okaiLanguageSetItem(key, value, ...rest) {
-    if (key === "okai_lang") setProfessionalLanguage(value);
-    return originalSetItem(key, value, ...rest);
-  };
-
-  if (typeof AsyncStorage.multiSet === "function") {
-    const originalMultiSet = AsyncStorage.multiSet.bind(AsyncStorage);
-    AsyncStorage.multiSet = function okaiLanguageMultiSet(entries, ...rest) {
-      const languageEntry = Array.isArray(entries)
-        ? entries.find((entry) => Array.isArray(entry) && entry[0] === "okai_lang")
-        : null;
-      if (languageEntry) setProfessionalLanguage(languageEntry[1]);
-      return originalMultiSet(entries, ...rest);
+  try {
+    const originalSetItem = AsyncStorage.setItem.bind(AsyncStorage);
+    AsyncStorage.setItem = function okaiLanguageSetItem(key, value, ...rest) {
+      if (key === "okai_lang") setProfessionalLanguage(value);
+      return originalSetItem(key, value, ...rest);
     };
-  }
 
-  AsyncStorage.__OKAI_LANGUAGE_SYNC_PATCHED__ = true;
+    if (typeof AsyncStorage.multiSet === "function") {
+      const originalMultiSet = AsyncStorage.multiSet.bind(AsyncStorage);
+      AsyncStorage.multiSet = function okaiLanguageMultiSet(entries, ...rest) {
+        const languageEntry = Array.isArray(entries)
+          ? entries.find((entry) => Array.isArray(entry) && entry[0] === "okai_lang")
+          : null;
+        if (languageEntry) setProfessionalLanguage(languageEntry[1]);
+        return originalMultiSet(entries, ...rest);
+      };
+    }
+
+    AsyncStorage.__OKAI_LANGUAGE_SYNC_PATCHED__ = true;
+  } catch (_) {
+    // The app's own language state still works if a future storage build is immutable.
+  }
 }
 
 function patchReactElements() {
@@ -102,24 +106,28 @@ function patchReactElements() {
 function patchAlerts() {
   if (!Alert || Alert.__OKAI_PROFESSIONAL_LANGUAGE_PATCHED__) return;
 
-  const previousAlert = Alert.alert.bind(Alert);
-  Alert.alert = function okaiProfessionalAlert(title, message, buttons, options) {
-    const localizedButtons = Array.isArray(buttons)
-      ? buttons.map((button) => ({
-          ...button,
-          text: localizeText(button?.text || "", currentLanguage),
-        }))
-      : buttons;
+  try {
+    const previousAlert = Alert.alert.bind(Alert);
+    Alert.alert = function okaiProfessionalAlert(title, message, buttons, options) {
+      const localizedButtons = Array.isArray(buttons)
+        ? buttons.map((button) => ({
+            ...button,
+            text: localizeText(button?.text || "", currentLanguage),
+          }))
+        : buttons;
 
-    return previousAlert(
-      localizeText(title || "", currentLanguage),
-      localizeText(message || "", currentLanguage),
-      localizedButtons,
-      options
-    );
-  };
+      return previousAlert(
+        localizeText(title || "", currentLanguage),
+        localizeText(message || "", currentLanguage),
+        localizedButtons,
+        options
+      );
+    };
 
-  Alert.__OKAI_PROFESSIONAL_LANGUAGE_PATCHED__ = true;
+    Alert.__OKAI_PROFESSIONAL_LANGUAGE_PATCHED__ = true;
+  } catch (_) {
+    // Never block app startup if a platform-specific Alert implementation is immutable.
+  }
 }
 
 function installProfessionalLanguageEnhancement() {
