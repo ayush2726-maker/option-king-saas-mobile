@@ -53,6 +53,7 @@ jobs:
           node --check src/i18n/professionalCopy.js
           node --check src/i18n/professionalCopyCatalog.js
           node --check src/i18n/professionalFeatureCatalog.js
+          node --check src/i18n/professionalOverlayCatalog.js
           node --check src/i18n/professionalLocalizer.js
           node --check src/i18n/ProfessionalLanguageEnhancement.js
           npm run ai:test
