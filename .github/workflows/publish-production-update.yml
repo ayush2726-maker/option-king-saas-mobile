@@ -70,5 +70,5 @@ jobs:
         run: >-
           eas update
           --channel production
-          --message "Reliable trade PnL chart and two-loss cooldown sync"
+          --message "Selected broker source for bot, paper/live data and backtests"
           --non-interactive
