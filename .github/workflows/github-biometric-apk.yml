@@ -72,3 +72,5 @@ jobs:
           path: release/Option-King-AI-v1.0.2-Biometric.apk
           if-no-files-found: error
           retention-days: 30
+
+# Trigger marker: 2026-07-26T23:55:00+05:30
