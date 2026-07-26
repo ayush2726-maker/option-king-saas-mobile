@@ -42,6 +42,9 @@ const { installRangeBacktestReliableEnhancement } = require(
 const { installTradeStatusEnhancement } = require(
   "./src/runtime/TradeStatusEnhancement"
 );
+const { installHomeAccordionEnhancement } = require(
+  "./src/runtime/HomeAccordionEnhancement"
+);
 const { installMoneyDisplayEnhancement } = require(
   "./src/runtime/MoneyDisplayEnhancement"
 );
@@ -73,6 +76,9 @@ installRangeBacktestEnhancement();
 installUnlimitedRangeBacktestEnhancement();
 installRangeBacktestReliableEnhancement();
 installTradeStatusEnhancement();
+// Installed after TradeStatus so every dashboard card, including the injected
+// Today/current-capital UI, uses the final accordion wrapper.
+installHomeAccordionEnhancement();
 installMoneyDisplayEnhancement();
 installBrokerSelectionFetchEnhancement();
 // Install before App.js is loaded so the selector is inserted only inside the
