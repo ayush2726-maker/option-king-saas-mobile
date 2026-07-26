@@ -55,7 +55,6 @@ jobs:
           node --check src/i18n/professionalOverlayCatalog.js
           node --check src/i18n/professionalLocalizer.js
           node --check src/i18n/ProfessionalLanguageEnhancement.js
-          node --check src/runtime/BiometricSessionGate.js
           npm run ai:test
           npm run language:test
 
@@ -65,5 +64,5 @@ jobs:
           SHORT_SHA="${GITHUB_SHA::7}"
           eas update \
             --channel production \
-            --message "OKAI production ${SHORT_SHA}: Biometric login" \
+            --message "OKAI production ${SHORT_SHA}: Regular OTA update" \
             --non-interactive
