@@ -1,10 +1,10 @@
 {
-  "release": "advanced-ai-v2",
+  "release": "home-settings-help-v1",
   "channel": "production",
-  "requested_at": "2026-07-25T16:45:00+05:30",
+  "requested_at": "2026-07-26T13:30:00+05:30",
   "features": [
-    "Angel One, Upstox and Zerodha Advanced AI V2",
-    "Option OI, Greeks, depth, PCR and Max Pain",
-    "Exact option outcome collection and adaptive model status"
+    "Bot screen promoted to the main Home page",
+    "Tools renamed to Settings with refreshed tab icons",
+    "Guide replaced by searchable bilingual Help accordions"
   ]
 }
