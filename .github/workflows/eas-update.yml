@@ -1,68 +1,12 @@
-name: EAS Production OTA
+name: Legacy OTA Manual Only
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
-concurrency:
-  group: eas-production-ota
-  cancel-in-progress: true
-
 jobs:
-  update:
-    name: Publish production update
+  notice:
+    name: Automatic OTA moved
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
     steps:
-      - name: Check Expo token
-        shell: bash
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "EXPO_TOKEN repository secret is required for EAS Update."
-            echo "Create an Expo access token and save it in GitHub Actions secrets as EXPO_TOKEN."
-            exit 1
-          fi
-
-      - name: Checkout repository
-        uses: actions/checkout@v5
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-
-      - name: Setup Expo and EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Validate JavaScript and language consistency
-        run: |
-          node --check src/components/AiDecisionCard.js
-          node --check src/i18n/professionalCopy.js
-          node --check src/i18n/professionalCopyCatalog.js
-          node --check src/i18n/professionalFeatureCatalog.js
-          node --check src/i18n/professionalOverlayCatalog.js
-          node --check src/i18n/professionalLocalizer.js
-          node --check src/i18n/ProfessionalLanguageEnhancement.js
-          npm run ai:test
-          npm run language:test
-
-      - name: Publish production OTA
-        shell: bash
-        run: |
-          SHORT_SHA="${GITHUB_SHA::7}"
-          eas update \
-            --channel production \
-            --message "OKAI production ${SHORT_SHA}: Regular OTA update" \
-            --non-interactive
+      - name: Notice
+        run: echo "Automatic production OTA is handled only by Publish Production OTA to prevent duplicate updates."
