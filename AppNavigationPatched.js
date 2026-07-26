@@ -2,15 +2,15 @@ const React = require("react");
 const { installNavigationHelpEnhancement } = require(
   "./src/runtime/NavigationHelpEnhancement"
 );
-const { installGuideCardsAccordionEnhancement } = require(
-  "./src/runtime/GuideCardsAccordionEnhancement"
+const { installGuideCardsAccordionV2 } = require(
+  "./src/runtime/GuideCardsAccordionV2"
 );
 
 // Install before AppPaymentsPatched loads App.js so Dashboard hooks,
-// bottom navigation, Help replacement, and guide accordions are active
+// bottom navigation, Help replacement, and guide dropdowns are active
 // from the first render.
 installNavigationHelpEnhancement();
-installGuideCardsAccordionEnhancement();
+installGuideCardsAccordionV2();
 
 const AppPaymentsPatchedModule = require("./AppPaymentsPatched");
 const AppPaymentsPatched =
