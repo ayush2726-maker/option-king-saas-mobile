@@ -51,6 +51,10 @@ const { installBrokerSelectionFetchEnhancement } = require(
 const { installBrokerPanelPlacementEnhancement } = require(
   "./src/runtime/BrokerPanelPlacementEnhancement"
 );
+const {
+  installAutoLogoutOnTokenExpiryEnhancement,
+  subscribeAutoLogout,
+} = require("./src/runtime/AutoLogoutOnTokenExpiryEnhancement");
 
 // Install language normalization before any screen module is loaded. This keeps
 // Hindi in Devanagari and English in English across JSX, alerts, placeholders,
@@ -74,6 +78,9 @@ installBrokerSelectionFetchEnhancement();
 // Install before App.js is loaded so the selector is inserted only inside the
 // Tools > Broker ScrollView, directly above the Connect Broker card.
 installBrokerPanelPlacementEnhancement();
+// Every authenticated request now watches for an expired/invalid app JWT. The
+// saved session is cleared and App is remounted directly on the Login screen.
+installAutoLogoutOnTokenExpiryEnhancement();
 
 const AppModule = require("./App");
 const App = AppModule.default || AppModule;
@@ -232,10 +239,21 @@ function ManualExitOverlay() {
 }
 
 export default function AppPatched() {
+  const [sessionEpoch, setSessionEpoch] = useState(0);
+
+  useEffect(
+    () =>
+      subscribeAutoLogout(() => {
+        updateTradeLiveSnapshot({ open: false, trade: null });
+        setSessionEpoch((value) => value + 1);
+      }),
+    []
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: "#0a0a0f" }}>
       <View style={{ flex: 1 }}>
-        <App />
+        <App key={`okai-session-${sessionEpoch}`} />
       </View>
       <ManualExitOverlay />
     </View>
