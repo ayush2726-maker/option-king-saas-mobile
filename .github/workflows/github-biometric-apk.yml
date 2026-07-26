@@ -1,76 +1,12 @@
-name: GitHub Biometric APK
+name: Biometric APK Paused
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/github-biometric-apk.yml"
-      - "app.json"
-      - "package.json"
-      - "index.js"
-      - "AppNavigationPatched.js"
-      - "AppPaymentsPatched.js"
-      - "AppPatched.js"
-      - "App.js"
-      - "src/runtime/BiometricSessionGate.js"
-
-concurrency:
-  group: github-biometric-apk
-  cancel-in-progress: true
 
 jobs:
-  build-apk:
-    name: Build installable biometric APK
+  paused:
+    name: Biometric build is paused
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: package.json
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
-
-      - name: Install JavaScript dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Validate biometric JavaScript
-        run: node --check src/runtime/BiometricSessionGate.js
-
-      - name: Generate Android native project
-        run: npx expo prebuild --platform android --clean --no-install --non-interactive
-
-      - name: Build debug APK
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
-
-      - name: Copy final APK
-        run: |
-          mkdir -p release
-          cp android/app/build/outputs/apk/debug/app-debug.apk release/Option-King-AI-v1.0.2-Biometric.apk
-          ls -lh release/Option-King-AI-v1.0.2-Biometric.apk
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Option-King-AI-v1.0.2-Biometric-APK
-          path: release/Option-King-AI-v1.0.2-Biometric.apk
-          if-no-files-found: error
-          retention-days: 30
-
-# Trigger marker: 2026-07-26T23:55:00+05:30
+      - name: Paused notice
+        run: echo "Biometric login will be added with the next native Expo APK build. Regular production OTA updates remain unchanged."
