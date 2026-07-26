@@ -2,7 +2,7 @@
   "expo": {
     "name": "Option King AI",
     "slug": "option-king-saas",
-    "version": "1.0.1",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -14,12 +14,12 @@
         "backgroundColor": "#040d18"
       },
       "package": "com.optionkingai.saas",
-      "versionCode": 2,
+      "versionCode": 1,
       "jsEngine": "jsc"
     },
     "ios": {
       "bundleIdentifier": "com.optionkingai.saas",
-      "buildNumber": "2"
+      "buildNumber": "1"
     },
     "extra": {
       "saasUrl": "https://option-king-saas-production.up.railway.app",
