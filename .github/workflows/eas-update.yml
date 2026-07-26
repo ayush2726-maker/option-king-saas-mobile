@@ -36,7 +36,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: npm
 
       - name: Setup Expo and EAS
         uses: expo/expo-github-action@v8
@@ -45,7 +44,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Validate JavaScript and language consistency
         run: |
@@ -56,6 +55,7 @@ jobs:
           node --check src/i18n/professionalOverlayCatalog.js
           node --check src/i18n/professionalLocalizer.js
           node --check src/i18n/ProfessionalLanguageEnhancement.js
+          node --check src/runtime/BiometricSessionGate.js
           npm run ai:test
           npm run language:test
 
@@ -65,5 +65,5 @@ jobs:
           SHORT_SHA="${GITHUB_SHA::7}"
           eas update \
             --channel production \
-            --message "OKAI production ${SHORT_SHA}: Professional bilingual UI" \
+            --message "OKAI production ${SHORT_SHA}: Biometric login" \
             --non-interactive
