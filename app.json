@@ -2,42 +2,24 @@
   "expo": {
     "name": "Option King AI",
     "slug": "option-king-saas",
-    "version": "1.0.2",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
       "backgroundColor": "#040d18"
     },
-    "plugins": [
-      [
-        "expo-local-authentication",
-        {
-          "faceIDPermission": "Allow Option King AI to use Face ID for secure login."
-        }
-      ],
-      [
-        "expo-secure-store",
-        {
-          "configureAndroidBackup": true,
-          "faceIDPermission": "Allow Option King AI to protect your saved login with Face ID."
-        }
-      ]
-    ],
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#040d18"
       },
       "package": "com.optionkingai.saas",
-      "versionCode": 3,
+      "versionCode": 2,
       "jsEngine": "jsc"
     },
     "ios": {
       "bundleIdentifier": "com.optionkingai.saas",
-      "buildNumber": "3",
-      "config": {
-        "usesNonExemptEncryption": false
-      }
+      "buildNumber": "2"
     },
     "extra": {
       "saasUrl": "https://option-king-saas-production.up.railway.app",
