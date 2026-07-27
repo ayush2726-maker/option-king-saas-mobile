@@ -9,6 +9,7 @@ const { installHomeAccordionEnhancementV2 } = require(
   "./src/runtime/HomeAccordionEnhancementV2"
 );
 
+// OTA release marker: home-help-dropdown-2026-07-27-v3
 // Install before AppPaymentsPatched loads App.js so Dashboard navigation,
 // the stable Help dropdown screen, and compact Home accordions are active
 // from the first render.
