@@ -5,17 +5,16 @@ const { installNavigationHelpEnhancement } = require(
 const { installLegacyGuideScreenReplacement } = require(
   "./src/runtime/LegacyGuideScreenReplacement"
 );
-const { installHomeAccordionEnhancementV2 } = require(
-  "./src/runtime/HomeAccordionEnhancementV2"
+const { installHomeAccordionEnhancement } = require(
+  "./src/runtime/HomeAccordionEnhancement"
 );
 
-// OTA release marker: home-help-dropdown-2026-07-27-v3
-// Install before AppPaymentsPatched loads App.js so Dashboard navigation,
-// the stable Help dropdown screen, and compact Home accordions are active
-// from the first render.
+// OTA release marker: home-help-dropdown-2026-07-27-v4
+// Use the Metro-safe static accordion implementation. The V2 module used a
+// dynamic require(moduleName), which Expo/Metro cannot bundle for OTA export.
 installNavigationHelpEnhancement();
 installLegacyGuideScreenReplacement();
-installHomeAccordionEnhancementV2();
+installHomeAccordionEnhancement();
 
 const AppPaymentsPatchedModule = require("./AppPaymentsPatched");
 const AppPaymentsPatched =
