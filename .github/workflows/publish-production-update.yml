@@ -14,9 +14,6 @@ on:
       - "eas.json"
       - "package.json"
       - ".github/workflows/publish-production-update.yml"
-  pull_request:
-    branches: [main]
-    types: [closed]
   workflow_dispatch:
 
 permissions:
@@ -24,11 +21,10 @@ permissions:
 
 concurrency:
   group: production-ota
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish:
-    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -79,8 +75,10 @@ jobs:
       - name: Publish production update
         env:
           CI: "1"
-        run: >-
-          eas update
-          --channel production
-          --message "Regular OTA update"
-          --non-interactive
+        shell: bash
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          eas update \
+            --channel production \
+            --message "OKAI OTA ${SHORT_SHA}" \
+            --non-interactive
