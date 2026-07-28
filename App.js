@@ -13,6 +13,7 @@ const UpstoxSetupGuide = require("./src/components/UpstoxSetupGuide");
 const RecoveryScreen = require("./src/screens/RecoveryScreen").default;
 const LocalGatewayScreen = require("./src/screens/LocalGatewayScreen").default;
 const TelegramConnectCard = require("./src/components/TelegramConnectCard").default;
+const ThemePickerCard = require("./src/components/ThemePickerCard").default;
 
 
 // ── Global crash catcher (temporary debug tool) ──────────────
@@ -6974,6 +6975,8 @@ function AccountTab({ user, subStatus, onLogout, onRefresh, lang, token }) {
       </Card>
 
       <TelegramConnectCard token={token} lang={lang} />
+
+      <ThemePickerCard lang={lang} />
 
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
