@@ -4065,12 +4065,71 @@ function BotTab({ token, lang }) {
     max_open_positions: 2,
   };
 
+  const todayClosedPnl = todayPaperTrades.reduce(
+    (sum, trade) => sum + Number(trade?.net_pnl ?? trade?.pnl ?? 0),
+    0
+  );
+  const todayOpenPnl = activePortfolioTrades.reduce(
+    (sum, trade) => sum + Number(trade?.unrealized_pnl ?? trade?.pnl ?? 0),
+    0
+  );
+  const todayNetPnl = todayClosedPnl + todayOpenPnl;
+  const todayTradeCount = todayPaperTrades.length + activePortfolioTrades.length;
+  const todayNetPnlColor = todayNetPnl >= 0 ? C.green : C.red;
+  const todayMoney = (value, signed = false) => {
+    const n = Number(value || 0);
+    const sign = signed && n > 0 ? "+" : n < 0 ? "-" : "";
+    return `${sign}₹${Math.abs(n).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  };
+
   return (
     <ScrollView style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor="#fff" />}>
 
       {error ? <ErrorBox msg={error} /> : null}
+
+      {/* OKAI normal today pnl - inside ScrollView, not floating */}
+      <Card glow={todayNetPnlColor}>
+        <Row style={{ justifyContent: "space-between", alignItems: "center" }}>
+          <View>
+            <Text style={{
+              color: C.muted,
+              fontSize: 10,
+              fontWeight: "900",
+              letterSpacing: 1.2,
+              textTransform: "uppercase",
+            }}>
+              TODAY NET P&L
+            </Text>
+            <Text style={{
+              color: todayNetPnlColor,
+              fontSize: 28,
+              fontWeight: "900",
+              marginTop: 4,
+            }}>
+              {todayMoney(todayNetPnl, true)}
+            </Text>
+          </View>
+
+          <View style={{ alignItems: "flex-end", maxWidth: "55%" }}>
+            <Text style={{ color: C.sub, fontSize: 13, fontWeight: "900" }}>
+              Trades {todayTradeCount}
+            </Text>
+            <Text style={{
+              color: C.muted,
+              fontSize: 10,
+              marginTop: 5,
+              textAlign: "right",
+            }}>
+              Closed {todayMoney(todayClosedPnl, true)} • Open {todayMoney(todayOpenPnl, true)}
+            </Text>
+          </View>
+        </Row>
+      </Card>
 
       {/* Status Card */}
       <Card glow={isRunning ? C.green : C.red}>

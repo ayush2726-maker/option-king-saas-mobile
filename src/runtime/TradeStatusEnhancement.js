@@ -584,12 +584,10 @@ function BotWrapper(props) {
   const Original = props.__okaiTodayOriginal;
   const cleanProps = { ...props, __okaiTradeTodayBypass: true };
   delete cleanProps.__okaiTodayOriginal;
-  return React.createElement(
-    View,
-    { style: { flex: 1, backgroundColor: C.bg } },
-    React.createElement(TodayPerformanceStrip, { token: cleanProps.token }),
-    React.createElement(Original, cleanProps)
-  );
+
+  // Today P&L ab App.js ke BotTab ScrollView ke andar normal card hai.
+  // Is wrapper me strip bahar render karne se P&L floating/sticky dikhta tha.
+  return React.createElement(Original, cleanProps);
 }
 
 function componentSource(type) {
