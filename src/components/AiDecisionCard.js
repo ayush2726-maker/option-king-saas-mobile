@@ -512,7 +512,7 @@ function AiDecisionCard({ signal, token }) {
   return React.createElement(
     View,
     { style: { gap: 12 } },
-    React.createElement(
+    false && React.createElement(
       View,
       {
         style: {

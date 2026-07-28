@@ -179,6 +179,10 @@ function transformedBottomNavigation(children) {
     if (!byKind[kind]) byKind[kind] = item;
   });
 
+  if (!byKind.guide && byKind.more) {
+    byKind.guide = byKind.more;
+  }
+
   return ["bot", "trade", "tools", "guide", "account"]
     .map((kind) => (byKind[kind] ? transformTabItem(byKind[kind], kind) : null))
     .filter(Boolean);
