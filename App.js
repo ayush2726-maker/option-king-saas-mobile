@@ -7157,7 +7157,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
     { id: "trade", icon: "🧾", label: lang === "hi" ? "ट्रेड" : "Trade" },
     { id: "bot", icon: "🤖", label: lang === "hi" ? "बॉट" : "Bot" },
     { id: "tools", icon: "🧰", label: lang === "hi" ? "टूल्स" : "Tools" },
-    { id: "more", icon: "⚙️", label: lang === "hi" ? "अधिक" : "More" },
+    { id: "guide", icon: "❓", label: lang === "hi" ? "मदद" : "Help" },
     { id: "account", icon: "👤", label: lang === "hi" ? "खाता" : "Account" },
   ];
 
