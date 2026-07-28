@@ -53,7 +53,6 @@ function AccountAdminDashboardCard({ token }) {
   const [hidden, setHidden] = React.useState(false);
   const [data, setData] = React.useState(null);
   const [users, setUsers] = React.useState([]);
-  const [gateway, setGateway] = React.useState(null);
   const [msg, setMsg] = React.useState("");
 
   const load = React.useCallback(async () => {
@@ -61,14 +60,12 @@ function AccountAdminDashboardCard({ token }) {
     setLoading(true);
     setMsg("");
     try {
-      const [dash, userList, gw] = await Promise.all([
+      const [dash, userList] = await Promise.all([
         apiGet("/admin/dashboard", token),
         apiGet("/admin/users?limit=8", token),
-        apiGet("/local-gateway/status", token).catch(() => null),
       ]);
       setData(dash || {});
       setUsers(Array.isArray(userList?.users) ? userList.users : []);
-      setGateway(gw || null);
       setHidden(false);
     } catch (e) {
       if (e.status === 403) {
@@ -87,7 +84,6 @@ function AccountAdminDashboardCard({ token }) {
   if (hidden) return null;
 
   const stats = data?.stats || {};
-  const online = gateway?.online || gateway?.is_online || false;
 
   return React.createElement(
     View,
@@ -112,7 +108,7 @@ function AccountAdminDashboardCard({ token }) {
         View,
         null,
         React.createElement(Text, { style: { color: C.text, fontSize: 18, fontWeight: "900" } }, "Admin Dashboard"),
-        React.createElement(Text, { style: { color: C.muted, fontSize: 11, marginTop: 4 } }, "Registered users and gateway status")
+        React.createElement(Text, { style: { color: C.muted, fontSize: 11, marginTop: 4 } }, "Registered users and account summary")
       ),
       React.createElement(Text, { style: { color: C.green, fontSize: 20, fontWeight: "900" } }, open ? "−" : "+")
     ),
@@ -135,12 +131,6 @@ function AccountAdminDashboardCard({ token }) {
           React.createElement(Row, { label: "Active Users", value: stats.active_subscribers }),
           React.createElement(Row, { label: "Expired Users", value: stats.expired_users }),
           React.createElement(Row, { label: "Bots Running", value: stats.bots_running }),
-
-          React.createElement(Text, { style: { color: C.text, fontSize: 13, fontWeight: "900", marginTop: 14, marginBottom: 6 } }, "Gateway"),
-          React.createElement(Row, { label: "Status", value: online ? "ONLINE" : "OFFLINE", color: online ? C.green : C.red }),
-          React.createElement(Row, { label: "Armed", value: gateway?.server_armed ? "YES" : "NO", color: gateway?.server_armed ? C.green : C.red }),
-          React.createElement(Row, { label: "Static IP Match", value: gateway?.static_ip_matches ? "YES" : "NO", color: gateway?.static_ip_matches ? C.green : C.red }),
-          React.createElement(Row, { label: "Last Seen", value: gateway?.last_seen_at || "--" }),
 
           React.createElement(Text, { style: { color: C.text, fontSize: 13, fontWeight: "900", marginTop: 14, marginBottom: 6 } }, "Recent Registered Users"),
           users.length === 0
