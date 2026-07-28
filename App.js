@@ -6204,12 +6204,12 @@ function MoreTab({ token, user, lang, setLang, isAdmin, navigateTo }) {
             alignItems: "center", gap: 12 }}>
           <View style={{ flex: 1 }}>
             <Text style={{ color: C.text, fontSize: 18, fontWeight: "900" }}>
-              🛡️ {hi ? "Advanced Setup" : "Advanced Setup"}
+              {hi ? "Local Gateway & Static IP" : "Local Gateway & Static IP"}
             </Text>
             <Text style={{ color: C.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }}>
               {hi
-                ? "सिर्फ अपने static-IP phone/desktop से LIVE orders चलाने वाले users के लिए"
-                : "Only for users running LIVE orders through their own static-IP phone or desktop"}
+                ? "Gateway setup, pairing, static-IP check और live execution readiness"
+                : "Gateway setup, pairing, static-IP check and live execution readiness"}
             </Text>
           </View>
           <Text style={{ color: C.purple, fontSize: 20, fontWeight: "900" }}>
@@ -6229,7 +6229,7 @@ function MoreTab({ token, user, lang, setLang, isAdmin, navigateTo }) {
               </Text>
             </View>
             <Btn
-              label={hi ? "Local Gateway खोलें" : "Open Local Gateway"}
+              label={hi ? "Gateway Setup खोलें" : "Open Gateway Setup"}
               icon="🖥️"
               color={C.purple}
               onPress={() => navigateTo && navigateTo("localgateway")}

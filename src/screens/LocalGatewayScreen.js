@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -43,11 +44,13 @@ async function requestJson(path, token, options = {}) {
   }
 
   if (!response.ok) {
-    const detail = typeof data?.detail === "string"
-      ? data.detail
-      : data?.message || `Server error ${response.status}`;
+    const detail =
+      typeof data?.detail === "string"
+        ? data.detail
+        : data?.message || `Server error ${response.status}`;
     throw new Error(detail);
   }
+
   return data;
 }
 
@@ -73,6 +76,7 @@ function StatusRow({ label, value, valueColor }) {
 
 function GuideBlock({ title, commands }) {
   const [open, setOpen] = useState(false);
+
   return (
     <View style={styles.guideBlock}>
       <TouchableOpacity
@@ -84,6 +88,7 @@ function GuideBlock({ title, commands }) {
         <Text style={styles.guideTitle}>{title}</Text>
         <Text style={styles.chevron}>{open ? "⌃" : "⌄"}</Text>
       </TouchableOpacity>
+
       {open && (
         <View style={styles.codeBox}>
           {(commands || []).map((command, index) => (
@@ -102,8 +107,12 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [pairing, setPairing] = useState(false);
   const [error, setError] = useState("");
   const [showRequirements, setShowRequirements] = useState(false);
+  const [deviceName, setDeviceName] = useState("OKAI Gateway Device");
+  const [expectedIp, setExpectedIp] = useState("");
+  const [pairToken, setPairToken] = useState("");
 
   const load = useCallback(async () => {
     setError("");
@@ -111,12 +120,22 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
     try {
       const response = await requestJson("/local-gateway/access", token);
       setData(response);
+
+      const currentIp = response?.gateway?.expected_static_ip || "";
+      if (currentIp && !expectedIp) {
+        setExpectedIp(currentIp);
+      }
+
+      const currentDevice = response?.gateway?.device_name || "";
+      if (currentDevice && deviceName === "OKAI Gateway Device") {
+        setDeviceName(currentDevice);
+      }
     } catch (exc) {
       setError(String(exc?.message || exc));
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, expectedIp, deviceName]);
 
   useEffect(() => {
     load();
@@ -125,10 +144,11 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
   const access = data?.access || {};
   const gateway = data?.gateway || {};
   const setup = data?.setup || {};
+
   const ipMatch = Boolean(
-    gateway?.expected_static_ip
-      && gateway?.observed_ip
-      && gateway.expected_static_ip === gateway.observed_ip
+    gateway?.expected_static_ip &&
+      gateway?.observed_ip &&
+      gateway.expected_static_ip === gateway.observed_ip
   );
 
   const accessText = useMemo(() => {
@@ -137,18 +157,64 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
         ? "यह अकाउंट अपना Local Static-IP Gateway इस्तेमाल कर सकता है।"
         : "This account can use its own Local Static-IP Gateway.";
     }
+
     return access?.message || access?.reason || (hi ? "अभी उपलब्ध नहीं" : "Not available yet");
   }, [access, hi]);
+
+  async function pairNow() {
+    const ip = String(expectedIp || "").trim();
+
+    if (!ip) {
+      Alert.alert(
+        hi ? "Static IP चाहिए" : "Static IP required",
+        hi ? "अपना public static IPv4 fill करें।" : "Fill your public static IPv4."
+      );
+      return;
+    }
+
+    setPairing(true);
+    setError("");
+    setPairToken("");
+
+    try {
+      const response = await requestJson("/local-gateway/pair", token, {
+        method: "POST",
+        body: JSON.stringify({
+          device_name: String(deviceName || "OKAI Gateway Device").trim(),
+          expected_static_ip: ip,
+        }),
+      });
+
+      if (response?.gateway_token) {
+        setPairToken(response.gateway_token);
+        Alert.alert(
+          hi ? "Gateway Paired" : "Gateway Paired",
+          hi
+            ? "Token सिर्फ एक बार दिखेगा। इसे gateway device setup में paste करें।"
+            : "Token is shown only once. Paste it in the gateway device setup."
+        );
+      }
+
+      await load();
+    } catch (exc) {
+      setError(String(exc?.message || exc));
+    } finally {
+      setPairing(false);
+    }
+  }
 
   async function disarmNow() {
     setActionLoading(true);
     setError("");
+
     try {
       await requestJson("/local-gateway/disarm", token, {
         method: "POST",
         body: JSON.stringify({}),
       });
+
       await load();
+
       Alert.alert(
         hi ? "Gateway Disarmed" : "Gateway Disarmed",
         hi
@@ -167,7 +233,7 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
       hi ? "नई LIVE Entries बंद करें?" : "Block new LIVE entries?",
       hi
         ? "इससे नई entry बंद होगी। Existing open position local SL/trailing से monitor होती रहेगी।"
-        : "This blocks new entries. An existing open position remains monitored by local SL/trailing.",
+        : "This blocks new entries. Existing open position remains monitored by local SL/trailing.",
       [
         { text: hi ? "रद्द करें" : "Cancel", style: "cancel" },
         { text: hi ? "Disarm करें" : "Disarm", style: "destructive", onPress: disarmNow },
@@ -183,8 +249,9 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
     >
       <View style={styles.heroCard}>
         <View style={styles.heroIcon}>
-          <Text style={styles.heroEmoji}>🛡️</Text>
+          <Text style={styles.heroIconText}>GW</Text>
         </View>
+
         <View style={{ flex: 1 }}>
           <Text style={styles.heroTitle}>Local Static-IP Gateway</Text>
           <Text style={styles.heroSubtitle}>
@@ -204,7 +271,7 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
 
       {!!error && (
         <View style={[styles.notice, { borderColor: C.red + "66", backgroundColor: C.red + "12" }]}>
-          <Text style={[styles.noticeTitle, { color: C.red }]}>⚠️ {hi ? "Error" : "Error"}</Text>
+          <Text style={[styles.noticeTitle, { color: C.red }]}>{hi ? "Error" : "Error"}</Text>
           <Text selectable style={styles.noticeText}>{error}</Text>
         </View>
       )}
@@ -214,7 +281,9 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
           <Text style={styles.cardTitle}>{hi ? "Account Eligibility" : "Account Eligibility"}</Text>
           <Pill label={access?.allowed ? "ELIGIBLE" : "LOCKED"} ok={Boolean(access?.allowed)} />
         </View>
+
         <Text style={styles.bodyText}>{accessText}</Text>
+
         {!access?.allowed && (
           <Text style={styles.helpText}>
             {hi
@@ -225,12 +294,72 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
       </View>
 
       <View style={styles.card}>
+        <Text style={styles.cardTitle}>{hi ? "Gateway Pairing Form" : "Gateway Pairing Form"}</Text>
+
+        <Text style={styles.helpText}>
+          {hi
+            ? "यहाँ सिर्फ device name और public static IP fill करें। Angel API key, MPIN और TOTP app में नहीं भरना है।"
+            : "Fill only device name and public static IP here. Do not enter Angel API key, MPIN or TOTP in the app."}
+        </Text>
+
+        <Text style={styles.inputLabel}>{hi ? "Device Name" : "Device Name"}</Text>
+        <TextInput
+          style={styles.input}
+          value={deviceName}
+          onChangeText={setDeviceName}
+          placeholder="OKAI Server Phone"
+          placeholderTextColor={C.muted}
+        />
+
+        <Text style={styles.inputLabel}>{hi ? "Public Static IPv4" : "Public Static IPv4"}</Text>
+        <TextInput
+          style={styles.input}
+          value={expectedIp}
+          onChangeText={setExpectedIp}
+          placeholder="182.70.xxx.xxx"
+          placeholderTextColor={C.muted}
+          keyboardType="numbers-and-punctuation"
+          autoCapitalize="none"
+        />
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          disabled={pairing}
+          onPress={pairNow}
+          style={[styles.primaryButton, pairing && { opacity: 0.5 }]}
+        >
+          {pairing ? (
+            <ActivityIndicator color={C.green} />
+          ) : (
+            <Text style={styles.primaryButtonText}>{hi ? "Pair Gateway" : "Pair Gateway"}</Text>
+          )}
+        </TouchableOpacity>
+
+        {!!pairToken && (
+          <View style={styles.tokenBox}>
+            <Text style={styles.sectionLabel}>
+              {hi ? "Gateway Token — सिर्फ एक बार" : "Gateway Token — shown once"}
+            </Text>
+            <Text selectable style={styles.codeText}>{pairToken}</Text>
+            <Text style={styles.safetyLine}>
+              {hi
+                ? "इस token को gateway device setup में paste करें। Token किसी को send/screenshot न करें।"
+                : "Paste this token in the gateway device setup. Do not send or screenshot it."}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>{hi ? "Gateway Status" : "Gateway Status"}</Text>
+
           <TouchableOpacity onPress={load} disabled={loading} style={styles.refreshButton}>
-            {loading
-              ? <ActivityIndicator color={C.blue} size="small" />
-              : <Text style={styles.refreshText}>↻ {hi ? "Refresh" : "Refresh"}</Text>}
+            {loading ? (
+              <ActivityIndicator color={C.blue} size="small" />
+            ) : (
+              <Text style={styles.refreshText}>{hi ? "Refresh" : "Refresh"}</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -249,7 +378,7 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
         <StatusRow label="Observed IPv4" value={gateway?.observed_ip} />
         <StatusRow
           label="Static IP Match"
-          value={ipMatch ? "YES ✅" : "NO / NOT SEEN"}
+          value={ipMatch ? "YES" : "NO / NOT SEEN"}
           valueColor={ipMatch ? C.green : C.gold}
         />
         <StatusRow label="Agent Version" value={gateway?.agent_version} />
@@ -265,15 +394,19 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
             (!gateway?.paired || actionLoading) && { opacity: 0.45 },
           ]}
         >
-          {actionLoading
-            ? <ActivityIndicator color={C.red} />
-            : <Text style={styles.disarmText}>⛔ {hi ? "नई LIVE Entries Disarm करें" : "Disarm New LIVE Entries"}</Text>}
+          {actionLoading ? (
+            <ActivityIndicator color={C.red} />
+          ) : (
+            <Text style={styles.disarmText}>
+              {hi ? "नई LIVE Entries Disarm करें" : "Disarm New LIVE Entries"}
+            </Text>
+          )}
         </TouchableOpacity>
 
         <Text style={styles.safetyLine}>
           {hi
-            ? "App से LIVE arm नहीं होगा। Arm केवल gateway device पर exact phrase “ARM LIVE 1 LOT” से होगा।"
-            : "The app cannot arm LIVE orders. Arming is only available on the gateway device with the exact phrase “ARM LIVE 1 LOT”."}
+            ? "App से LIVE arm नहीं होगा। Arm केवल gateway device पर exact phrase से होगा।"
+            : "The app cannot arm LIVE orders. Arming is only available on the gateway device with the exact phrase."}
         </Text>
       </View>
 
@@ -285,26 +418,29 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
           style={styles.cardHeader}
         >
           <View style={{ flex: 1 }}>
-            <Text style={styles.cardTitle}>{hi ? "Setup Guide (Advanced)" : "Setup Guide (Advanced)"}</Text>
+            <Text style={styles.cardTitle}>{hi ? "Setup Guide" : "Setup Guide"}</Text>
             <Text style={styles.helpText}>
-              {hi ? "सिर्फ gateway उपयोग करने वाले user के लिए" : "Only for users who need a local gateway"}
+              {hi ? "Gateway phone/desktop setup commands" : "Gateway phone/desktop setup commands"}
             </Text>
           </View>
+
           <Text style={styles.chevron}>{showRequirements ? "⌃" : "⌄"}</Text>
         </TouchableOpacity>
 
         {showRequirements && (
           <View style={{ marginTop: 10 }}>
             <View style={[styles.notice, { borderColor: C.gold + "66", backgroundColor: C.gold + "10" }]}>
-              <Text style={[styles.noticeTitle, { color: C.gold }]}>🔐 {hi ? "Credentials Safety" : "Credentials Safety"}</Text>
+              <Text style={[styles.noticeTitle, { color: C.gold }]}>
+                {hi ? "Credentials Safety" : "Credentials Safety"}
+              </Text>
               <Text style={styles.noticeText}>
                 {hi
-                  ? "Angel API key, MPIN, TOTP secret और gateway token कभी app/chat/screenshot में न भेजें। ये सिर्फ user के gateway device पर save होंगे।"
-                  : "Never send the Angel API key, MPIN, TOTP secret or gateway token in the app, chat or screenshots. They stay only on the user's gateway device."}
+                  ? "Angel API key, MPIN, TOTP secret और gateway token कभी chat/screenshot में न भेजें।"
+                  : "Never send the Angel API key, MPIN, TOTP secret or gateway token in chat or screenshots."}
               </Text>
             </View>
 
-            <Text style={styles.sectionLabel}>{hi ? "क्या-क्या चाहिए" : "Requirements"}</Text>
+            <Text style={styles.sectionLabel}>{hi ? "Requirements" : "Requirements"}</Text>
             {(setup?.requirements || []).map((item, index) => (
               <Text key={`req-${index}`} style={styles.bulletText}>• {item}</Text>
             ))}
@@ -321,11 +457,13 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
       </View>
 
       <View style={[styles.notice, { borderColor: C.blue + "55", backgroundColor: C.blue + "10" }]}>
-        <Text style={[styles.noticeTitle, { color: C.blue }]}>ℹ️ {hi ? "Normal users के लिए hidden" : "Hidden for normal use"}</Text>
+        <Text style={[styles.noticeTitle, { color: C.blue }]}>
+          {hi ? "Settings में रखा गया" : "Kept under Settings"}
+        </Text>
         <Text style={styles.noticeText}>
           {hi
-            ? "यह screen केवल More → Advanced Setup से खुलेगी। Main trading tabs पर नहीं दिखाई जाएगी।"
-            : "This screen opens only from More → Advanced Setup and does not appear in the main trading tabs."}
+            ? "Gateway setup Account में नहीं रहेगा। यह Settings → Local Gateway & Static IP से खुलेगा।"
+            : "Gateway setup will not stay in Account. It opens from Settings → Local Gateway & Static IP."}
         </Text>
       </View>
     </ScrollView>
@@ -335,6 +473,7 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   content: { padding: 16, paddingBottom: 110, gap: 12 },
+
   heroCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -355,11 +494,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.purple + "66",
   },
-  heroEmoji: { fontSize: 25 },
+  heroIconText: { color: C.text, fontSize: 15, fontWeight: "900" },
   heroTitle: { color: C.text, fontSize: 19, fontWeight: "900" },
   heroSubtitle: { color: C.muted, fontSize: 11, lineHeight: 17, marginTop: 4 },
+
   loadingBox: { alignItems: "center", paddingVertical: 34, gap: 12 },
   mutedText: { color: C.muted, fontSize: 12 },
+
   card: {
     backgroundColor: C.card,
     borderRadius: 16,
@@ -376,9 +517,11 @@ const styles = StyleSheet.create({
   cardTitle: { color: C.text, fontSize: 16, fontWeight: "900" },
   bodyText: { color: C.text, fontSize: 12, lineHeight: 18, marginTop: 10 },
   helpText: { color: C.muted, fontSize: 10, lineHeight: 15, marginTop: 4 },
+
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginVertical: 12 },
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 },
   pillText: { fontSize: 9, fontWeight: "900", letterSpacing: 0.3 },
+
   statusRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -389,8 +532,38 @@ const styles = StyleSheet.create({
   },
   statusLabel: { color: C.muted, fontSize: 11, flex: 1 },
   statusValue: { color: C.text, fontSize: 11, fontWeight: "800", flex: 1.3, textAlign: "right" },
-  refreshButton: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 9, backgroundColor: C.blue + "18" },
+
+  inputLabel: { color: C.muted, fontSize: 11, fontWeight: "900", marginTop: 12, marginBottom: 6 },
+  input: {
+    backgroundColor: C.card2,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: C.text,
+    fontSize: 13,
+  },
+
+  refreshButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 9,
+    backgroundColor: C.blue + "18",
+  },
   refreshText: { color: C.blue, fontSize: 11, fontWeight: "900" },
+
+  primaryButton: {
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: C.green + "77",
+    backgroundColor: C.green + "15",
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: "center",
+  },
+  primaryButtonText: { color: C.green, fontSize: 12, fontWeight: "900" },
+
   disarmButton: {
     marginTop: 14,
     borderWidth: 1,
@@ -402,13 +575,37 @@ const styles = StyleSheet.create({
   },
   disarmText: { color: C.red, fontSize: 12, fontWeight: "900" },
   safetyLine: { color: C.gold, fontSize: 10, lineHeight: 16, marginTop: 10 },
+
+  tokenBox: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: C.gold + "66",
+    backgroundColor: C.gold + "10",
+    borderRadius: 12,
+    padding: 12,
+  },
+
   notice: { borderWidth: 1, borderRadius: 13, padding: 12 },
   noticeTitle: { fontSize: 12, fontWeight: "900", marginBottom: 5 },
   noticeText: { color: C.muted, fontSize: 11, lineHeight: 17 },
+
   sectionLabel: { color: C.text, fontSize: 12, fontWeight: "900", marginTop: 14, marginBottom: 7 },
   bulletText: { color: C.muted, fontSize: 11, lineHeight: 18, marginBottom: 3 },
-  guideBlock: { marginTop: 10, borderWidth: 1, borderColor: C.border, borderRadius: 12, overflow: "hidden" },
-  guideHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 12, backgroundColor: C.card2 },
+
+  guideBlock: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  guideHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: C.card2,
+  },
   guideTitle: { color: C.text, fontSize: 12, fontWeight: "900" },
   chevron: { color: C.purple, fontSize: 18, fontWeight: "900" },
   codeBox: { backgroundColor: "#080811", padding: 12, gap: 8 },
