@@ -8,6 +8,9 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+const { installHighContrastDarkThemeEnhancement } = require(
+  "./src/runtime/HighContrastDarkThemeEnhancement"
+);
 const { installProfessionalLanguageEnhancement } = require(
   "./src/i18n/ProfessionalLanguageEnhancement"
 );
@@ -58,6 +61,8 @@ const {
   installAutoLogoutOnTokenExpiryEnhancement,
   subscribeAutoLogout,
 } = require("./src/runtime/AutoLogoutOnTokenExpiryEnhancement");
+
+installHighContrastDarkThemeEnhancement();
 
 // Install language normalization before any screen module is loaded. This keeps
 // Hindi in Devanagari and English in English across JSX, alerts, placeholders,
