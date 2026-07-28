@@ -12,6 +12,7 @@ const StrategyBuilderTab = require("./src/screens/StrategyBuilderTab");
 const UpstoxSetupGuide = require("./src/components/UpstoxSetupGuide");
 const RecoveryScreen = require("./src/screens/RecoveryScreen").default;
 const LocalGatewayScreen = require("./src/screens/LocalGatewayScreen").default;
+const TelegramConnectCard = require("./src/components/TelegramConnectCard").default;
 
 
 // ── Global crash catcher (temporary debug tool) ──────────────
@@ -6866,7 +6867,7 @@ function formatDateSafe(isoString) {
   }
 }
 
-function AccountTab({ user, subStatus, onLogout, onRefresh, lang }) {
+function AccountTab({ user, subStatus, onLogout, onRefresh, lang, token }) {
   const hi = lang === "hi";
   const [refreshing, setRefreshing] = useState(false);
   const isAdmin = !!user?.is_admin;
@@ -6912,6 +6913,8 @@ function AccountTab({ user, subStatus, onLogout, onRefresh, lang }) {
         <Tag label={accountStatus}
           color={isAdmin || accountStatus==="ACTIVE" ? C.green : C.accent} />
       </Card>
+
+      <TelegramConnectCard token={token} lang={lang} />
 
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
@@ -7254,7 +7257,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
         {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
         {activeTab === "bot" && <BotTab token={token} lang={lang} />}
         {activeTab === "broker" && <BrokerTab token={token} lang={lang} />}
-        {activeTab === "telegram" && <TelegramTab token={token} />}
+        {activeTab === "telegram" && <TelegramConnectCard token={token} lang={lang} />}
         {activeTab === "strategybuilder" && <StrategyBuilderTab token={token} />}
         {activeTab === "livefeed" && <LiveFeedTab token={token} />}
         {activeTab === "servertest" && <ServerTestTab token={token} />}
@@ -7267,7 +7270,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
           <AdminTab token={token} user={userFresh} lang={lang} />
         )}
         {activeTab === "account" && (
-          <TabErrorBoundary><AccountTab user={displayUser} subStatus={displaySubStatus} onLogout={onLogout} onRefresh={refreshUser} lang={lang} /></TabErrorBoundary>
+          <TabErrorBoundary><AccountTab user={displayUser} subStatus={displaySubStatus} onLogout={onLogout} onRefresh={refreshUser} lang={lang} token={token} /></TabErrorBoundary>
         )}
       </ScrollView>
 
