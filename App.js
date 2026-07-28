@@ -15,6 +15,7 @@ const RecoveryScreen = require("./src/screens/RecoveryScreen").default;
 const LocalGatewayScreen = require("./src/screens/LocalGatewayScreen").default;
 const TelegramConnectCard = require("./src/components/TelegramConnectCard").default;
 const ThemePickerCard = require("./src/components/ThemePickerCard").default;
+const AccountAdminDashboardCard = require("./src/components/AccountAdminDashboardCard").default;
 
 
 // ── Global crash catcher (temporary debug tool) ──────────────
@@ -6979,6 +6980,8 @@ function AccountTab({ user, subStatus, onLogout, onRefresh, lang, token }) {
       <TelegramConnectCard token={token} lang={lang} />
 
       <ThemePickerCard lang={lang} />
+
+      <AccountAdminDashboardCard token={token} />
 
       <Card>
         <Text style={{ color: C.sub, fontSize: 10, fontWeight: "900",
