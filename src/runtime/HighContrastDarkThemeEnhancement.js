@@ -1,6 +1,9 @@
 const React = require("react");
 const ReactNative = require("react-native");
 
+let appTheme = null;
+try { appTheme = require("./AppThemeEnhancement"); } catch (_) {}
+
 let jsxRuntime = null;
 let jsxDevRuntime = null;
 try { jsxRuntime = require("react/jsx-runtime"); } catch (_) {}
@@ -8,7 +11,7 @@ try { jsxDevRuntime = require("react/jsx-dev-runtime"); } catch (_) {}
 
 let installed = false;
 
-const LOW_CONTRAST = {
+const DARK_LOW_CONTRAST = {
   "#606080": "#c7c7dd",
   "#70708e": "#c7c7dd",
   "#737391": "#c7c7dd",
@@ -21,29 +24,96 @@ const LOW_CONTRAST = {
   "#b06deb": "#e0c6ff",
 };
 
-function normalizeColor(value) {
-  if (typeof value !== "string") return value;
-  const key = value.trim().toLowerCase();
-  return LOW_CONTRAST[key] || value;
+const LIGHT_LOW_CONTRAST = {
+  "#ffffff": "#0f172a",
+  "#f4f4fb": "#0f172a",
+  "#eeeeff": "#0f172a",
+  "#e8e8f0": "#0f172a",
+  "#e2e2f2": "#1e293b",
+  "#ddddf2": "#334155",
+  "#d4d4ea": "#334155",
+  "#c9c9df": "#475569",
+  "#c7c7dd": "#475569",
+  "#c7bdff": "#4c1d95",
+  "#d8d2ff": "#4c1d95",
+  "#e0c6ff": "#581c87",
+  "#606080": "#475569",
+  "#70708e": "#475569",
+  "#737391": "#475569",
+  "#777d98": "#475569",
+  "#80809f": "#334155",
+  "#9090ad": "#334155",
+  "#a0a0c0": "#1e293b",
+  "#7c6deb": "#5b21b6",
+  "#8b7cf6": "#5b21b6",
+  "#b06deb": "#7e22ce",
+};
+
+function currentTheme() {
+  try {
+    return appTheme?.getAppTheme?.() || "midnight";
+  } catch (_) {
+    return "midnight";
+  }
 }
 
-function normalizeStyle(style) {
+function isLightTheme() {
+  return currentTheme() === "light";
+}
+
+function baseHex(value) {
+  if (typeof value !== "string") return "";
+  const key = value.trim().toLowerCase();
+  if (key.length === 9 && key.startsWith("#")) return key.slice(0, 7);
+  return key;
+}
+
+function normalizeColor(value, role = "color") {
+  if (typeof value !== "string") return value;
+  const key = value.trim().toLowerCase();
+  const base = baseHex(key);
+  const table = isLightTheme() ? LIGHT_LOW_CONTRAST : DARK_LOW_CONTRAST;
+  const mapped = table[base] || table[key];
+  if (!mapped) return value;
+
+  // Text on light theme must not keep old alpha; old alpha made many labels unreadable.
+  if (isLightTheme() && (role === "color" || role === "placeholderTextColor")) {
+    return mapped;
+  }
+
+  if (key.length === 9 && key.startsWith("#") && role !== "color") {
+    return mapped + key.slice(7);
+  }
+  return mapped;
+}
+
+function normalizeStyle(style, roleHint = "style") {
   if (!style) return style;
 
   if (Array.isArray(style)) {
-    return style.map(normalizeStyle);
+    return style.map((item) => normalizeStyle(item, roleHint));
   }
 
   if (typeof style !== "object") return style;
 
   const next = { ...style };
 
-  if (next.color) next.color = normalizeColor(next.color);
-  if (next.placeholderTextColor) next.placeholderTextColor = normalizeColor(next.placeholderTextColor);
+  for (const key of [
+    "color",
+    "backgroundColor",
+    "borderColor",
+    "borderTopColor",
+    "borderBottomColor",
+    "borderLeftColor",
+    "borderRightColor",
+    "shadowColor",
+    "placeholderTextColor",
+  ]) {
+    if (next[key]) next[key] = normalizeColor(next[key], key);
+  }
 
-  // Dark theme me low opacity text/readable card borders ko readable rakho.
-  if (next.opacity != null && Number(next.opacity) < 0.72) {
-    next.opacity = 0.86;
+  if (next.opacity != null && Number(next.opacity) < 0.82) {
+    next.opacity = isLightTheme() ? 1 : 0.88;
   }
 
   return next;
@@ -53,9 +123,8 @@ function improveProps(type, props) {
   if (!props || typeof props !== "object") return props;
 
   const name = String(type?.displayName || type?.name || "").toLowerCase();
-  const isText =
-    type === ReactNative.Text ||
-    name === "text";
+  const isText = type === ReactNative.Text || name === "text";
+  const isInput = type === ReactNative.TextInput || name === "textinput";
 
   const next = { ...props };
 
@@ -64,29 +133,31 @@ function improveProps(type, props) {
   }
 
   if (typeof next.placeholderTextColor === "string") {
-    next.placeholderTextColor = normalizeColor(next.placeholderTextColor);
+    next.placeholderTextColor = normalizeColor(next.placeholderTextColor, "placeholderTextColor");
   }
 
-  // TextInput placeholder aur typed text ko dark bg par readable karo.
-  if (type === ReactNative.TextInput || name === "textinput") {
-    next.placeholderTextColor = "#9f9fbd";
+  if (isInput) {
+    next.placeholderTextColor = isLightTheme() ? "#475569" : "#aaaad0";
     next.style = [
       next.style,
-      { color: "#f4f4fb" },
+      { color: isLightTheme() ? "#0f172a" : "#ffffff" },
     ];
   }
 
-  // Login/Register/forgot links jaise clickable text ko ज्यादा clear करो.
   if (isText) {
     const txt = String(next.children || "");
-    if (
-      /register|account|forgot|login id|password|log in|sign in/i.test(txt) ||
-      /रजिस्टर|खाता|पासवर्ड|लॉगिन|आईडी/i.test(txt)
-    ) {
+    const boostLink = (
+      /register|account|forgot|login id|password|log in|sign in|open|active|use/i.test(txt) ||
+      /रजिस्टर|खाता|पासवर्ड|लॉगिन|आईडी|खोलें/i.test(txt)
+    );
+
+    if (boostLink) {
       next.style = [
         next.style,
-        { color: "#ffffff" },
+        { color: isLightTheme() ? "#0f172a" : "#ffffff", opacity: 1 },
       ];
+    } else if (isLightTheme()) {
+      next.style = [next.style, { opacity: 1 }];
     }
   }
 
