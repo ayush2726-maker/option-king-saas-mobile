@@ -7,6 +7,7 @@ import {
   BackHandler, Linking
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 const AiDecisionCard = require("./src/components/AiDecisionCard");
 const StrategyBuilderTab = require("./src/screens/StrategyBuilderTab");
 const UpstoxSetupGuide = require("./src/components/UpstoxSetupGuide");
@@ -225,7 +226,7 @@ function PasswordInput({ value, onChangeText, placeholder, style }) {
         accessibilityLabel={visible ? "Hide password" : "Show password"}
         style={{ position: "absolute", right: 6, top: 3, width: 44, height: 43,
           alignItems: "center", justifyContent: "center" }}>
-        <Text style={{ fontSize: 18 }}>{visible ? "🙈" : "👁️"}</Text>
+        <Ionicons name={visible ? "eye-off-outline" : "eye-outline"} size={24} color={C.text} />
       </TouchableOpacity>
     </View>
   );
@@ -287,8 +288,9 @@ function LoginScreen({ onLogin, onRegister, onRecovery, lang, setLang }) {
             <Text style={{ color: !hi ? C.blue : C.muted, fontSize: 11, fontWeight: "900" }}>English</Text>
           </TouchableOpacity>
         </Row>
-        <Text style={{ fontSize: 40, textAlign: "center",
-          marginBottom: 4 }}>👑</Text>
+        <View style={{ alignItems: "center", marginBottom: 8 }}>
+          <Ionicons name="diamond-outline" size={44} color={C.text} />
+        </View>
         <Text style={{ color: C.text, fontSize: 22, fontWeight: "900",
           textAlign: "center", marginBottom: 4 }}>Option King AI</Text>
         <Text style={{ color: C.muted, fontSize: 13, textAlign: "center",
@@ -468,7 +470,7 @@ function RegisterScreen({ onLogin, onBack, lang }) {
           <Text style={{ color: C.accent, fontSize: 14 }}>{hi ? "← Wapas Login" : "← Back to Login"}</Text>
         </TouchableOpacity>
         <Text style={{ color: C.text, fontSize: 20, fontWeight: "900",
-          marginBottom: 20 }}>👑 {hi ? "Register Karo" : "Register"}</Text>
+          marginBottom: 20 }}> {hi ? "Register Karo" : "Register"}</Text>
         <Card glow={C.green}>
           <ErrorBox msg={error} />
           <Label text={hi ? "Naam *" : "Name *"} />
@@ -521,7 +523,7 @@ function RegisterScreen({ onLogin, onBack, lang }) {
             <Row style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text style={{ color: C.gold, fontSize: 14, fontWeight: "900" }}>
-                  ⚠️ {hi ? "Risk & Rules Acknowledgement" : "Risk & Rules Acknowledgement"}
+                   {hi ? "Risk & Rules Acknowledgement" : "Risk & Rules Acknowledgement"}
                 </Text>
                 <Text style={{ color: C.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }}>
                   {hi
@@ -598,7 +600,7 @@ function RegisterScreen({ onLogin, onBack, lang }) {
         </Card>
         <Card style={{ marginTop: 12 }}>
           <Row>
-            <Text style={{ fontSize: 20 }}>🎁</Text>
+            <Text style={{ fontSize: 20 }}></Text>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={{ color: C.text, fontSize: 14,
                 fontWeight: "900" }}>{hi ? "7 Din Free Trial" : "7-Day Free Trial"}</Text>
@@ -722,7 +724,7 @@ function ScoreTab({ token }) {
             <Text style={{ color: mtf_ok ? C.green : C.gold,
               fontSize: 12, fontWeight: "700" }}>
               {mtf_ok ? "✅ 5-minute candle confirms signal"
-                : "⚠️ MTF weak — trade with caution"}
+                : " MTF weak — trade with caution"}
             </Text>
           </View>
         </View>
@@ -1289,7 +1291,7 @@ function MarketsTab({ token, lang }) {
 
       <Card glow={C.gold}>
         <Text style={{ color: C.gold, fontSize: 14, fontWeight: "900", marginBottom: 6 }}>
-          ⚠️ {hi ? "Live Trading Note" : "Live Trading Note"}
+           {hi ? "Live Trading Note" : "Live Trading Note"}
         </Text>
         <Text style={{ color: C.muted, fontSize: 12, lineHeight: 19 }}>
           {hi
@@ -1543,7 +1545,7 @@ function HeroZeroTab({ token }) {
       {!marketOpen && (
         <Card glow={C.gold}>
           <Text style={{ color: C.gold, fontWeight: "900", fontSize: 13 }}>
-            ⚠️ Market closed. Hero Zero available only during market hours (Mon-Fri 09:15-15:30 IST).
+             Market closed. Hero Zero available only during market hours (Mon-Fri 09:15-15:30 IST).
           </Text>
         </Card>
       )}
@@ -1771,7 +1773,7 @@ function PlansTab({ token, user, onSuccess }) {
         "Custom SL/TP", "Dedicated Support"],
     },
     {
-      id: "yearly", icon: "👑", name: "Annual Pro",
+      id: "yearly", icon: "", name: "Annual Pro",
       price: "₹7999", period: "/year", color: C.green,
       badge: "BEST VALUE",
       features: ["Sab Quarterly wala", "API Access",
@@ -1940,7 +1942,7 @@ function AdminTab({ token, user, lang }) {
 
       <Card glow={C.purple}>
         <Text style={{ color: C.purple, fontSize: 16,
-          fontWeight: "900", marginBottom: 4 }}>👑 {hi ? "Admin Dashboard" : "Admin Dashboard"}</Text>
+          fontWeight: "900", marginBottom: 4 }}> {hi ? "Admin Dashboard" : "Admin Dashboard"}</Text>
         <Text style={{ color: C.muted, fontSize: 12 }}>
           {hi ? "Refresh ke liye niche kheenchein" : "Pull to refresh"}
         </Text>
@@ -4143,7 +4145,7 @@ function BotTab({ token, lang }) {
           <View style={{ backgroundColor: brokerNotConnected ? C.goldLo : C.blueLo, borderRadius: 10, padding: 10,
             borderWidth: 1, borderColor: (brokerNotConnected ? C.gold : C.blue)+"55", marginBottom: 10 }}>
             <Text style={{ color: brokerNotConnected ? C.gold : C.blue, fontSize: 12, fontWeight: "800" }}>
-              {brokerNotConnected ? "⚠️ " : "⏳ "}{friendlyStatus}
+              {brokerNotConnected ? " " : "⏳ "}{friendlyStatus}
             </Text>
           </View>
         )}
@@ -6349,7 +6351,7 @@ function MoreTab({ token, user, lang, setLang, isAdmin, navigateTo }) {
       {isAdmin && (
         <Card glow={C.purple}>
           <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 10 }}>
-            👑 {hi ? "Admin User List" : "Admin User List"}
+             {hi ? "Admin User List" : "Admin User List"}
           </Text>
           {users.slice(0, 20).map((u, i) => (
             <View key={i} style={{ paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.border }}>
@@ -6362,7 +6364,7 @@ function MoreTab({ token, user, lang, setLang, isAdmin, navigateTo }) {
 
       <Card glow={C.red}>
         <Text style={{ color: C.red, fontSize: 18, fontWeight: "900", marginBottom: 8 }}>
-          ⚠️ {hi ? "वास्तविक मोड चेतावनी" : "Live Mode Warning"}
+           {hi ? "वास्तविक मोड चेतावनी" : "Live Mode Warning"}
         </Text>
         <Text style={{ color: C.muted, fontSize: 12, lineHeight: 19, marginBottom: 12 }}>
           {hi ? "वास्तविक मोड में असली ऑर्डर लग सकते हैं। पहले पेपर मोड और बैकटेस्ट से परीक्षण करें।" : "Live mode can place real orders. Test with Paper Mode and Backtest first."}
@@ -6679,7 +6681,7 @@ function GuideTab({ lang, setLang }) {
 
       <Card glow={C.red}>
         <Text style={{ color: C.red, fontSize: 14, fontWeight: "900", marginBottom: 6 }}>
-          ⚠️ {isHi ? "जोखिम चेतावनी" : "Risk Warning"}
+           {isHi ? "जोखिम चेतावनी" : "Risk Warning"}
         </Text>
         <Text style={{ color: C.muted, fontSize: 12, lineHeight: 19 }}>
           {isHi
@@ -6742,7 +6744,7 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab, lang, onPa
             <Text style={{ color: C.text, fontSize: 20, fontWeight: "900",
               marginTop: 2 }}>{user?.name || "Trader"}</Text>
           </View>
-          <Text style={{ fontSize: 36 }}>👑</Text>
+          <Text style={{ fontSize: 36 }}></Text>
         </Row>
         <View style={{ backgroundColor: C.s2, borderRadius: 10,
           padding: 12, borderWidth: 1, borderColor: C.border }}>
@@ -6860,7 +6862,7 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab, lang, onPa
       {/* Warning */}
       <Card style={{ borderColor: C.red+"55", borderWidth: 1 }}>
         <Text style={{ color: C.red, fontSize: 12, fontWeight: "800" }}>
-          ⚠️ {hi ? "Live mode asli order laga sakta hai. Paper mode safe hai." : "Live mode can place real orders. Paper mode is safe."}
+           {hi ? "Live mode asli order laga sakta hai. Paper mode safe hai." : "Live mode can place real orders. Paper mode is safe."}
         </Text>
       </Card>
 
@@ -7261,7 +7263,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
               backgroundColor: C.accentLo, borderWidth: 1,
               borderColor: C.accent+"55", alignItems: "center",
               justifyContent: "center" }}>
-              <Text style={{ fontSize: 18 }}>👑</Text>
+              <Text style={{ fontSize: 18 }}></Text>
             </View>
             <View>
               <Text style={{ color: C.text, fontSize: 15,
@@ -7285,7 +7287,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
             padding: 14, margin: 16, marginBottom: 0,
             borderWidth: 1, borderColor: C.red+"55" }}>
           <Text style={{ color: C.red, fontWeight: "900",
-            fontSize: 13 }}>⚠️ Trial khatam — Subscribe karo → ₹1,999/month</Text>
+            fontSize: 13 }}> Trial khatam — Subscribe karo → ₹1,999/month</Text>
         </TouchableOpacity>
       )}
       {trialEndingSoon && (
@@ -7404,7 +7406,7 @@ function InnerApp() {
     return (
       <View style={{ flex: 1, backgroundColor: C.bg,
         alignItems: "center", justifyContent: "center" }}>
-        <Text style={{ fontSize: 40, marginBottom: 20 }}>👑</Text>
+        <Text style={{ fontSize: 40, marginBottom: 20 }}></Text>
         <ActivityIndicator color={C.accent} size="large" />
         <Text style={{ color: C.muted, marginTop: 16,
           fontSize: 13 }}>Option King AI loading...</Text>
