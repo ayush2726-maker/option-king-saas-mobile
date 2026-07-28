@@ -65,6 +65,7 @@ function tabKind(node) {
   if (/\s(बॉट|Bot)\s/i.test(text)) return "bot";
   if (/\s(ट्रेड|Trade)\s/i.test(text)) return "trade";
   if (/\s(टूल्स|Tools)\s/i.test(text)) return "tools";
+  if (/\s(मदद|Help|Guide|गाइड|ऐप गाइड)\s/i.test(text)) return "guide";
   if (/\s(अधिक|More)\s/i.test(text)) return "more";
   if (/\s(खाता|Account)\s/i.test(text)) return "account";
   if (/\s(होम|Home)\s/i.test(text)) return "old-home";
@@ -123,6 +124,16 @@ function transformTabItem(node, kind) {
   if (kind === "trade") {
     return replaceNodeText(node, common);
   }
+  if (kind === "guide") {
+    return replaceNodeText(node, {
+      "📘": "❓",
+      "🧩": "❓",
+      Guide: "Help",
+      "App Guide": "Help",
+      "गाइड": "मदद",
+      "ऐप गाइड": "मदद",
+    });
+  }
   if (kind === "more") {
     return replaceNodeText(node, { "⚙️": "🧩" });
   }
@@ -168,7 +179,7 @@ function transformedBottomNavigation(children) {
     if (!byKind[kind]) byKind[kind] = item;
   });
 
-  return ["bot", "trade", "tools", "more", "account"]
+  return ["bot", "trade", "tools", "guide", "account"]
     .map((kind) => (byKind[kind] ? transformTabItem(byKind[kind], kind) : null))
     .filter(Boolean);
 }
