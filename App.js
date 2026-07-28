@@ -7024,6 +7024,78 @@ function AccountTab({ user, subStatus, onLogout, onRefresh, lang, token }) {
 
 
 
+
+function SettingsTab({ lang, navigateTo }) {
+  const tools = [
+    ["localgateway", "Local Gateway & Static IP", "Gateway pairing, static-IP check and live execution readiness", "GW", C.purple],
+    ["broker", "Broker", "Angel One • Upstox • Zerodha", "BR", C.blue],
+    ["telegram", "Telegram", "Alerts and reports", "TG", C.green],
+    ["strategybuilder", "Strategy", "Builder and scoring", "ST", C.purple],
+    ["backtest", "Backtest", "Daily and monthly tests", "BT", C.gold],
+    ["livefeed", "Live Feed", "Market data status", "LF", C.green],
+    ["servertest", "Server Test", "Backend health check", "SV", C.orange || C.gold],
+    ["herozero", "Hero Zero", "Expiry-day mode", "HZ", C.red],
+  ];
+
+  return (
+    <ScrollView style={{ flex: 1 }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 110 }}>
+      <Card glow={C.blue}>
+        <Text style={{ color: C.text, fontSize: 20, fontWeight: "900", marginBottom: 4 }}>
+          Settings
+        </Text>
+        <Text style={{ color: C.muted, fontSize: 12, lineHeight: 18 }}>
+          Gateway, broker, alerts, strategy, backtest and system tools.
+        </Text>
+      </Card>
+
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+        {tools.map(([id, title, desc, code, color]) => (
+          <TouchableOpacity
+            key={id}
+            onPress={() => navigateTo && navigateTo(id)}
+            style={{
+              width: "48%",
+              minHeight: 130,
+              backgroundColor: C.s2,
+              borderRadius: 18,
+              borderWidth: 1,
+              borderColor: color + "55",
+              padding: 14,
+              justifyContent: "space-between",
+            }}
+          >
+            <View style={{
+              width: 44,
+              height: 44,
+              borderRadius: 13,
+              backgroundColor: color + "18",
+              borderWidth: 1,
+              borderColor: color + "55",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 12,
+            }}>
+              <Text style={{ color, fontWeight: "900", fontSize: 16 }}>{code}</Text>
+            </View>
+
+            <Text style={{ color: C.text, fontSize: 15, fontWeight: "900" }}>
+              {title}
+            </Text>
+            <Text style={{ color: C.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }}>
+              {desc}
+            </Text>
+            <Text style={{ color: C.text, fontSize: 12, fontWeight: "900", marginTop: 10 }}>
+              OPEN →
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+
 function OtaStatusBanner() {
   const [msg, setMsg] = useState("Checking app update...");
   const [visible, setVisible] = useState(true);
@@ -7318,7 +7390,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
         {activeTab === "markets" && <MarketsTab token={token} lang={lang} />}
         {activeTab === "trade" && <TradeTab token={token} />}
         {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
-        {activeTab === "tools" && <ToolsTab lang={lang} navigateTo={navigateTo} />}
+        {activeTab === "tools" && <SettingsTab lang={lang} navigateTo={navigateTo} />}
         {activeTab === "more" && <MoreTab token={token} user={displayUser} lang={lang} setLang={setLang} isAdmin={isAdmin} navigateTo={navigateTo} />}
         {activeTab === "localgateway" && <LocalGatewayScreen token={token} lang={lang} />}
         {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}

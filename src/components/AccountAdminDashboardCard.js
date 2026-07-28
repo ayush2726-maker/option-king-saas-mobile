@@ -11,6 +11,7 @@ const C = {
   muted: "#a0a0c0",
   green: "#00d4a0",
   red: "#ff4d6d",
+  blue: "#4d9fff",
 };
 
 async function apiGet(path, token) {
@@ -81,25 +82,19 @@ function AccountAdminDashboardCard({ token }) {
     try {
       const [dash, userList] = await Promise.all([
         apiGet("/admin/dashboard", token),
-        apiGet("/admin/users?limit=8", token),
+        apiGet("/admin/users?limit=50", token),
       ]);
       setData(dash || {});
       setUsers(Array.isArray(userList?.users) ? userList.users : []);
       setHidden(false);
     } catch (e) {
-      if (e.status === 403) {
-        setHidden(true);
-      } else {
-        setMsg(e.message || "Admin dashboard load failed");
-      }
+      if (e.status === 403) setHidden(true);
+      else setMsg(e.message || "Admin dashboard load failed");
     }
     setLoading(false);
   }, [token]);
 
-  React.useEffect(() => {
-    load();
-  }, [load]);
-
+  React.useEffect(() => { load(); }, [load]);
 
   async function deleteUser(user) {
     const email = String(user?.email || "").trim();
@@ -112,7 +107,7 @@ function AccountAdminDashboardCard({ token }) {
 
     Alert.alert(
       "Delete User?",
-      `Delete ${name}\n${email}\n\nThis will remove user data from backend. This action cannot be undone.`,
+      `Delete ${name}\n${email}\n\nYe action undo nahi hoga.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -149,7 +144,7 @@ function AccountAdminDashboardCard({ token }) {
     );
   }
 
-    if (hidden) return null;
+  if (hidden) return null;
 
   const stats = data?.stats || {};
 
@@ -165,6 +160,7 @@ function AccountAdminDashboardCard({ token }) {
         marginTop: 12,
       },
     },
+
     React.createElement(
       TouchableOpacity,
       {
@@ -176,7 +172,7 @@ function AccountAdminDashboardCard({ token }) {
         View,
         null,
         React.createElement(Text, { style: { color: C.text, fontSize: 18, fontWeight: "900" } }, "Admin Dashboard"),
-        React.createElement(Text, { style: { color: C.muted, fontSize: 11, marginTop: 4 } }, "Registered users and account summary")
+        React.createElement(Text, { style: { color: C.muted, fontSize: 11, marginTop: 4 } }, "Registered users")
       ),
       React.createElement(Text, { style: { color: C.green, fontSize: 20, fontWeight: "900" } }, open ? "−" : "+")
     ),
@@ -185,12 +181,15 @@ function AccountAdminDashboardCard({ token }) {
       ? React.createElement(
           View,
           { style: { marginTop: 14 } },
-          loading
-            ? React.createElement(ActivityIndicator, { color: C.green })
-            : null,
+
+          loading ? React.createElement(ActivityIndicator, { color: C.green }) : null,
 
           msg
-            ? React.createElement(Text, { style: { color: C.red, fontSize: 12, fontWeight: "800", marginBottom: 8 } }, msg)
+            ? React.createElement(
+                Text,
+                { style: { color: msg.startsWith("Deleted") ? C.green : C.red, fontSize: 12, fontWeight: "800", marginBottom: 8 } },
+                msg
+              )
             : null,
 
           React.createElement(Text, { style: { color: C.text, fontSize: 13, fontWeight: "900", marginBottom: 6 } }, "Summary"),
@@ -201,6 +200,7 @@ function AccountAdminDashboardCard({ token }) {
           React.createElement(Row, { label: "Bots Running", value: stats.bots_running }),
 
           React.createElement(Text, { style: { color: C.text, fontSize: 13, fontWeight: "900", marginTop: 14, marginBottom: 6 } }, "Recent Registered Users"),
+
           users.length === 0
             ? React.createElement(Text, { style: { color: C.muted, fontSize: 12 } }, "No users loaded")
             : users.map((u) =>
@@ -219,7 +219,30 @@ function AccountAdminDashboardCard({ token }) {
                   },
                   React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900" } }, u.name || u.email || "User"),
                   React.createElement(Text, { style: { color: C.muted, fontSize: 10, marginTop: 3 } }, u.email || "--"),
-                  React.createElement(Text, { style: { color: u.is_active ? C.green : C.red, fontSize: 10, marginTop: 3, fontWeight: "900" } }, `${u.subscription_status || "--"} • ${u.is_active ? "ACTIVE" : "INACTIVE"}`)
+                  React.createElement(Text, { style: { color: u.is_active ? C.green : C.red, fontSize: 10, marginTop: 3, fontWeight: "900" } }, `${u.subscription_status || "--"} • ${u.is_active ? "ACTIVE" : "INACTIVE"}`),
+
+                  React.createElement(
+                    TouchableOpacity,
+                    {
+                      onPress: () => deleteUser(u),
+                      disabled: deletingEmail === u.email,
+                      style: {
+                        marginTop: 9,
+                        borderWidth: 1,
+                        borderColor: C.red,
+                        backgroundColor: C.red + "18",
+                        borderRadius: 8,
+                        paddingVertical: 8,
+                        alignItems: "center",
+                        opacity: deletingEmail === u.email ? 0.5 : 1,
+                      },
+                    },
+                    React.createElement(
+                      Text,
+                      { style: { color: C.red, fontSize: 11, fontWeight: "900" } },
+                      deletingEmail === u.email ? "Deleting..." : "Delete User"
+                    )
+                  )
                 )
               ),
 
@@ -231,12 +254,12 @@ function AccountAdminDashboardCard({ token }) {
                 marginTop: 8,
                 borderRadius: 10,
                 borderWidth: 1,
-                borderColor: C.green,
+                borderColor: C.blue,
                 paddingVertical: 10,
                 alignItems: "center",
               },
             },
-            React.createElement(Text, { style: { color: C.green, fontSize: 12, fontWeight: "900" } }, "Refresh Dashboard")
+            React.createElement(Text, { style: { color: C.blue, fontSize: 12, fontWeight: "900" } }, "Refresh Dashboard")
           )
         )
       : null
