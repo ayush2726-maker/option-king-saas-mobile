@@ -236,7 +236,7 @@ function AppThemeRoot({ children }) {
   const bg = THEMES[theme]?.map?.["#0a0a0f"] || "#0a0a0f";
 
   return React.createElement(
-    View,
+    ReactNative.View,
     { style: { flex: 1, backgroundColor: bg }, key: theme },
     children
   );
