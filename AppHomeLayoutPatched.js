@@ -1,5 +1,8 @@
 const React = require("react");
 
+const { installProfessionalIconEnhancement } = require(
+  "./src/runtime/ProfessionalIconEnhancement"
+);
 const {
   installAppThemeEnhancement,
   AppThemeRoot,
@@ -9,6 +12,7 @@ const { installHomeLayoutEnhancement } = require(
   "./src/runtime/HomeLayoutEnhancement"
 );
 
+installProfessionalIconEnhancement();
 installAppThemeEnhancement();
 installHomeLayoutEnhancement();
 

@@ -1,5 +1,5 @@
 const React = require("react");
-const { ActivityIndicator, Text, TouchableOpacity, View } = require("react-native");
+const { ActivityIndicator, Alert, Text, TouchableOpacity, View } = require("react-native");
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
 
@@ -16,6 +16,24 @@ const C = {
 async function apiGet(path, token) {
   const r = await fetch(SAAS_URL + path, {
     headers: { Authorization: "Bearer " + token },
+  });
+  const d = await r.json();
+  if (!r.ok || d?.success === false) {
+    const e = new Error(d?.detail || d?.message || "Request failed");
+    e.status = r.status;
+    throw e;
+  }
+  return d;
+}
+
+async function apiPost(path, token, body) {
+  const r = await fetch(SAAS_URL + path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + token,
+    },
+    body: JSON.stringify(body || {}),
   });
   const d = await r.json();
   if (!r.ok || d?.success === false) {
@@ -54,6 +72,7 @@ function AccountAdminDashboardCard({ token }) {
   const [data, setData] = React.useState(null);
   const [users, setUsers] = React.useState([]);
   const [msg, setMsg] = React.useState("");
+  const [deletingEmail, setDeletingEmail] = React.useState("");
 
   const load = React.useCallback(async () => {
     if (!token) return;
@@ -81,7 +100,56 @@ function AccountAdminDashboardCard({ token }) {
     load();
   }, [load]);
 
-  if (hidden) return null;
+
+  async function deleteUser(user) {
+    const email = String(user?.email || "").trim();
+    const name = String(user?.name || email || "User").trim();
+
+    if (!email) {
+      Alert.alert("Delete User", "User email missing.");
+      return;
+    }
+
+    Alert.alert(
+      "Delete User?",
+      `Delete ${name}\n${email}\n\nThis will remove user data from backend. This action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setDeletingEmail(email);
+            setMsg("");
+            try {
+              const d = await apiPost("/admin/users/delete-by-email", token, {
+                emails: [email],
+                confirm: "DELETE USER",
+              });
+
+              const deleted = Array.isArray(d?.deleted) ? d.deleted : [];
+              const skipped = Array.isArray(d?.skipped) ? d.skipped : [];
+
+              if (deleted.length > 0) {
+                setMsg(`Deleted: ${email}`);
+                await load();
+              } else if (skipped.length > 0) {
+                setMsg(`Skipped: ${skipped[0]?.reason || "not deleted"}`);
+              } else {
+                setMsg("User not deleted");
+              }
+            } catch (e) {
+              setMsg(e.message || "Delete failed");
+            } finally {
+              setDeletingEmail("");
+            }
+          },
+        },
+      ]
+    );
+  }
+
+    if (hidden) return null;
 
   const stats = data?.stats || {};
 
