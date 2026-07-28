@@ -12,6 +12,15 @@ let installed = false;
 let currentTheme = "midnight";
 const listeners = new Set();
 
+const LIGHT_TEXT = "#111827";
+const LIGHT_SUB = "#374151";
+const LIGHT_BG = "#f5f7fb";
+const LIGHT_CARD = "#ffffff";
+const LIGHT_CARD_2 = "#f1f5f9";
+const LIGHT_BORDER = "#111827";
+const LIGHT_RED = "#dc2626";
+const LIGHT_GREEN = "#16a34a";
+
 const THEMES = {
   midnight: {
     label: "Midnight Black",
@@ -90,29 +99,47 @@ const THEMES = {
     },
   },
   light: {
-    label: "Light",
+    label: "Clean Light",
     icon: "☀️",
     map: {
-      "#0a0a0f": "#f6f7ff",
-      "#0f0f1a": "#eef1ff",
-      "#10121d": "#eef1ff",
-      "#13131f": "#ffffff",
-      "#1a1a2e": "#f3f5ff",
-      "#252540": "#d6d9ee",
-      "#e8e8f0": "#111827",
-      "#606080": "#4b5563",
-      "#70708e": "#4b5563",
-      "#80809f": "#374151",
-      "#a0a0c0": "#1f2937",
-      "#4d9fff": "#2563eb",
-      "#7c6deb": "#6d28d9",
-      "#b06deb": "#7e22ce",
+      "#0a0a0f": LIGHT_BG,
+      "#0f0f1a": LIGHT_CARD_2,
+      "#10121d": LIGHT_CARD_2,
+      "#13131f": LIGHT_CARD,
+      "#1a1a2e": LIGHT_CARD_2,
+      "#252540": LIGHT_BORDER,
+      "#e8e8f0": LIGHT_TEXT,
+      "#606080": LIGHT_SUB,
+      "#70708e": LIGHT_SUB,
+      "#737391": LIGHT_SUB,
+      "#777d98": LIGHT_SUB,
+      "#80809f": LIGHT_SUB,
+      "#9090ad": LIGHT_SUB,
+      "#a0a0c0": LIGHT_TEXT,
+      "#00d4a0": LIGHT_GREEN,
+      "#10b981": LIGHT_GREEN,
+      "#22c55e": LIGHT_GREEN,
+      "#16a34a": LIGHT_GREEN,
+      "#ff4d6d": LIGHT_RED,
+      "#ef4444": LIGHT_RED,
+      "#dc2626": LIGHT_RED,
+      "#4d9fff": LIGHT_TEXT,
+      "#2563eb": LIGHT_TEXT,
+      "#7c6deb": LIGHT_TEXT,
+      "#8b7cf6": LIGHT_TEXT,
+      "#b06deb": LIGHT_TEXT,
+      "#f5c842": LIGHT_TEXT,
+      "#f59e0b": LIGHT_TEXT,
     },
   },
 };
 
 function baseTheme() {
   return THEMES[currentTheme] ? currentTheme : "midnight";
+}
+
+function isLight() {
+  return baseTheme() === "light";
 }
 
 function palette() {
@@ -145,19 +172,70 @@ function subscribeTheme(listener) {
   return () => listeners.delete(listener);
 }
 
-function mapColor(value) {
-  if (typeof value !== "string") return value;
-  const raw = value.trim();
-  const lower = raw.toLowerCase();
-
+function splitAlpha(value) {
+  const lower = String(value || "").trim().toLowerCase();
   if (lower.length === 9 && lower.startsWith("#")) {
-    const base = lower.slice(0, 7);
-    const alpha = lower.slice(7);
-    const mapped = palette().map[base];
-    return mapped ? mapped + alpha : value;
+    return { base: lower.slice(0, 7), alpha: lower.slice(7) };
+  }
+  return { base: lower, alpha: "" };
+}
+
+function isRed(base) {
+  return ["#ff4d6d", "#ef4444", "#dc2626", "#f87171", "#991b1b"].includes(base);
+}
+
+function isGreen(base) {
+  return ["#00d4a0", "#10b981", "#22c55e", "#16a34a", "#059669"].includes(base);
+}
+
+function isDarkSurface(base) {
+  return ["#0a0a0f", "#0f0f1a", "#10121d", "#13131f", "#1a1a2e"].includes(base);
+}
+
+function mapLightColor(value, styleKey = "") {
+  if (typeof value !== "string") return value;
+  const { base, alpha } = splitAlpha(value);
+  const key = String(styleKey || "").toLowerCase();
+
+  if (isRed(base)) return LIGHT_RED + alpha;
+  if (isGreen(base)) return LIGHT_GREEN + alpha;
+
+  if (key === "backgroundcolor") {
+    if (base === "#0a0a0f") return LIGHT_BG;
+    if (isDarkSurface(base)) return LIGHT_CARD;
+    return alpha ? LIGHT_CARD : (palette().map[base] || LIGHT_CARD);
   }
 
-  return palette().map[lower] || value;
+  if (key.includes("border")) {
+    return alpha ? LIGHT_BORDER + alpha : LIGHT_BORDER;
+  }
+
+  if (key === "shadowcolor") {
+    return alpha ? LIGHT_TEXT + alpha : LIGHT_TEXT;
+  }
+
+  if (key === "placeholdertextcolor") {
+    return LIGHT_SUB;
+  }
+
+  // Light theme rule: visible writing must be only black, red, or green.
+  if (key === "color") {
+    return LIGHT_TEXT;
+  }
+
+  return palette().map[base] || value;
+}
+
+function mapColor(value, styleKey = "") {
+  if (typeof value !== "string") return value;
+
+  if (isLight()) {
+    return mapLightColor(value, styleKey);
+  }
+
+  const { base, alpha } = splitAlpha(value);
+  const mapped = palette().map[base];
+  return mapped ? mapped + alpha : value;
 }
 
 function mapStyle(style) {
@@ -177,11 +255,11 @@ function mapStyle(style) {
     "shadowColor",
     "placeholderTextColor",
   ]) {
-    if (next[key]) next[key] = mapColor(next[key]);
+    if (next[key]) next[key] = mapColor(next[key], key);
   }
 
   if (next.opacity != null && Number(next.opacity) < 0.72) {
-    next.opacity = 0.88;
+    next.opacity = isLight() ? 1 : 0.88;
   }
 
   return next;
@@ -193,16 +271,20 @@ function improveProps(type, props) {
   const next = { ...props };
   if (next.style) next.style = mapStyle(next.style);
   if (typeof next.placeholderTextColor === "string") {
-    next.placeholderTextColor = mapColor(next.placeholderTextColor);
+    next.placeholderTextColor = mapColor(next.placeholderTextColor, "placeholderTextColor");
   }
 
   const name = String(type?.displayName || type?.name || "").toLowerCase();
 
   if (type === ReactNative.TextInput || name === "textinput") {
-    next.placeholderTextColor = currentTheme === "light" ? "#6b7280" : "#aaaad0";
+    next.placeholderTextColor = isLight() ? LIGHT_SUB : "#aaaad0";
     next.style = [
       next.style,
-      { color: currentTheme === "light" ? "#111827" : "#ffffff" },
+      {
+        color: isLight() ? LIGHT_TEXT : "#ffffff",
+        backgroundColor: isLight() ? LIGHT_CARD : undefined,
+        borderColor: isLight() ? LIGHT_BORDER : undefined,
+      },
     ];
   }
 
