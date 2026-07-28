@@ -226,7 +226,7 @@ function PasswordInput({ value, onChangeText, placeholder, style }) {
         accessibilityLabel={visible ? "Hide password" : "Show password"}
         style={{ position: "absolute", right: 6, top: 3, width: 44, height: 43,
           alignItems: "center", justifyContent: "center" }}>
-        <Ionicons name={visible ? "eye-off-outline" : "eye-outline"} size={24} color={C.text} />
+        <Ionicons name={visible ? "eye-outline" : "eye-off-outline"} size={24} color={C.text} />
       </TouchableOpacity>
     </View>
   );
