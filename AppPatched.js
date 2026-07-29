@@ -45,6 +45,9 @@ const { installRangeBacktestReliableEnhancement } = require(
 const { installTradeStatusEnhancement } = require(
   "./src/runtime/TradeStatusEnhancement"
 );
+const { installLiveScoreTradeTabEnhancement } = require(
+  "./src/runtime/LiveScoreTradeTabEnhancement"
+);
 const { installHomeAccordionEnhancement } = require(
   "./src/runtime/HomeAccordionEnhancement"
 );
@@ -81,6 +84,9 @@ installRangeBacktestEnhancement();
 installUnlimitedRangeBacktestEnhancement();
 installRangeBacktestReliableEnhancement();
 installTradeStatusEnhancement();
+// Live score is installed after TradeStatus so it becomes the final Trade tab
+// wrapper and can show active trade, history and the live score window together.
+installLiveScoreTradeTabEnhancement();
 // Installed after TradeStatus so every dashboard card, including the injected
 // Today/current-capital UI, uses the final accordion wrapper.
 installHomeAccordionEnhancement();
