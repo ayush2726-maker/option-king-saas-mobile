@@ -45,6 +45,9 @@ const { installRangeBacktestReliableEnhancement } = require(
 const { installTradeStatusEnhancement } = require(
   "./src/runtime/TradeStatusEnhancement"
 );
+const { installStrategyApplyCheckEnhancement } = require(
+  "./src/runtime/StrategyApplyCheckEnhancement"
+);
 const { installLiveScoreTradeTabEnhancement } = require(
   "./src/runtime/LiveScoreTradeTabEnhancement"
 );
@@ -84,6 +87,9 @@ installRangeBacktestEnhancement();
 installUnlimitedRangeBacktestEnhancement();
 installRangeBacktestReliableEnhancement();
 installTradeStatusEnhancement();
+// Safe client-side check: /bot/signal response me active strategy markers add
+// karta hai. Backend/Railway runtime ya healthcheck ko touch nahi karta.
+installStrategyApplyCheckEnhancement();
 // Live score is installed after TradeStatus so it becomes the final Trade tab
 // wrapper and can show active trade, history and the live score window together.
 installLiveScoreTradeTabEnhancement();
