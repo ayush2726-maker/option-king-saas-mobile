@@ -89,6 +89,7 @@ installRangeBacktestReliableEnhancement();
 installTradeStatusEnhancement();
 // Safe client-side check: /bot/signal response me active strategy markers add
 // karta hai. Backend/Railway runtime ya healthcheck ko touch nahi karta.
+// OTA trigger v2: publish strategy apply check visibility after stable backend rollback.
 installStrategyApplyCheckEnhancement();
 // Live score is installed after TradeStatus so it becomes the final Trade tab
 // wrapper and can show active trade, history and the live score window together.
