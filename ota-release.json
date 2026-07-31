@@ -1,12 +1,13 @@
 {
-  "release": "admin-cleanup-audit-report-v1",
+  "release": "multi-open-trade-exit-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-07-31T15:38:00+05:30",
+  "requested_at": "2026-07-31T15:45:00+05:30",
   "features": [
-    "Show exact total invalid PAPER trades removed",
-    "Show affected users with name, email and removed trade count",
-    "Separate far-expiry removals from blocked or bug-entry removals",
-    "Show removed recorded P&L and confirm that no LIVE trades were removed"
+    "Show every open PAPER or LIVE trade in the Active Trade card",
+    "Switch between Trade 1 and Trade 2 with previous and next controls",
+    "Exit only the selected trade from its own card",
+    "Remove the old global floating exit button",
+    "Keep live strategy score and trade history unchanged"
   ]
 }
