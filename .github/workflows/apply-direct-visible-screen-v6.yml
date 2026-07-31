@@ -1,0 +1,229 @@
+name: Apply Direct Visible Screen V6
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/direct-visible-screen-v6.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  patch-direct-sources:
+    if: github.event.head_commit.message == 'Trigger verified direct visible screen patch v6'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch exact visible Home and Trade sources
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          app_path = Path('App.js')
+          app = app_path.read_text(encoding='utf-8')
+
+          controls_marker = '      {/* Start/Stop/Refresh */}'
+          error_marker = '      {error ? <ErrorBox msg={error} /> : null}'
+          pnl_marker = '      {/* OKAI normal today pnl - inside ScrollView, not floating */}'
+
+          if controls_marker not in app or error_marker not in app or pnl_marker not in app:
+              raise SystemExit('Home source markers not found')
+
+          if app.index(controls_marker) > app.index(pnl_marker):
+              start = app.index(controls_marker)
+              end = app.index('\n\n      <Card glow={C.blue}>', start)
+              controls_block = app[start:end].rstrip()
+              app = app[:start] + app[end:]
+              insert_at = app.index(error_marker)
+              app = app[:insert_at] + controls_block + '\n\n' + app[insert_at:]
+
+          if app.index(controls_marker) > app.index(pnl_marker):
+              raise SystemExit('Home controls were not moved above Today P&L')
+          if app.count(controls_marker) != 1:
+              raise SystemExit('Home controls duplicated')
+
+          app_path.write_text(app, encoding='utf-8')
+
+          trade_path = Path('src/runtime/LiveScoreTradeTabEnhancement.js')
+          trade = trade_path.read_text(encoding='utf-8')
+
+          new_function = r'''function LiveStrategyScoreCard({ signal }) {
+            const [open, setOpen] = React.useState(false);
+            const scans = Array.isArray(signal?.scan_results) ? signal.scan_results : [];
+            const selected = bestScan(signal);
+            const color = selected ? scanColor(selected, signal) : C.blue;
+            const score = selected ? scanScore(selected) : number(signal?.score, 0);
+            const minScore = selected ? scanMinScore(selected, signal) : number(signal?.min_score, 82);
+            const updated = timeLabel(signal?.updated_at);
+
+            const body = scans.length === 0
+              ? React.createElement(
+                  Text,
+                  { style: { color: C.muted, fontSize: 12, lineHeight: 18 } },
+                  signal?.running
+                    ? "Engine warm-up me hai. Candle data aate hi live score dikhega."
+                    : "Bot stopped hai. Start karoge to live score yaha dikhega."
+                )
+              : React.createElement(
+                  View,
+                  null,
+                  React.createElement(
+                    Text,
+                    { style: { color: C.sub, fontSize: 10, fontWeight: "900", marginBottom: 2 } },
+                    `Updated ${updated} IST`
+                  ),
+                  scans.map((scan) =>
+                    React.createElement(MiniScanRow, {
+                      key: scan?.underlying || scan?.instrument || Math.random().toString(16),
+                      scan,
+                      signal,
+                      selected: selected && scan?.underlying === selected?.underlying,
+                    })
+                  ),
+                  selected
+                    ? React.createElement(
+                        View,
+                        {
+                          style: {
+                            marginTop: 12,
+                            backgroundColor: C.card2,
+                            borderRadius: 12,
+                            borderWidth: 1,
+                            borderColor: C.border,
+                            padding: 10,
+                          },
+                        },
+                        React.createElement(
+                          Row,
+                          { style: { justifyContent: "space-between", marginBottom: 4 } },
+                          React.createElement(
+                            Text,
+                            { style: { color: C.text, fontSize: 13, fontWeight: "900" } },
+                            `${selected?.underlying || "Selected"} breakdown`
+                          ),
+                          React.createElement(StatusTag, {
+                            label: selected?.trade_allowed ? "ALLOW" : "BLOCK",
+                            color,
+                          })
+                        ),
+                        scoreComponents(selected).map((item, index) =>
+                          React.createElement(ComponentScoreLine, {
+                            key: item?.key || String(index),
+                            item,
+                          })
+                        ),
+                        Array.isArray(selected?.warnings) && selected.warnings.length
+                          ? React.createElement(
+                              Text,
+                              { style: { color: C.gold, fontSize: 10, marginTop: 8, lineHeight: 15 } },
+                              selected.warnings.slice(0, 3).join(" • ")
+                            )
+                          : null
+                      )
+                    : null
+                );
+
+            return React.createElement(
+              Card,
+              { glow: color },
+              React.createElement(
+                TouchableOpacity,
+                {
+                  onPress: () => setOpen((value) => !value),
+                  activeOpacity: 0.82,
+                  accessibilityRole: "button",
+                  accessibilityState: { expanded: open },
+                  style: {
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  },
+                },
+                React.createElement(
+                  View,
+                  { style: { flex: 1, paddingRight: 8 } },
+                  React.createElement(
+                    Text,
+                    { style: { color: C.text, fontSize: 18, fontWeight: "900" } },
+                    "📊 Live Strategy Score"
+                  ),
+                  React.createElement(
+                    Text,
+                    { style: { color: C.muted, fontSize: 10, marginTop: 3, lineHeight: 15 } },
+                    open ? "Tap to close live score" : "Tap to view live strategy score"
+                  )
+                ),
+                React.createElement(
+                  View,
+                  { style: { alignItems: "flex-end", marginLeft: 10 } },
+                  React.createElement(
+                    Text,
+                    { style: { color, fontSize: 22, fontWeight: "900" } },
+                    `${score}`
+                  ),
+                  React.createElement(
+                    Row,
+                    { style: { gap: 8, marginTop: 2 } },
+                    React.createElement(
+                      Text,
+                      { style: { color: C.muted, fontSize: 10, fontWeight: "800" } },
+                      `/ ${minScore}`
+                    ),
+                    React.createElement(
+                      Text,
+                      { style: { color, fontSize: 17, fontWeight: "900" } },
+                      open ? "⌃" : "⌄"
+                    )
+                  )
+                )
+              ),
+              open
+                ? React.createElement(View, { style: { marginTop: 12 } }, body)
+                : null
+            );
+          }'''
+
+          pattern = re.compile(
+              r'function LiveStrategyScoreCard\(\{ signal \}\) \{.*?\n\}\n\nfunction WhyTradeMini',
+              re.S,
+          )
+          trade, count = pattern.subn(new_function + '\n\nfunction WhyTradeMini', trade, count=1)
+          if count != 1:
+              raise SystemExit(f'Live score source replacement count was {count}')
+          if 'const [open, setOpen] = React.useState(false);' not in trade:
+              raise SystemExit('Live score dropdown state missing')
+          if 'Tap to view live strategy score' not in trade:
+              raise SystemExit('Live score collapsed header missing')
+
+          trade_path.write_text(trade, encoding='utf-8')
+          PY
+
+      - name: Validate direct source result
+        run: |
+          node --check src/runtime/LiveScoreTradeTabEnhancement.js
+          python - <<'PY'
+          from pathlib import Path
+          app = Path('App.js').read_text(encoding='utf-8')
+          trade = Path('src/runtime/LiveScoreTradeTabEnhancement.js').read_text(encoding='utf-8')
+          assert app.index('{/* Start/Stop/Refresh */}') < app.index('{/* OKAI normal today pnl')
+          assert app.count('{/* Start/Stop/Refresh */}') == 1
+          assert trade.count('function LiveStrategyScoreCard({ signal })') == 1
+          assert 'accessibilityState: { expanded: open }' in trade
+          assert 'Tap to view live strategy score' in trade
+          print('DIRECT_VISIBLE_SCREEN_V6_OK')
+          PY
+
+      - name: Commit direct source changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add App.js src/runtime/LiveScoreTradeTabEnhancement.js
+          git commit -m 'Directly fix Home controls and live score dropdown'
+          git push origin HEAD:main
