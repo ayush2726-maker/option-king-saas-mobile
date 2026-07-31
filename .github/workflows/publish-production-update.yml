@@ -18,18 +18,19 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: production-ota
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Check Expo token
+        id: token
         shell: bash
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -54,33 +55,116 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        id: install
+        shell: bash
+        run: |
+          mkdir -p /tmp/okai-ota
+          set -o pipefail
+          npm install --no-audit --no-fund 2>&1 | tee /tmp/okai-ota/install.log
 
       - name: Validate Android export
+        id: export
         env:
           CI: "1"
         shell: bash
         run: |
           set -o pipefail
-          npx expo export --platform android --output-dir /tmp/okai-ota-export 2>&1 | tee /tmp/okai-android-export.log
+          npx expo export --platform android --clear --output-dir /tmp/okai-ota-export 2>&1 | tee /tmp/okai-ota/export.log
 
-      - name: Upload Android export diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: okai-android-export-diagnostics
-          path: /tmp/okai-android-export.log
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Publish production update
+      - name: Publish Android update to production branch
+        id: publish
         env:
           CI: "1"
         shell: bash
         run: |
+          set -o pipefail
           SHORT_SHA="${GITHUB_SHA::7}"
           eas update \
-            --channel production \
+            --branch production \
             --platform android \
-            --message "OKAI Android OTA ${SHORT_SHA}: Advanced AI tab" \
-            --non-interactive
+            --clear-cache \
+            --message "OKAI Android OTA ${SHORT_SHA}: dedicated bilingual AI tab" \
+            --non-interactive 2>&1 | tee /tmp/okai-ota/publish.log
+
+      - name: Point and resume production channel
+        id: channel
+        env:
+          CI: "1"
+        shell: bash
+        run: |
+          set -o pipefail
+          eas channel:edit production --branch production --non-interactive 2>&1 | tee /tmp/okai-ota/channel-edit.log
+          eas channel:resume production --branch production --non-interactive 2>&1 | tee /tmp/okai-ota/channel-resume.log || true
+          eas channel:view production --json --non-interactive 2>&1 | tee /tmp/okai-ota/channel-view.log
+
+      - name: Upload OTA diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: okai-production-ota-diagnostics-${{ github.run_id }}
+          path: /tmp/okai-ota
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Write verifiable OTA status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TOKEN_OUTCOME: ${{ steps.token.outcome }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          EXPORT_OUTCOME: ${{ steps.export.outcome }}
+          PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
+          CHANNEL_OUTCOME: ${{ steps.channel.outcome }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          logs = {}
+          root = Path('/tmp/okai-ota')
+          for name in ('install', 'export', 'publish', 'channel-edit', 'channel-resume', 'channel-view'):
+              path = root / f'{name}.log'
+              if path.exists():
+                  text = path.read_text(errors='replace')
+                  logs[name] = text[-5000:]
+
+          outcomes = {
+              'token': os.getenv('TOKEN_OUTCOME') or 'unknown',
+              'install': os.getenv('INSTALL_OUTCOME') or 'unknown',
+              'export': os.getenv('EXPORT_OUTCOME') or 'unknown',
+              'publish': os.getenv('PUBLISH_OUTCOME') or 'unknown',
+              'channel': os.getenv('CHANNEL_OUTCOME') or 'unknown',
+          }
+          success = outcomes['publish'] == 'success' and outcomes['channel'] == 'success'
+          payload = {
+              'success': success,
+              'status': 'PUBLISHED' if success else 'FAILED',
+              'channel': 'production',
+              'branch': 'production',
+              'platform': 'android',
+              'runtime_version': '1.0.1',
+              'commit': os.getenv('GITHUB_SHA'),
+              'run_id': os.getenv('GITHUB_RUN_ID'),
+              'checked_at_utc': datetime.now(timezone.utc).isoformat(),
+              'steps': outcomes,
+              'logs_tail': logs,
+          }
+          Path('/tmp/ota-status.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n')
+          PY
+
+          CONTENT=$(base64 -w0 /tmp/ota-status.json)
+          STATUS_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/contents/.ota-status.json" --jq '.sha' 2>/dev/null || true)
+          if [ -n "$STATUS_SHA" ]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/.ota-status.json" \
+              -f message="Record production OTA result for ${GITHUB_SHA::7}" \
+              -f content="$CONTENT" \
+              -f sha="$STATUS_SHA" >/dev/null
+          else
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/.ota-status.json" \
+              -f message="Record production OTA result for ${GITHUB_SHA::7}" \
+              -f content="$CONTENT" >/dev/null
+          fi
