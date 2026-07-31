@@ -335,6 +335,7 @@ function MiniScanRow({ scan, signal, selected }) {
 }
 
 function LiveStrategyScoreCard({ signal }) {
+  const [open, setOpen] = React.useState(false);
   const scans = Array.isArray(signal?.scan_results) ? signal.scan_results : [];
   const selected = bestScan(signal);
   const color = selected ? scanColor(selected, signal) : C.blue;
@@ -342,58 +343,130 @@ function LiveStrategyScoreCard({ signal }) {
   const minScore = selected ? scanMinScore(selected, signal) : number(signal?.min_score, 82);
   const updated = timeLabel(signal?.updated_at);
 
+  const body = scans.length === 0
+    ? React.createElement(
+        Text,
+        { style: { color: C.muted, fontSize: 12, lineHeight: 18 } },
+        signal?.running
+          ? "Engine warm-up me hai. Candle data aate hi live score dikhega."
+          : "Bot stopped hai. Start karoge to live score yaha dikhega."
+      )
+    : React.createElement(
+        View,
+        null,
+        React.createElement(
+          Text,
+          { style: { color: C.sub, fontSize: 10, fontWeight: "900", marginBottom: 2 } },
+          `Updated ${updated} IST`
+        ),
+        scans.map((scan) =>
+          React.createElement(MiniScanRow, {
+            key: scan?.underlying || scan?.instrument || Math.random().toString(16),
+            scan,
+            signal,
+            selected: selected && scan?.underlying === selected?.underlying,
+          })
+        ),
+        selected
+          ? React.createElement(
+              View,
+              {
+                style: {
+                  marginTop: 12,
+                  backgroundColor: C.card2,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  padding: 10,
+                },
+              },
+              React.createElement(
+                Row,
+                { style: { justifyContent: "space-between", marginBottom: 4 } },
+                React.createElement(
+                  Text,
+                  { style: { color: C.text, fontSize: 13, fontWeight: "900" } },
+                  `${selected?.underlying || "Selected"} breakdown`
+                ),
+                React.createElement(StatusTag, {
+                  label: selected?.trade_allowed ? "ALLOW" : "BLOCK",
+                  color,
+                })
+              ),
+              scoreComponents(selected).map((item, index) =>
+                React.createElement(ComponentScoreLine, {
+                  key: item?.key || String(index),
+                  item,
+                })
+              ),
+              Array.isArray(selected?.warnings) && selected.warnings.length
+                ? React.createElement(
+                    Text,
+                    { style: { color: C.gold, fontSize: 10, marginTop: 8, lineHeight: 15 } },
+                    selected.warnings.slice(0, 3).join(" • ")
+                  )
+                : null
+            )
+          : null
+      );
+
   return React.createElement(
     Card,
     { glow: color },
     React.createElement(
-      Row,
-      { style: { justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 } },
+      TouchableOpacity,
+      {
+        onPress: () => setOpen((value) => !value),
+        activeOpacity: 0.82,
+        accessibilityRole: "button",
+        accessibilityState: { expanded: open },
+        style: {
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        },
+      },
       React.createElement(
         View,
         { style: { flex: 1, paddingRight: 8 } },
-        React.createElement(Text, { style: { color: C.text, fontSize: 18, fontWeight: "900" } }, "📊 Live Strategy Score"),
-        React.createElement(Text, { style: { color: C.muted, fontSize: 10, marginTop: 3, lineHeight: 15 } }, "Current enabled strategy ka live score. Fresh candles aate hi update hoga.")
+        React.createElement(
+          Text,
+          { style: { color: C.text, fontSize: 18, fontWeight: "900" } },
+          "📊 Live Strategy Score"
+        ),
+        React.createElement(
+          Text,
+          { style: { color: C.muted, fontSize: 10, marginTop: 3, lineHeight: 15 } },
+          open ? "Tap to close live score" : "Tap to view live strategy score"
+        )
       ),
       React.createElement(
         View,
-        { style: { alignItems: "flex-end" } },
-        React.createElement(Text, { style: { color, fontSize: 22, fontWeight: "900" } }, `${score}`),
-        React.createElement(Text, { style: { color: C.muted, fontSize: 10, fontWeight: "800" } }, `/ ${minScore}`)
+        { style: { alignItems: "flex-end", marginLeft: 10 } },
+        React.createElement(
+          Text,
+          { style: { color, fontSize: 22, fontWeight: "900" } },
+          `${score}`
+        ),
+        React.createElement(
+          Row,
+          { style: { gap: 8, marginTop: 2 } },
+          React.createElement(
+            Text,
+            { style: { color: C.muted, fontSize: 10, fontWeight: "800" } },
+            `/ ${minScore}`
+          ),
+          React.createElement(
+            Text,
+            { style: { color, fontSize: 17, fontWeight: "900" } },
+            open ? "⌃" : "⌄"
+          )
+        )
       )
     ),
-    scans.length === 0
-      ? React.createElement(Text, { style: { color: C.muted, fontSize: 12, lineHeight: 18 } }, signal?.running ? "Engine warm-up me hai. Candle data aate hi live score dikhega." : "Bot stopped hai. Start karoge to live score yaha dikhega.")
-      : React.createElement(
-          View,
-          null,
-          React.createElement(Text, { style: { color: C.sub, fontSize: 10, fontWeight: "900", marginBottom: 2 } }, `Updated ${updated} IST`),
-          scans.map((scan) =>
-            React.createElement(MiniScanRow, {
-              key: scan?.underlying || scan?.instrument || Math.random().toString(16),
-              scan,
-              signal,
-              selected: selected && scan?.underlying === selected?.underlying,
-            })
-          ),
-          selected
-            ? React.createElement(
-                View,
-                { style: { marginTop: 12, backgroundColor: C.card2, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 10 } },
-                React.createElement(
-                  Row,
-                  { style: { justifyContent: "space-between", marginBottom: 4 } },
-                  React.createElement(Text, { style: { color: C.text, fontSize: 13, fontWeight: "900" } }, `${selected?.underlying || "Selected"} breakdown`),
-                  React.createElement(StatusTag, { label: selected?.trade_allowed ? "ALLOW" : "BLOCK", color })
-                ),
-                scoreComponents(selected).map((item, index) =>
-                  React.createElement(ComponentScoreLine, { key: item?.key || String(index), item })
-                ),
-                Array.isArray(selected?.warnings) && selected.warnings.length
-                  ? React.createElement(Text, { style: { color: C.gold, fontSize: 10, marginTop: 8, lineHeight: 15 } }, selected.warnings.slice(0, 3).join(" • "))
-                  : null
-              )
-            : null
-        )
+    open
+      ? React.createElement(View, { style: { marginTop: 12 } }, body)
+      : null
   );
 }
 

@@ -1021,7 +1021,20 @@ function BrokerTab({ token, lang }) {
         <Text style={{ color: C.text, fontSize: 16, fontWeight: "900",
           marginBottom: 16 }}>🔗 {hi ? "Broker Connect Karo" : "Connect Broker"}</Text>
 
-        {error ? <ErrorBox msg={error} /> : null}
+        {/* Start/Stop/Refresh */}
+      <Row style={{ gap: 10 }}>
+        <View style={{ flex: 1 }}>
+          <Btn label={hi ? "Bot Start Karo" : "Start Bot"} icon="▶️" color={C.green} loading={saving}
+            onPress={handleStart} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Btn label={hi ? "Bot Stop Karo" : "Stop Bot"} icon="⏹️" color={C.red} loading={saving}
+            onPress={handleStop} />
+        </View>
+      </Row>
+      <Btn label={hi ? "Status Refresh Karo" : "Refresh Status"} icon="🔄" color={C.blue} loading={loading} onPress={load} />
+
+      {error ? <ErrorBox msg={error} /> : null}
         {success ? (
           <View style={{ backgroundColor: C.greenLo, borderRadius: 10,
             padding: 10, marginBottom: 10, borderWidth: 1,
@@ -4457,18 +4470,7 @@ function BotTab({ token, lang }) {
         )}
       </Card>
 
-      {/* Start/Stop/Refresh */}
-      <Row style={{ gap: 10 }}>
-        <View style={{ flex: 1 }}>
-          <Btn label={hi ? "Bot Start Karo" : "Start Bot"} icon="▶️" color={C.green} loading={saving}
-            onPress={handleStart} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Btn label={hi ? "Bot Stop Karo" : "Stop Bot"} icon="⏹️" color={C.red} loading={saving}
-            onPress={handleStop} />
-        </View>
-      </Row>
-      <Btn label={hi ? "Status Refresh Karo" : "Refresh Status"} icon="🔄" color={C.blue} loading={loading} onPress={load} />
+
 
       <Card glow={C.blue}>
         <Text style={{ color: C.text, fontSize: 15, fontWeight: "900", marginBottom: 4 }}>
