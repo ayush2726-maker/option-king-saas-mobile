@@ -62,6 +62,23 @@ jobs:
           set -o pipefail
           npm install --no-audit --no-fund 2>&1 | tee /tmp/okai-ota/install.log
 
+      - name: Apply verified AI card parser hotfix
+        id: parser_hotfix
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/components/AiDecisionCard.js")
+          text = path.read_text()
+          old = 't.monitorOnly)))))));'
+          new = 't.monitorOnly))))));'
+          if old not in text:
+              raise SystemExit("Expected AiDecisionCard parser bug was not found")
+          path.write_text(text.replace(old, new, 1))
+          print("Fixed extra closing parenthesis in AiDecisionCard.js")
+          PY
+
       - name: Validate Android export
         id: export
         env:
@@ -112,13 +129,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TOKEN_OUTCOME: ${{ steps.token.outcome }}
           INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          HOTFIX_OUTCOME: ${{ steps.parser_hotfix.outcome }}
           EXPORT_OUTCOME: ${{ steps.export.outcome }}
           PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
           CHANNEL_OUTCOME: ${{ steps.channel.outcome }}
         shell: bash
         run: |
           python - <<'PY'
-          import base64
           import json
           import os
           from datetime import datetime, timezone
@@ -135,6 +152,7 @@ jobs:
           outcomes = {
               'token': os.getenv('TOKEN_OUTCOME') or 'unknown',
               'install': os.getenv('INSTALL_OUTCOME') or 'unknown',
+              'parser_hotfix': os.getenv('HOTFIX_OUTCOME') or 'unknown',
               'export': os.getenv('EXPORT_OUTCOME') or 'unknown',
               'publish': os.getenv('PUBLISH_OUTCOME') or 'unknown',
               'channel': os.getenv('CHANNEL_OUTCOME') or 'unknown',
