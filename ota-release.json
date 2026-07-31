@@ -1,9 +1,9 @@
 {
-  "release": "advanced-ai-dedicated-bottom-tab-v2",
+  "release": "advanced-ai-dedicated-bottom-tab-v3-republish",
   "channel": "production",
-  "requested_at": "2026-07-31T11:06:38+05:30",
+  "requested_at": "2026-07-31T11:15:00+05:30",
   "features": [
-    "Add a dedicated AI button to the main bottom navigation",
+    "Publish the dedicated AI bottom-navigation tab to the installed Android production app",
     "Remove the large Advanced AI analysis card from Home",
     "Show model learning, validation and news interpretation on the separate AI screen",
     "Provide properly written Devanagari Hindi and polished English with a persistent language switch",
