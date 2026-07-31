@@ -1,13 +1,16 @@
 {
-  "release": "home-controls-live-score-v4",
+  "release": "verified-direct-home-trade-v6",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-01T00:10:47+05:30",
+  "requested_at": "2026-08-01T00:30:00+05:30",
+  "source_commits": {
+    "live_score_dropdown": "982a4841f9685d6708033baa59420b7bedc4c124",
+    "home_controls_top": "75fced9f2431c08e4787f07fd37eb9974a50b17f"
+  },
   "features": [
-    "Move Start Bot, Stop Bot and Refresh Status to the true top of Home",
-    "Read button label props so the active runtime can identify the controls reliably",
-    "Make the actual Trade tab Live Strategy Score card collapsible",
-    "Keep only Trading Mode and AUTO Scan Instruments as Home dropdowns",
+    "Render Start Bot, Stop Bot and Refresh Status directly before Today Net P&L inside the real BotTab source",
+    "Render Live Strategy Score as a default-closed dropdown inside the real LiveScoreTradeTabEnhancement source",
+    "Keep Trading Mode and AUTO Scan Instruments as the only Home dropdown sections",
     "Do not change trading, broker, score, risk or order logic"
   ]
 }
