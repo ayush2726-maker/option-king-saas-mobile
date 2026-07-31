@@ -94,10 +94,8 @@ function findSection(props) {
   );
 }
 
-function looksLikeDashboardCard(type, props, section) {
-  if (!section || props?.__okaiAccordionV3Bypass) return false;
+function looksLikeCardShell(type, props) {
   if (typeof type === "string" || type == null) return false;
-
   if (componentName(type) === "Card") return true;
   if (props && Object.prototype.hasOwnProperty.call(props, "glow")) return true;
 
@@ -107,6 +105,26 @@ function looksLikeDashboardCard(type, props, section) {
     source.includes("backgroundColor") &&
     source.includes("borderRadius") &&
     source.includes("borderWidth")
+  );
+}
+
+function looksLikeDashboardCard(type, props, section) {
+  if (!section || props?.__okaiAccordionV3Bypass) return false;
+  return looksLikeCardShell(type, props);
+}
+
+function looksLikeLiveScoreCard(type, props) {
+  if (
+    props?.__okaiAccordionV3Bypass ||
+    props?.__okaiLiveScoreV3Bypass
+  ) {
+    return false;
+  }
+
+  const text = textOf(props?.children);
+  return (
+    includesText(text, "Live Strategy Score") &&
+    looksLikeCardShell(type, props)
   );
 }
 
@@ -124,6 +142,19 @@ function stripOriginalHeading(children, section) {
   );
 
   if (!isHeading) return children;
+  return items.filter((_, index) => index !== firstMeaningfulIndex);
+}
+
+function stripLiveScoreHeading(children) {
+  const items = React.Children.toArray(children);
+  const firstMeaningfulIndex = items.findIndex(
+    (item) => item != null && item !== false
+  );
+
+  if (firstMeaningfulIndex < 0) return children;
+  const firstText = textOf(items[firstMeaningfulIndex]);
+
+  if (!includesText(firstText, "Live Strategy Score")) return children;
   return items.filter((_, index) => index !== firstMeaningfulIndex);
 }
 
@@ -190,6 +221,7 @@ function refineProps(type, props) {
   return {
     ...(props || {}),
     children: reordered,
+    stickyHeaderIndices: undefined,
   };
 }
 
@@ -269,9 +301,92 @@ function AccordionPanel({ originalType, originalProps, section }) {
   );
 }
 
+function LiveScoreAccordionPanel({ originalType, originalProps }) {
+  const [open, setOpen] = React.useState(false);
+  const bodyChildren = stripLiveScoreHeading(originalProps?.children);
+
+  return React.createElement(
+    View,
+    {
+      style: {
+        backgroundColor: C.card,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: open ? C.blue + "88" : C.border,
+        overflow: "hidden",
+      },
+    },
+    React.createElement(
+      TouchableOpacity,
+      {
+        onPress: () => setOpen((value) => !value),
+        activeOpacity: 0.82,
+        accessibilityRole: "button",
+        accessibilityState: { expanded: open },
+        style: {
+          minHeight: 64,
+          paddingHorizontal: 14,
+          paddingVertical: 12,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+        },
+      },
+      React.createElement(
+        View,
+        { style: { flex: 1, paddingRight: 10 } },
+        React.createElement(
+          Text,
+          { style: { color: C.text, fontSize: 16, fontWeight: "900" } },
+          "📊 Live Strategy Score"
+        ),
+        React.createElement(
+          Text,
+          { style: { color: C.muted, fontSize: 10, marginTop: 4 } },
+          open ? "Tap to close live score" : "Tap to view live strategy score"
+        )
+      ),
+      React.createElement(
+        Text,
+        { style: { color: C.blue, fontSize: 19, fontWeight: "900" } },
+        open ? "⌃" : "⌄"
+      )
+    ),
+    open
+      ? React.createElement(originalType, {
+          ...(originalProps || {}),
+          __okaiAccordionV3Bypass: true,
+          __okaiLiveScoreV3Bypass: true,
+          glow: undefined,
+          style: [
+            originalProps?.style,
+            {
+              borderWidth: 0,
+              borderRadius: 0,
+              backgroundColor: "transparent",
+              shadowOpacity: 0,
+              elevation: 0,
+              paddingTop: 4,
+            },
+          ],
+          children: bodyChildren,
+        })
+      : null
+  );
+}
+
 function transform(previous, type, props, reactKey, rest) {
   const nextProps = refineProps(type, props || {});
   const section = findSection(nextProps);
+
+  if (looksLikeLiveScoreCard(type, nextProps)) {
+    return previous(
+      LiveScoreAccordionPanel,
+      { originalType: type, originalProps: nextProps },
+      reactKey,
+      ...(rest || [])
+    );
+  }
 
   if (looksLikeDashboardCard(type, nextProps, section)) {
     return previous(
@@ -320,6 +435,13 @@ function installHomeAccordionEnhancementV3() {
     const nextProps = refineProps(type, suppliedProps);
     const section = findSection(nextProps);
 
+    if (looksLikeLiveScoreCard(type, nextProps)) {
+      return previousCreateElement(LiveScoreAccordionPanel, {
+        originalType: type,
+        originalProps: nextProps,
+      });
+    }
+
     if (looksLikeDashboardCard(type, nextProps, section)) {
       return previousCreateElement(AccordionPanel, {
         originalType: type,
@@ -337,6 +459,7 @@ function installHomeAccordionEnhancementV3() {
   React.__OKAI_HOME_ACCORDION_PATCHED__ = true;
   React.__OKAI_HOME_ACCORDION_V2_PATCHED__ = true;
   React.__OKAI_HOME_ACCORDION_V3_PATCHED__ = true;
+  React.__OKAI_LIVE_SCORE_V3_PATCHED__ = true;
 }
 
 module.exports = { installHomeAccordionEnhancementV3 };
