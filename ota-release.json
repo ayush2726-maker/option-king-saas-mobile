@@ -1,13 +1,13 @@
 {
-  "release": "direct-home-layout-v2",
+  "release": "active-home-accordion-v3-fix",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-07-31T16:08:00+05:30",
+  "requested_at": "2026-07-31T23:34:00+05:30",
   "features": [
-    "Apply layout changes in the active Home accordion runtime",
+    "Apply the layout change in HomeAccordionEnhancementV3, the runtime actually installed by the app",
     "Move Start Bot, Stop Bot and Refresh Status above Today P&L",
     "Keep only Trading Mode and AUTO Scan Instruments as dropdowns",
-    "Show all other Home cards as normal open windows",
-    "Make Live Strategy Score collapsible using the real Trade-tab component"
+    "Show Bot Status, AUTO Portfolio, Graph History, Score History, Price Movement and Paper Trade P&L as normal open cards",
+    "Keep the Home AI area unchanged"
   ]
 }
