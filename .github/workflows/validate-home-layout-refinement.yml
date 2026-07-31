@@ -1,11 +1,11 @@
-name: Validate Home Layout Refinement
+name: Validate Home Layout Delegation
 
 on:
   pull_request:
     paths:
       - "index.js"
-      - "src/runtime/HomeAccordionEnhancement.js"
-      - "src/runtime/HomeLayoutRefinementEnhancement.js"
+      - "src/runtime/HomeAccordionEnhancementV3.js"
+      - "src/runtime/HomeLayoutEnhancement.js"
       - ".github/workflows/validate-home-layout-refinement.yml"
 
 jobs:
@@ -16,14 +16,10 @@ jobs:
       - name: Check JavaScript syntax
         run: |
           node --check index.js
-          node --check src/runtime/HomeAccordionEnhancement.js
-          node --check src/runtime/HomeLayoutRefinementEnhancement.js
-      - name: Verify requested layout rules
+          node --check src/runtime/HomeAccordionEnhancementV3.js
+          node --check src/runtime/HomeLayoutEnhancement.js
+      - name: Verify active runtime ownership
         run: |
-          grep -q 'HOME_LAYOUT_DIRECT_V2' src/runtime/HomeAccordionEnhancement.js
-          grep -q 'KEEP_DROPDOWN_MATCHES' src/runtime/HomeAccordionEnhancement.js
-          grep -q 'moveBotControlsToTop' src/runtime/HomeAccordionEnhancement.js
-          grep -q '"Trading Mode"' src/runtime/HomeAccordionEnhancement.js
-          grep -q '"AUTO Scan Instruments"' src/runtime/HomeAccordionEnhancement.js
-          grep -q 'LiveStrategyScoreDropdown' src/runtime/HomeLayoutRefinementEnhancement.js
-          grep -q 'actual Trade-tab component' index.js
+          grep -q 'LiveScoreAccordionPanel' src/runtime/HomeAccordionEnhancementV3.js
+          grep -q 'return \[...controls, ...rest\]' src/runtime/HomeLayoutEnhancement.js
+          ! grep -q 'installHomeLayoutRefinementEnhancement' index.js
