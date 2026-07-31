@@ -1,4 +1,7 @@
 const React = require("react");
+const { installAdvancedAiTabEnhancement } = require(
+  "./src/runtime/AdvancedAiTabEnhancement"
+);
 const { installNavigationHelpEnhancement } = require(
   "./src/runtime/NavigationHelpEnhancement"
 );
@@ -9,10 +12,10 @@ const { installHomeAccordionEnhancementV3 } = require(
   "./src/runtime/HomeAccordionEnhancementV3"
 );
 
-// OTA release marker: home-help-dropdown-2026-07-27-v5
-// Install before AppPaymentsPatched loads App.js so Dashboard navigation,
-// the stable Help dropdown screen, and compact Home accordions are active
-// from the first render. V3 uses only static Metro-safe module imports.
+// Install the AI patch first. NavigationHelp then converts the original
+// navigation to the final compact tabs, and the AI patch appends its dedicated
+// tab without changing strategy, order, broker, or risk logic.
+installAdvancedAiTabEnhancement();
 installNavigationHelpEnhancement();
 installLegacyGuideScreenReplacement();
 installHomeAccordionEnhancementV3();
