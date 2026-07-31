@@ -13,6 +13,7 @@ on:
       - "app.json"
       - "eas.json"
       - "package.json"
+      - "ota-release.json"
       - ".github/workflows/publish-production-update.yml"
   workflow_dispatch:
 
@@ -80,5 +81,6 @@ jobs:
           SHORT_SHA="${GITHUB_SHA::7}"
           eas update \
             --channel production \
-            --message "OKAI OTA ${SHORT_SHA}" \
+            --platform android \
+            --message "OKAI Android OTA ${SHORT_SHA}: Advanced AI tab" \
             --non-interactive
