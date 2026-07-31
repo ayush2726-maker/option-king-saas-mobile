@@ -12,6 +12,7 @@ const C = {
   green: "#00d4a0",
   red: "#ff4d6d",
   blue: "#4d9fff",
+  gold: "#f5c842",
 };
 
 async function apiGet(path, token) {
@@ -72,6 +73,7 @@ function AccountAdminDashboardCard({ token }) {
   const [hidden, setHidden] = React.useState(false);
   const [data, setData] = React.useState(null);
   const [users, setUsers] = React.useState([]);
+  const [cleanup, setCleanup] = React.useState(null);
   const [msg, setMsg] = React.useState("");
   const [deletingEmail, setDeletingEmail] = React.useState("");
 
@@ -80,12 +82,14 @@ function AccountAdminDashboardCard({ token }) {
     setLoading(true);
     setMsg("");
     try {
-      const [dash, userList] = await Promise.all([
+      const [dash, userList, cleanupReport] = await Promise.all([
         apiGet("/admin/dashboard", token),
         apiGet("/admin/users?limit=50", token),
+        apiGet("/admin/cleanup-report", token),
       ]);
       setData(dash || {});
       setUsers(Array.isArray(userList?.users) ? userList.users : []);
+      setCleanup(cleanupReport || null);
       setHidden(false);
     } catch (e) {
       if (e.status === 403) setHidden(true);
@@ -147,6 +151,8 @@ function AccountAdminDashboardCard({ token }) {
   if (hidden) return null;
 
   const stats = data?.stats || {};
+  const cleanupUsers = Array.isArray(cleanup?.users) ? cleanup.users : [];
+  const source = cleanup?.by_source || {};
 
   return React.createElement(
     View,
@@ -172,7 +178,7 @@ function AccountAdminDashboardCard({ token }) {
         View,
         null,
         React.createElement(Text, { style: { color: C.text, fontSize: 18, fontWeight: "900" } }, "Admin Dashboard"),
-        React.createElement(Text, { style: { color: C.muted, fontSize: 11, marginTop: 4 } }, "Registered users")
+        React.createElement(Text, { style: { color: C.muted, fontSize: 11, marginTop: 4 } }, "Users and cleanup audit")
       ),
       React.createElement(Text, { style: { color: C.green, fontSize: 20, fontWeight: "900" } }, open ? "−" : "+")
     ),
@@ -198,6 +204,42 @@ function AccountAdminDashboardCard({ token }) {
           React.createElement(Row, { label: "Active Users", value: stats.active_subscribers }),
           React.createElement(Row, { label: "Expired Users", value: stats.expired_users }),
           React.createElement(Row, { label: "Bots Running", value: stats.bots_running }),
+
+          React.createElement(Text, { style: { color: C.gold, fontSize: 13, fontWeight: "900", marginTop: 16, marginBottom: 6 } }, "Invalid PAPER Trade Cleanup"),
+          React.createElement(Row, { label: "Total Trades Removed", value: cleanup?.total_removed_trades ?? "--", color: C.gold }),
+          React.createElement(Row, { label: "Affected Users", value: cleanup?.affected_users ?? "--" }),
+          React.createElement(Row, { label: "Far-expiry Trades", value: source.far_expiry || 0 }),
+          React.createElement(Row, { label: "Blocked/Bug Entries", value: source.blocked_entry || 0 }),
+          React.createElement(Row, { label: "Removed Recorded P&L", value: cleanup ? `₹${Number(cleanup.removed_recorded_pnl || 0).toFixed(2)}` : "--", color: C.red }),
+          React.createElement(Row, { label: "Live Trades Removed", value: cleanup?.live_trades_removed ?? 0, color: C.green }),
+
+          cleanupUsers.length === 0
+            ? React.createElement(Text, { style: { color: C.muted, fontSize: 12, marginTop: 8 } }, "No archived invalid PAPER trades found")
+            : React.createElement(
+                View,
+                { style: { marginTop: 10 } },
+                React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900", marginBottom: 7 } }, "User-wise Removed Trades"),
+                cleanupUsers.map((u) =>
+                  React.createElement(
+                    View,
+                    {
+                      key: `cleanup-${u.user_id}`,
+                      style: {
+                        backgroundColor: C.s2,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: C.border,
+                        padding: 10,
+                        marginBottom: 8,
+                      },
+                    },
+                    React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900" } }, `${u.name || `User ${u.user_id}`} • ${u.removed_trades || 0} trades`),
+                    React.createElement(Text, { style: { color: C.muted, fontSize: 10, marginTop: 3 } }, u.email || "--"),
+                    React.createElement(Text, { style: { color: C.gold, fontSize: 10, marginTop: 4, fontWeight: "800" } }, `Far expiry ${u.far_expiry_trades || 0} • Blocked/bug ${u.blocked_entry_trades || 0}`),
+                    React.createElement(Text, { style: { color: C.red, fontSize: 10, marginTop: 3, fontWeight: "800" } }, `Removed recorded P&L ₹${Number(u.removed_recorded_pnl || 0).toFixed(2)}`)
+                  )
+                )
+              ),
 
           React.createElement(Text, { style: { color: C.text, fontSize: 13, fontWeight: "900", marginTop: 14, marginBottom: 6 } }, "Recent Registered Users"),
 
