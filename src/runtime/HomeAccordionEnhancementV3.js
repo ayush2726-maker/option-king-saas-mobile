@@ -1,11 +1,10 @@
 const React = require("react");
 const {
-  ActivityIndicator,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
 } = require("react-native");
-const AsyncStorage = require("@react-native-async-storage/async-storage").default;
 const jsxRuntime = require("react/jsx-runtime");
 
 let jsxDevRuntime = null;
@@ -13,70 +12,30 @@ try {
   jsxDevRuntime = require("react/jsx-dev-runtime");
 } catch (_) {}
 
-const SAAS_URL = "https://option-king-saas-production.up.railway.app";
-
 const C = {
   card: "#13131f",
   border: "#252540",
   text: "#e8e8f0",
   muted: "#70708e",
-  green: "#00d4a0",
-  red: "#ff4d6d",
-  gold: "#f5c842",
   blue: "#4d9fff",
   accent: "#7c6deb",
 };
 
+// Only these two Home cards remain collapsible.
 const SECTIONS = [
-  { match: "Bot Status", title: "🤖 Bot Status", accent: C.green },
-  { match: "AUTO Portfolio", title: "🎯 AUTO Portfolio", accent: C.accent },
-  { match: "Graph History", title: "📅 Graph History", accent: C.blue },
-  { match: "Score History", title: "📈 Score History", accent: C.accent },
-  { match: "Price Movement", title: "📊 Price Movement", accent: C.blue },
-  { match: "Paper Trade P&L", title: "💹 Paper Trade P&L", accent: C.green },
-  { match: "Trading Mode", title: "⚙️ Trading Mode", accent: C.accent },
-  { match: "AUTO Scan Instruments", title: "🔎 AUTO Scan Instruments", accent: C.blue },
-  { match: "Auto Scan Instruments", title: "🔎 AUTO Scan Instruments", accent: C.blue },
+  {
+    matches: ["Trading Mode"],
+    title: "⚙️ Trading Mode",
+    accent: C.accent,
+  },
+  {
+    matches: ["AUTO Scan Instruments", "Auto Scan Instruments"],
+    title: "🔎 AUTO Scan Instruments",
+    accent: C.blue,
+  },
 ];
 
 let installed = false;
-
-function asNumber(value, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function money(value) {
-  const parsed = asNumber(value, 0);
-  const sign = parsed > 0 ? "+" : parsed < 0 ? "-" : "";
-  return `${sign}₹${Math.abs(parsed).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function collectText(value, output = []) {
-  if (value == null || value === false) return output;
-  if (typeof value === "string" || typeof value === "number") {
-    output.push(String(value));
-    return output;
-  }
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectText(item, output));
-    return output;
-  }
-  if (React.isValidElement(value)) {
-    collectText(value.props?.children, output);
-    collectText(value.props?.label, output);
-    collectText(value.props?.title, output);
-  }
-  return output;
-}
-
-function findSection(props) {
-  const text = collectText(props?.children).join(" ");
-  return SECTIONS.find((section) => text.includes(section.match)) || null;
-}
 
 function componentName(type) {
   return String(type?.displayName || type?.name || "");
@@ -89,6 +48,50 @@ function componentSource(type) {
   } catch (_) {
     return "";
   }
+}
+
+function collectText(value, output = []) {
+  if (value == null || value === false) return output;
+
+  if (typeof value === "string" || typeof value === "number") {
+    output.push(String(value));
+    return output;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectText(item, output));
+    return output;
+  }
+
+  if (React.isValidElement(value)) {
+    collectText(value.props?.children, output);
+    collectText(value.props?.label, output);
+    collectText(value.props?.title, output);
+  }
+
+  return output;
+}
+
+function textOf(value) {
+  return collectText(value)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function includesText(haystack, needle) {
+  return String(haystack || "")
+    .toLowerCase()
+    .includes(String(needle || "").toLowerCase());
+}
+
+function findSection(props) {
+  const text = textOf(props?.children);
+  return (
+    SECTIONS.find((section) =>
+      section.matches.some((match) => includesText(text, match))
+    ) || null
+  );
 }
 
 function looksLikeDashboardCard(type, props, section) {
@@ -107,79 +110,95 @@ function looksLikeDashboardCard(type, props, section) {
   );
 }
 
-function looksLikeAiCard(type, props) {
-  if (props?.__okaiAccordionV3Bypass) return false;
-  if (componentName(type) === "AiDecisionCard") return true;
-  return !!props?.signal && componentSource(type).includes("Shared AI Decision");
+function stripOriginalHeading(children, section) {
+  const items = React.Children.toArray(children);
+  const firstMeaningfulIndex = items.findIndex(
+    (item) => item != null && item !== false
+  );
+
+  if (firstMeaningfulIndex < 0) return children;
+
+  const firstText = textOf(items[firstMeaningfulIndex]);
+  const isHeading = section.matches.some((match) =>
+    includesText(firstText, match)
+  );
+
+  if (!isHeading) return children;
+  return items.filter((_, index) => index !== firstMeaningfulIndex);
 }
 
-async function apiGet(path, token) {
-  const response = await fetch(SAAS_URL + path, {
-    headers: { Authorization: "Bearer " + token },
-  });
-  const data = await response.json();
-  if (!response.ok || data?.success === false) {
-    throw new Error(data?.detail || data?.message || "Request failed");
-  }
-  return data;
+function isStartStopControl(element) {
+  const text = textOf(element);
+  const hasStart =
+    includesText(text, "Start Bot") ||
+    includesText(text, "Bot Start");
+  const hasStop =
+    includesText(text, "Stop Bot") ||
+    includesText(text, "Bot Stop");
+  return hasStart && hasStop;
 }
 
-function useCurrentCapital(enabled) {
-  const [state, setState] = React.useState({
-    loading: enabled,
-    current: null,
-    pnl: null,
-  });
+function isRefreshControl(element) {
+  const text = textOf(element);
+  return (
+    includesText(text, "Refresh Status") ||
+    includesText(text, "Status Refresh")
+  );
+}
 
-  const load = React.useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const token = await AsyncStorage.getItem("saas_token");
-      if (!token) {
-        setState((previous) => ({ ...previous, loading: false }));
-        return;
-      }
+function isHomeDashboard(children) {
+  const text = textOf(children);
+  return (
+    includesText(text, "TODAY NET P&L") &&
+    includesText(text, "AUTO Portfolio") &&
+    (includesText(text, "Start Bot") || includesText(text, "Bot Start"))
+  );
+}
 
-      const [signal, settingsResponse] = await Promise.all([
-        apiGet("/bot/signal", token),
-        apiGet("/strategy/settings", token),
-      ]);
-      const settings = settingsResponse?.settings || {};
-      const starting = asNumber(
-        signal?.starting_capital ?? settings?.paper_capital ?? settings?.capital ?? 0,
-        0
-      );
-      const pnl = asNumber(signal?.total_pnl ?? signal?.net_pnl ?? 0, 0);
-      const serverCurrent =
-        signal?.current_capital ??
-        signal?.current_equity ??
-        signal?.equity ??
-        signal?.available_capital;
-      const current = Number.isFinite(Number(serverCurrent))
-        ? Number(serverCurrent)
-        : starting + pnl;
+function moveBotControlsToTop(children) {
+  const items = React.Children.toArray(children);
+  if (!items.length || !isHomeDashboard(items)) return children;
 
-      setState({ loading: false, current, pnl });
-    } catch (_) {
-      setState((previous) => ({ ...previous, loading: false }));
+  const startStop = [];
+  const refresh = [];
+  const rest = [];
+
+  items.forEach((item) => {
+    if (isStartStopControl(item)) {
+      startStop.push(item);
+    } else if (isRefreshControl(item)) {
+      refresh.push(item);
+    } else {
+      rest.push(item);
     }
-  }, [enabled]);
+  });
 
-  React.useEffect(() => {
-    if (!enabled) return undefined;
-    load();
-    const timer = setInterval(load, 5000);
-    return () => clearInterval(timer);
-  }, [enabled, load]);
+  if (!startStop.length && !refresh.length) return children;
+  return [...startStop, ...refresh, ...rest];
+}
 
-  return state;
+function isScrollViewType(type) {
+  return type === ScrollView || componentName(type) === "ScrollView";
+}
+
+function refineProps(type, props) {
+  if (!isScrollViewType(type)) return props;
+
+  const reordered = moveBotControlsToTop(props?.children);
+  if (reordered === props?.children) return props;
+
+  return {
+    ...(props || {}),
+    children: reordered,
+  };
 }
 
 function AccordionPanel({ originalType, originalProps, section }) {
   const [open, setOpen] = React.useState(false);
-  const isBotStatus = section.match === "Bot Status";
-  const capital = useCurrentCapital(isBotStatus);
-  const capitalColour = asNumber(capital.pnl, 0) >= 0 ? C.green : C.red;
+  const bodyChildren = stripOriginalHeading(
+    originalProps?.children,
+    section
+  );
 
   return React.createElement(
     View,
@@ -216,34 +235,11 @@ function AccordionPanel({ originalType, originalProps, section }) {
           { style: { color: C.text, fontSize: 15, fontWeight: "900" } },
           section.title
         ),
-        isBotStatus
-          ? React.createElement(
-              View,
-              { style: { flexDirection: "row", alignItems: "center", marginTop: 5 } },
-              React.createElement(
-                Text,
-                { style: { color: C.muted, fontSize: 10, fontWeight: "800", marginRight: 7 } },
-                "Current Capital"
-              ),
-              capital.loading
-                ? React.createElement(ActivityIndicator, { size: "small", color: C.blue })
-                : React.createElement(
-                    Text,
-                    {
-                      style: {
-                        color: capital.current == null ? C.muted : capitalColour,
-                        fontSize: 13,
-                        fontWeight: "900",
-                      },
-                    },
-                    capital.current == null ? "--" : money(capital.current)
-                  )
-            )
-          : React.createElement(
-              Text,
-              { style: { color: C.muted, fontSize: 10, marginTop: 4 } },
-              open ? "Tap to close details" : "Tap to view details"
-            )
+        React.createElement(
+          Text,
+          { style: { color: C.muted, fontSize: 10, marginTop: 4 } },
+          open ? "Tap to close details" : "Tap to view details"
+        )
       ),
       React.createElement(
         Text,
@@ -267,69 +263,14 @@ function AccordionPanel({ originalType, originalProps, section }) {
               paddingTop: 6,
             },
           ],
-        })
-      : null
-  );
-}
-
-function AiAccordionPanel({ originalType, originalProps }) {
-  const [open, setOpen] = React.useState(false);
-  return React.createElement(
-    View,
-    {
-      style: {
-        backgroundColor: C.card,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: open ? C.gold + "88" : C.border,
-        overflow: "hidden",
-      },
-    },
-    React.createElement(
-      TouchableOpacity,
-      {
-        onPress: () => setOpen((value) => !value),
-        activeOpacity: 0.82,
-        style: {
-          minHeight: 62,
-          paddingHorizontal: 14,
-          paddingVertical: 12,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-        },
-      },
-      React.createElement(
-        View,
-        { style: { flex: 1 } },
-        React.createElement(
-          Text,
-          { style: { color: C.text, fontSize: 15, fontWeight: "900" } },
-          "🧠 Shared AI Decision"
-        ),
-        React.createElement(
-          Text,
-          { style: { color: C.muted, fontSize: 10, marginTop: 4 } },
-          open ? "Tap to close details" : "Tap to view AI details"
-        )
-      ),
-      React.createElement(
-        Text,
-        { style: { color: C.gold, fontSize: 18, fontWeight: "900" } },
-        open ? "⌃" : "⌄"
-      )
-    ),
-    open
-      ? React.createElement(originalType, {
-          ...(originalProps || {}),
-          __okaiAccordionV3Bypass: true,
+          children: bodyChildren,
         })
       : null
   );
 }
 
 function transform(previous, type, props, reactKey, rest) {
-  const nextProps = props || {};
+  const nextProps = refineProps(type, props || {});
   const section = findSection(nextProps);
 
   if (looksLikeDashboardCard(type, nextProps, section)) {
@@ -340,19 +281,13 @@ function transform(previous, type, props, reactKey, rest) {
       ...(rest || [])
     );
   }
-  if (looksLikeAiCard(type, nextProps)) {
-    return previous(
-      AiAccordionPanel,
-      { originalType: type, originalProps: nextProps },
-      reactKey,
-      ...(rest || [])
-    );
-  }
-  return previous(type, props, reactKey, ...(rest || []));
+
+  return previous(type, nextProps, reactKey, ...(rest || []));
 }
 
 function patchJsxRuntime(runtime) {
   if (!runtime) return;
+
   ["jsx", "jsxs", "jsxDEV"].forEach((key) => {
     const previous = runtime[key];
     if (typeof previous !== "function" || previous.__okaiAccordionV3) return;
@@ -370,13 +305,19 @@ function installHomeAccordionEnhancementV3() {
   installed = true;
 
   const previousCreateElement = React.createElement.bind(React);
-  React.createElement = function okaiAccordionV3CreateElement(type, props, ...children) {
-    const nextProps = children.length
+
+  React.createElement = function okaiAccordionV3CreateElement(
+    type,
+    props,
+    ...children
+  ) {
+    const suppliedProps = children.length
       ? {
           ...(props || {}),
           children: children.length === 1 ? children[0] : children,
         }
       : props || {};
+    const nextProps = refineProps(type, suppliedProps);
     const section = findSection(nextProps);
 
     if (looksLikeDashboardCard(type, nextProps, section)) {
@@ -386,13 +327,8 @@ function installHomeAccordionEnhancementV3() {
         section,
       });
     }
-    if (looksLikeAiCard(type, nextProps)) {
-      return previousCreateElement(AiAccordionPanel, {
-        originalType: type,
-        originalProps: nextProps,
-      });
-    }
-    return previousCreateElement(type, props, ...children);
+
+    return previousCreateElement(type, nextProps);
   };
 
   patchJsxRuntime(jsxRuntime);
