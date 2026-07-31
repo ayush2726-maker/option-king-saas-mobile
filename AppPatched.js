@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Text,
   TouchableOpacity,
   View,
@@ -13,6 +14,9 @@ const { installHighContrastDarkThemeEnhancement } = require(
 );
 const { installProfessionalLanguageEnhancement } = require(
   "./src/i18n/ProfessionalLanguageEnhancement"
+);
+const { installAppNetworkPerformanceEnhancement } = require(
+  "./src/runtime/AppNetworkPerformanceEnhancement"
 );
 const { installFreshDataEnhancement } = require(
   "./src/runtime/FreshDataEnhancement"
@@ -75,6 +79,10 @@ installHighContrastDarkThemeEnhancement();
 // runtime enhancements, and common backend messages.
 installProfessionalLanguageEnhancement();
 
+// Cache heavy read-only API calls and merge duplicate requests before the other
+// fetch wrappers capture global.fetch. Strategy saves still invalidate the cache.
+installAppNetworkPerformanceEnhancement();
+
 // Order matters. The reliable Paper-history bridge wraps the fresh-data fetch
 // layer so Bot P&L and Today P&L always read the same server trade rows.
 installFreshDataEnhancement();
@@ -89,7 +97,6 @@ installRangeBacktestReliableEnhancement();
 installTradeStatusEnhancement();
 // Safe client-side check: /bot/signal response me active strategy markers add
 // karta hai. Backend/Railway runtime ya healthcheck ko touch nahi karta.
-// OTA trigger v2: publish strategy apply check visibility after stable backend rollback.
 installStrategyApplyCheckEnhancement();
 // Live score is installed after TradeStatus so it becomes the final Trade tab
 // wrapper and can show active trade, history and the live score window together.
@@ -110,21 +117,44 @@ const AppModule = require("./App");
 const App = AppModule.default || AppModule;
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
+const TRADE_POLL_MS = 5000;
+
+function tradeSnapshotKey(data, openTrade) {
+  if (!openTrade) return "CLOSED";
+  return [
+    openTrade.id,
+    openTrade.status,
+    openTrade.live_price ?? openTrade.current_price ?? openTrade.entry_price,
+    openTrade.sl_price,
+    openTrade.target_price,
+    openTrade.unrealized_pnl ?? openTrade.pnl,
+    data?.open,
+  ].join("|");
+}
 
 function ManualExitOverlay() {
   const [token, setToken] = useState(null);
   const [trade, setTrade] = useState(null);
   const [busy, setBusy] = useState(false);
   const aliveRef = useRef(true);
+  const requestRef = useRef(false);
+  const appStateRef = useRef(AppState.currentState);
+  const snapshotKeyRef = useRef("");
 
   async function loadOpenTrade() {
+    if (requestRef.current || appStateRef.current !== "active") return;
+    requestRef.current = true;
+
     try {
       const savedToken = await AsyncStorage.getItem("saas_token");
       if (!savedToken) {
-        updateTradeLiveSnapshot({ open: false, trade: null });
+        if (snapshotKeyRef.current !== "CLOSED") {
+          snapshotKeyRef.current = "CLOSED";
+          updateTradeLiveSnapshot({ open: false, trade: null });
+        }
         if (aliveRef.current) {
-          setToken(null);
-          setTrade(null);
+          setToken((current) => (current == null ? current : null));
+          setTrade((current) => (current == null ? current : null));
         }
         return;
       }
@@ -137,25 +167,43 @@ function ManualExitOverlay() {
         data?.success && data?.open && data?.trade?.status === "OPEN"
           ? data.trade
           : null;
+      const nextKey = tradeSnapshotKey(data, openTrade);
 
-      updateTradeLiveSnapshot(data || { open: false, trade: null });
+      if (nextKey !== snapshotKeyRef.current) {
+        snapshotKeyRef.current = nextKey;
+        updateTradeLiveSnapshot(data || { open: false, trade: null });
+
+        if (aliveRef.current) {
+          setTrade(openTrade);
+        }
+      }
 
       if (aliveRef.current) {
-        setToken(savedToken);
-        setTrade(openTrade);
+        setToken((current) => (current === savedToken ? current : savedToken));
       }
     } catch (_) {
       // Keep the last known live price and SL during a temporary network failure.
+    } finally {
+      requestRef.current = false;
     }
   }
 
   useEffect(() => {
     aliveRef.current = true;
+    appStateRef.current = AppState.currentState;
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      appStateRef.current = nextState;
+      if (nextState === "active") loadOpenTrade();
+    });
+
     loadOpenTrade();
-    const timer = setInterval(loadOpenTrade, 1000);
+    const timer = setInterval(loadOpenTrade, TRADE_POLL_MS);
+
     return () => {
       aliveRef.current = false;
       clearInterval(timer);
+      subscription.remove();
     };
   }, []);
 
@@ -176,6 +224,7 @@ function ManualExitOverlay() {
         data?.success ? "Trade Exited" : "Exit Not Confirmed",
         data?.message || data?.detail || "Manual exit response nahi mila."
       );
+      snapshotKeyRef.current = "";
       await loadOpenTrade();
     } catch (error) {
       Alert.alert(
