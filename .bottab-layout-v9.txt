@@ -1,0 +1,6 @@
+commit=ab6c455d1750e72d97ca269e0f6e416479c370e6
+3580:function BotTab({ token, lang }) {
+4097:      {/* Start/Stop/Refresh */}
+4108:      <Btn label={hi ? "Status Refresh Karo" : "Refresh Status"} icon="🔄" color={C.blue} loading={loading} onPress={load} />
+4112:      {/* OKAI normal today pnl - inside ScrollView, not floating */}
+4807:function BacktestTab({ token, lang }) {
