@@ -1,13 +1,12 @@
 {
-  "release": "app-performance-hotfix-v1",
+  "release": "admin-cleanup-audit-report-v1",
   "channel": "production",
-  "requested_at": "2026-07-31T12:46:00+05:30",
+  "runtime": "1.0.1",
+  "requested_at": "2026-07-31T15:38:00+05:30",
   "features": [
-    "Reduce the global open-trade polling rate from every 1 second to every 5 seconds",
-    "Pause live polling while the app is in the background",
-    "Avoid overlapping open-trade requests and duplicate snapshot updates",
-    "Cache active strategy profiles and trade history reads",
-    "Merge duplicate trade-live requests while keeping live trade monitoring active",
-    "Keep strategy scoring, order execution, stop loss and risk logic unchanged"
+    "Show exact total invalid PAPER trades removed",
+    "Show affected users with name, email and removed trade count",
+    "Separate far-expiry removals from blocked or bug-entry removals",
+    "Show removed recorded P&L and confirm that no LIVE trades were removed"
   ]
 }
