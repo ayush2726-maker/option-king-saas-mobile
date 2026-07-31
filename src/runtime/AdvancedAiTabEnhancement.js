@@ -104,15 +104,15 @@ function isBottomNavigation(type, props, children) {
     && /\s(Account|खाता)\s/i.test(text);
 }
 
-function isDashboardContent(type, props, children) {
+function isDashboardContent(type, props) {
   if (type !== ScrollView && componentName(type).toLowerCase() !== "scrollview") return false;
   const style = flattenStyle(props?.style);
   const contentStyle = flattenStyle(props?.contentContainerStyle);
-  if (Number(style.flex) !== 1 || Number(contentStyle.flexGrow) !== 1) return false;
 
-  return flattenChildren(children).some((child) => (
-    React.isValidElement(child) && componentName(child.type) === "OtaStatusBanner"
-  ));
+  // The production bundle may minify OtaStatusBanner's function name, so
+  // identifying the dashboard by that child can fail and leave the AI route
+  // blank. The root dashboard content has this unique full-height shape.
+  return Number(style.flex) === 1 && Number(contentStyle.flexGrow) === 1;
 }
 
 function aiTabButton(createElement) {
@@ -166,7 +166,7 @@ function installCreateElementPatch() {
     let nextChildren = children;
     if (isBottomNavigation(type, props || {}, children)) {
       nextChildren = appendAiTab(children, previousCreateElement);
-    } else if (isDashboardContent(type, props || {}, children) && dashboardTab === "ai") {
+    } else if (isDashboardContent(type, props || {}) && dashboardTab === "ai") {
       nextChildren = aiScreenChildren(children, previousCreateElement);
     }
 
@@ -202,7 +202,7 @@ function patchRuntime(runtime) {
 
       if (isBottomNavigation(type, nextProps, children)) {
         nextProps = { ...nextProps, children: appendAiTab(children, createElement) };
-      } else if (isDashboardContent(type, nextProps, children) && dashboardTab === "ai") {
+      } else if (isDashboardContent(type, nextProps) && dashboardTab === "ai") {
         nextProps = { ...nextProps, children: aiScreenChildren(children, createElement) };
       }
 
