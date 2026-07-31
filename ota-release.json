@@ -1,13 +1,13 @@
 {
-  "release": "active-home-accordion-v3-fix",
+  "release": "home-controls-live-score-v4",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-07-31T23:34:00+05:30",
+  "requested_at": "2026-08-01T00:10:47+05:30",
   "features": [
-    "Apply the layout change in HomeAccordionEnhancementV3, the runtime actually installed by the app",
-    "Move Start Bot, Stop Bot and Refresh Status above Today P&L",
-    "Keep only Trading Mode and AUTO Scan Instruments as dropdowns",
-    "Show Bot Status, AUTO Portfolio, Graph History, Score History, Price Movement and Paper Trade P&L as normal open cards",
-    "Keep the Home AI area unchanged"
+    "Move Start Bot, Stop Bot and Refresh Status to the true top of Home",
+    "Read button label props so the active runtime can identify the controls reliably",
+    "Make the actual Trade tab Live Strategy Score card collapsible",
+    "Keep only Trading Mode and AUTO Scan Instruments as Home dropdowns",
+    "Do not change trading, broker, score, risk or order logic"
   ]
 }
