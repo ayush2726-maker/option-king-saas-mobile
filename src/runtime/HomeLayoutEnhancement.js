@@ -27,7 +27,13 @@ function textFromNode(node, depth = 0) {
   if (depth > 10 || node == null || node === false) return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (Array.isArray(node)) return node.map(x => textFromNode(x, depth + 1)).join(" ");
-  if (React.isValidElement(node)) return textFromNode(node.props?.children, depth + 1);
+  if (React.isValidElement(node)) {
+    return [
+      textFromNode(node.props?.children, depth + 1),
+      textFromNode(node.props?.label, depth + 1),
+      textFromNode(node.props?.title, depth + 1),
+    ].filter(Boolean).join(" ");
+  }
   return "";
 }
 
@@ -65,7 +71,7 @@ function stripFloatingStyle(props, childrenText) {
 function looksLikeHomeScroll(children) {
   const text = textFromNode(children);
   return (
-    /Start Bot|Bot Start|Bot Start Karo|Stop Bot|Refresh Status/.test(text) &&
+    /Start Bot|Bot Start|Bot Start Karo|Stop Bot|Bot Stop|Refresh Status|Status Refresh/.test(text) &&
     /TODAY NET P&L|Today Net P&L|Net P&L|Active Positions|ACTIVE POSITIONS/.test(text)
   );
 }
@@ -83,11 +89,6 @@ function isSharedAiNode(node) {
   return /Shared AI Decision/i.test(text);
 }
 
-function isPnlNode(node) {
-  const text = textFromNode(node);
-  return /TODAY NET P&L|Today Net P&L|Net P&L/i.test(text);
-}
-
 function rearrangeHomeChildren(children) {
   const items = flatten(children);
   if (!looksLikeHomeScroll(items)) return children;
@@ -103,16 +104,8 @@ function rearrangeHomeChildren(children) {
 
   if (!controls.length) return rest;
 
-  let insertAt = rest.findIndex(isPnlNode);
-  if (insertAt < 0) insertAt = 0;
-
-  const next = [
-    ...rest.slice(0, insertAt + 1),
-    ...controls,
-    ...rest.slice(insertAt + 1),
-  ];
-
-  return next;
+  // Requested Home order: Start/Stop first, Refresh next, then every dashboard card.
+  return [...controls, ...rest];
 }
 
 function transformElement(type, props, children) {
@@ -141,7 +134,7 @@ function transformElement(type, props, children) {
   return { type, props: nextProps, children: nextChildren };
 }
 
-function patchRuntime(runtime, baseCreateElement) {
+function patchRuntime(runtime) {
   if (!runtime || typeof runtime !== "object") return;
 
   for (const fn of ["jsx", "jsxs", "jsxDEV"]) {
@@ -177,8 +170,8 @@ function installHomeLayoutEnhancement() {
     return previousCreateElement(result.type, result.props, ...nextChildren);
   };
 
-  patchRuntime(jsxRuntime, previousCreateElement);
-  patchRuntime(jsxDevRuntime, previousCreateElement);
+  patchRuntime(jsxRuntime);
+  patchRuntime(jsxDevRuntime);
 }
 
 module.exports = { installHomeLayoutEnhancement };
