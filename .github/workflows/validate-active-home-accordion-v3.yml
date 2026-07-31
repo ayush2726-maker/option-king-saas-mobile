@@ -1,0 +1,23 @@
+name: Validate Active Home Accordion V3
+
+on:
+  pull_request:
+    paths:
+      - "src/runtime/HomeAccordionEnhancementV3.js"
+      - ".github/workflows/validate-active-home-accordion-v3.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check JavaScript syntax
+        run: node --check src/runtime/HomeAccordionEnhancementV3.js
+      - name: Verify active layout rules
+        run: |
+          grep -q 'Only these two Home cards remain collapsible' src/runtime/HomeAccordionEnhancementV3.js
+          grep -q 'moveBotControlsToTop' src/runtime/HomeAccordionEnhancementV3.js
+          grep -q 'Trading Mode' src/runtime/HomeAccordionEnhancementV3.js
+          grep -q 'AUTO Scan Instruments' src/runtime/HomeAccordionEnhancementV3.js
+          ! grep -q 'Bot Status", title' src/runtime/HomeAccordionEnhancementV3.js
+          ! grep -q 'AUTO Portfolio", title' src/runtime/HomeAccordionEnhancementV3.js
