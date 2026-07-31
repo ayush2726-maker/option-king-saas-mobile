@@ -1,11 +1,12 @@
 {
-  "release": "advanced-ai-separate-bilingual-screen-v1",
+  "release": "advanced-ai-dedicated-bottom-tab-v2",
   "channel": "production",
-  "requested_at": "2026-07-31T10:59:00+05:30",
+  "requested_at": "2026-07-31T11:06:38+05:30",
   "features": [
-    "Move detailed Advanced AI analysis out of the long Home card into a separate in-app screen",
-    "Add Overview, What AI Learned and News Analysis tabs",
-    "Add a persistent Hindi and English language switch with properly written translations",
-    "Keep Advanced AI in monitor-only mode with trade blocking and order execution disabled"
+    "Add a dedicated AI button to the main bottom navigation",
+    "Remove the large Advanced AI analysis card from Home",
+    "Show model learning, validation and news interpretation on the separate AI screen",
+    "Provide properly written Devanagari Hindi and polished English with a persistent language switch",
+    "Keep Advanced AI monitor-only with trade blocking and order execution disabled"
   ]
 }
