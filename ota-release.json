@@ -1,11 +1,11 @@
 {
-  "release": "advanced-ai-learning-news-explanation-v1",
+  "release": "advanced-ai-separate-bilingual-screen-v1",
   "channel": "production",
-  "requested_at": "2026-07-31T10:33:00+05:30",
+  "requested_at": "2026-07-31T10:59:00+05:30",
   "features": [
-    "Show VALIDATED, REJECTED, RETRAINING and COLLECTING model status clearly",
-    "Explain top learned option, market, global and news patterns",
-    "Compare validation accuracy with and without news to detect useful news versus noise",
-    "Show current news bias, risk, market reaction and recent headlines"
+    "Move detailed Advanced AI analysis out of the long Home card into a separate in-app screen",
+    "Add Overview, What AI Learned and News Analysis tabs",
+    "Add a persistent Hindi and English language switch with properly written translations",
+    "Keep Advanced AI in monitor-only mode with trade blocking and order execution disabled"
   ]
 }
