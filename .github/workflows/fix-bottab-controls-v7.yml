@@ -1,0 +1,75 @@
+name: Fix BotTab Controls V7
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/fix-bottab-controls-v7.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  fix-bottab-controls:
+    if: github.event.head_commit.message == 'Trigger BotTab-bound controls fix v7'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Move controls inside BotTab before Today P&L
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('App.js')
+          app = path.read_text(encoding='utf-8')
+
+          pattern = re.compile(
+              r'\n      \{/\* Start/Stop/Refresh \*/\}\n'
+              r'      <Row style=\{\{ gap: 10 \}\}>.*?'
+              r'      <Btn label=\{hi \? "Status Refresh Karo" : "Refresh Status"\} icon="🔄" color=\{C\.blue\} loading=\{loading\} onPress=\{load\} />\n',
+              re.S,
+          )
+          matches = list(pattern.finditer(app))
+          if len(matches) != 1:
+              raise SystemExit(f'Expected exactly one controls block, found {len(matches)}')
+
+          controls = matches[0].group(0).strip('\n')
+          app = app[:matches[0].start()] + '\n' + app[matches[0].end():]
+
+          bot_start = app.index('function BotTab({ token, lang }) {')
+          bot_end = app.index('// ── Backtest Tab', bot_start)
+          error_marker = '      {error ? <ErrorBox msg={error} /> : null}'
+          error_at = app.index(error_marker, bot_start, bot_end)
+
+          app = app[:error_at] + controls + '\n\n' + app[error_at:]
+
+          bot_start = app.index('function BotTab({ token, lang }) {')
+          bot_end = app.index('// ── Backtest Tab', bot_start)
+          controls_at = app.index('{/* Start/Stop/Refresh */}')
+          pnl_at = app.index('{/* OKAI normal today pnl - inside ScrollView, not floating */}', bot_start, bot_end)
+          error_at = app.index(error_marker, bot_start, bot_end)
+
+          if not (bot_start < controls_at < error_at < pnl_at < bot_end):
+              raise SystemExit(
+                  f'Invalid order bot={bot_start} controls={controls_at} error={error_at} pnl={pnl_at} end={bot_end}'
+              )
+          if app.count('{/* Start/Stop/Refresh */}') != 1:
+              raise SystemExit('Controls marker is not unique')
+
+          path.write_text(app, encoding='utf-8')
+          print('BOTTAB_CONTROLS_V7_OK')
+          PY
+
+      - name: Commit corrected App source
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add App.js
+          git commit -m 'Place bot controls at the actual Home top'
+          git push origin HEAD:main
