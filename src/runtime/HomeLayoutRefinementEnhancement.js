@@ -5,6 +5,8 @@ const {
   View,
 } = require("react-native");
 
+const LIVE_SCORE_DROPDOWN_V2 = true;
+
 const C = {
   card: "#13131f",
   border: "#252540",
@@ -13,94 +15,18 @@ const C = {
   blue: "#4d9fff",
 };
 
-const KEEP_HOME_DROPDOWNS = new Set([
-  "Trading Mode",
-  "Auto Scan Instruments",
-]);
-
 let installed = false;
 
 function componentName(type) {
   return String(type?.displayName || type?.name || "");
 }
 
-function collectText(value, output = []) {
-  if (value == null || value === false) return output;
-
-  if (typeof value === "string" || typeof value === "number") {
-    output.push(String(value));
-    return output;
+function sourceOf(type) {
+  try {
+    return Function.prototype.toString.call(type);
+  } catch (_) {
+    return "";
   }
-
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectText(item, output));
-    return output;
-  }
-
-  if (React.isValidElement(value)) {
-    collectText(value.props?.children, output);
-    collectText(value.props?.label, output);
-    collectText(value.props?.title, output);
-  }
-
-  return output;
-}
-
-function textOf(value) {
-  return collectText(value).join(" ").replace(/\s+/g, " ").trim();
-}
-
-function isStartStopControl(element) {
-  const text = textOf(element);
-  const hasStart =
-    text.includes("Start Bot") ||
-    text.includes("Bot Start") ||
-    text.includes("Bot Start Karo");
-  const hasStop =
-    text.includes("Stop Bot") ||
-    text.includes("Bot Stop") ||
-    text.includes("Bot Stop Karo");
-  return hasStart && hasStop;
-}
-
-function isRefreshControl(element) {
-  const text = textOf(element);
-  return (
-    text.includes("Refresh Status") ||
-    text.includes("Status Refresh") ||
-    text.includes("Status Refresh Karo")
-  );
-}
-
-function isHomeDashboard(children) {
-  const text = textOf(children);
-  return (
-    text.includes("TODAY NET P&L") &&
-    text.includes("AUTO Portfolio") &&
-    (text.includes("Start Bot") || text.includes("Bot Start"))
-  );
-}
-
-function moveBotControlsToTop(children) {
-  const items = React.Children.toArray(children);
-  if (!items.length || !isHomeDashboard(items)) return children;
-
-  const startStop = [];
-  const refresh = [];
-  const rest = [];
-
-  items.forEach((item) => {
-    if (isStartStopControl(item)) {
-      startStop.push(item);
-    } else if (isRefreshControl(item)) {
-      refresh.push(item);
-    } else {
-      rest.push(item);
-    }
-  });
-
-  if (!startStop.length && !refresh.length) return children;
-  return [...startStop, ...refresh, ...rest];
 }
 
 function scoreSummary(signal) {
@@ -238,55 +164,34 @@ function LiveStrategyScoreDropdown({ originalType, originalProps }) {
           },
           React.createElement(originalType, {
             ...(originalProps || {}),
-            __okaiHomeLayoutBypass: true,
+            __okaiLiveScoreDropdownBypass: true,
           })
         )
       : null
   );
 }
 
-function unwrapHomeAccordion(type, props, originalCreateElement) {
-  if (componentName(type) !== "AccordionCard") return null;
-
-  const match = String(props?.section?.match || "");
-  if (KEEP_HOME_DROPDOWNS.has(match)) return null;
-
-  const OriginalCard = props?.originalType;
-  if (!OriginalCard) return null;
-
-  return originalCreateElement(OriginalCard, {
-    ...(props?.originalProps || {}),
-    __okaiAccordionBypass: true,
-  });
-}
-
 function shouldWrapLiveScore(type, props) {
+  if (props?.__okaiLiveScoreDropdownBypass) return false;
+
+  const name = componentName(type);
+  if (name === "LiveStrategyScoreCard") return true;
+
+  const source = sourceOf(type);
   return (
-    !props?.__okaiHomeLayoutBypass &&
-    componentName(type) === "LiveStrategyScoreCard"
+    source.includes("Live Strategy Score") &&
+    source.includes("MiniScanRow") &&
+    source.includes("scan_results")
   );
 }
 
-function refineProps(type, props) {
-  const name = componentName(type);
-  if (name !== "ScrollView") return props;
-
-  const nextChildren = moveBotControlsToTop(props?.children);
-  if (nextChildren === props?.children) return props;
-
-  return {
-    ...(props || {}),
-    children: nextChildren,
-  };
-}
-
 function installHomeLayoutRefinementEnhancement() {
-  if (installed || React.__OKAI_HOME_LAYOUT_REFINEMENT_PATCHED__) return;
+  if (installed || React.__OKAI_LIVE_SCORE_DROPDOWN_PATCHED__) return;
   installed = true;
 
-  const originalCreateElement = React.createElement.bind(React);
+  const previousCreateElement = React.createElement.bind(React);
 
-  React.createElement = function okaiHomeLayoutRefinementCreateElement(
+  React.createElement = function okaiLiveScoreDropdownCreateElement(
     type,
     props,
     ...children
@@ -299,22 +204,14 @@ function installHomeLayoutRefinementEnhancement() {
           }
         : props || {};
 
-    const unwrapped = unwrapHomeAccordion(
-      type,
-      nextProps,
-      originalCreateElement
-    );
-    if (unwrapped) return unwrapped;
-
     if (shouldWrapLiveScore(type, nextProps)) {
-      return originalCreateElement(LiveStrategyScoreDropdown, {
+      return previousCreateElement(LiveStrategyScoreDropdown, {
         originalType: type,
         originalProps: nextProps,
       });
     }
 
-    const refined = refineProps(type, nextProps);
-    return originalCreateElement(type, refined);
+    return previousCreateElement(type, nextProps);
   };
 
   try {
@@ -324,18 +221,12 @@ function installHomeLayoutRefinementEnhancement() {
       const previous = jsxRuntime[key];
       if (typeof previous !== "function") return;
 
-      jsxRuntime[key] = function okaiHomeLayoutRefinementJsx(
+      jsxRuntime[key] = function okaiLiveScoreDropdownJsx(
         type,
         props,
         reactKey
       ) {
         const nextProps = props || {};
-        const unwrapped = unwrapHomeAccordion(
-          type,
-          nextProps,
-          originalCreateElement
-        );
-        if (unwrapped) return unwrapped;
 
         if (shouldWrapLiveScore(type, nextProps)) {
           return previous(
@@ -348,12 +239,12 @@ function installHomeLayoutRefinementEnhancement() {
           );
         }
 
-        return previous(type, refineProps(type, nextProps), reactKey);
+        return previous(type, nextProps, reactKey);
       };
     });
   } catch (_) {}
 
-  React.__OKAI_HOME_LAYOUT_REFINEMENT_PATCHED__ = true;
+  React.__OKAI_LIVE_SCORE_DROPDOWN_PATCHED__ = LIVE_SCORE_DROPDOWN_V2;
 }
 
 module.exports = { installHomeLayoutRefinementEnhancement };
