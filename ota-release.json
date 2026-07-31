@@ -1,13 +1,13 @@
 {
-  "release": "multi-open-trade-exit-v1",
+  "release": "home-layout-refinement-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-07-31T15:45:00+05:30",
+  "requested_at": "2026-07-31T15:52:00+05:30",
   "features": [
-    "Show every open PAPER or LIVE trade in the Active Trade card",
-    "Switch between Trade 1 and Trade 2 with previous and next controls",
-    "Exit only the selected trade from its own card",
-    "Remove the old global floating exit button",
-    "Keep live strategy score and trade history unchanged"
+    "Move Start Bot, Stop Bot and Refresh Status to the top of Home",
+    "Keep only Trading Mode and AUTO Scan Instruments as Home dropdowns",
+    "Show Bot Status, AUTO Portfolio and chart sections as normal open cards",
+    "Make the Trade tab Live Strategy Score window collapsible",
+    "Leave the Home AI section unchanged"
   ]
 }
