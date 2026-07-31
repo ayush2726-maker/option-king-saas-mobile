@@ -1,0 +1,25 @@
+name: Validate Multi Open Trade UI
+
+on:
+  pull_request:
+    paths:
+      - "index.js"
+      - "src/runtime/MultiOpenTradeEnhancement.js"
+      - ".github/workflows/validate-multi-open-trade.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Check enhancement syntax
+        run: node --check src/runtime/MultiOpenTradeEnhancement.js
+      - name: Verify install order and controls
+        run: |
+          grep -q "installMultiOpenTradeEnhancement" index.js
+          grep -q "EXIT THIS TRADE" src/runtime/MultiOpenTradeEnhancement.js
+          grep -q "Trade .* /" src/runtime/MultiOpenTradeEnhancement.js
+          grep -q "ManualExitOverlay" src/runtime/MultiOpenTradeEnhancement.js
