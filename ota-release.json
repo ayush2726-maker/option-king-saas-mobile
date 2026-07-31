@@ -1,12 +1,13 @@
 {
-  "release": "advanced-ai-blank-screen-hotfix-v4",
+  "release": "app-performance-hotfix-v1",
   "channel": "production",
-  "requested_at": "2026-07-31T11:40:00+05:30",
+  "requested_at": "2026-07-31T12:46:00+05:30",
   "features": [
-    "Fix the blank Advanced AI tab in the Android production bundle",
-    "Detect the main dashboard content without relying on minified component names",
-    "Render the bilingual Advanced AI screen when the AI bottom tab is selected",
-    "Keep Home, Trade, Settings, Help and Account navigation unchanged",
-    "Keep Advanced AI monitor-only with trade blocking and order execution disabled"
+    "Reduce the global open-trade polling rate from every 1 second to every 5 seconds",
+    "Pause live polling while the app is in the background",
+    "Avoid overlapping open-trade requests and duplicate snapshot updates",
+    "Cache active strategy profiles and trade history reads",
+    "Merge duplicate trade-live requests while keeping live trade monitoring active",
+    "Keep strategy scoring, order execution, stop loss and risk logic unchanged"
   ]
 }
