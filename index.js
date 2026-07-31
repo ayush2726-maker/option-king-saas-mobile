@@ -9,15 +9,9 @@ const { installMultiOpenTradeEnhancement } = require(
 );
 installMultiOpenTradeEnhancement();
 
-// Requiring the app loads the real Home accordion runtime first. The dedicated
-// live-score wrapper is intentionally installed afterwards so it wraps the
-// actual Trade-tab component instead of an earlier placeholder.
+// The active HomeAccordionEnhancementV3 runtime now owns both requested
+// dropdown behaviours. Avoid a late second wrapper that can miss cached JSX.
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
-
-const { installHomeLayoutRefinementEnhancement } = require(
-  './src/runtime/HomeLayoutRefinementEnhancement'
-);
-installHomeLayoutRefinementEnhancement();
 
 registerRootComponent(App);
