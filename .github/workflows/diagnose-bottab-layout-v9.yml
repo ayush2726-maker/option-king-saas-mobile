@@ -1,0 +1,34 @@
+name: Diagnose BotTab Layout V9
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/diagnose-bottab-layout-v9.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Record exact source locations
+        run: |
+          {
+            echo "commit=$(git rev-parse HEAD)"
+            grep -n -E 'function BotTab|Start/Stop/Refresh|Status Refresh Karo|OKAI normal today pnl|function BacktestTab' App.js || true
+          } > .bottab-layout-v9.txt
+          cat .bottab-layout-v9.txt
+      - name: Commit diagnostic
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .bottab-layout-v9.txt
+          git commit -m 'Record exact BotTab layout locations'
+          git push origin HEAD:main
