@@ -1,0 +1,73 @@
+name: Fix BotTab Controls V8
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/fix-bottab-controls-v8.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  fix-bottab-controls:
+    if: github.event.head_commit.message == 'Trigger deterministic BotTab controls fix v8'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Put exact controls block inside BotTab top
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('App.js')
+          app = path.read_text(encoding='utf-8')
+
+          controls_marker = '      {/* Start/Stop/Refresh */}'
+          refresh_marker = '      <Btn label={hi ? "Status Refresh Karo" : "Refresh Status"} icon="🔄" color={C.blue} loading={loading} onPress={load} />'
+          error_marker = '      {error ? <ErrorBox msg={error} /> : null}'
+          pnl_marker = '      {/* OKAI normal today pnl - inside ScrollView, not floating */}'
+
+          if app.count(controls_marker) != 1:
+              raise SystemExit(f'Expected one controls marker, found {app.count(controls_marker)}')
+
+          start = app.index(controls_marker)
+          refresh_at = app.index(refresh_marker, start)
+          end = refresh_at + len(refresh_marker)
+          while end < len(app) and app[end] == '\n':
+              end += 1
+
+          controls = app[start:end].rstrip('\n')
+          app = app[:start] + app[end:]
+
+          bot_start = app.index('function BotTab({ token, lang }) {')
+          bot_end = app.index('// ── Backtest Tab', bot_start)
+          error_at = app.index(error_marker, bot_start, bot_end)
+          app = app[:error_at] + controls + '\n\n' + app[error_at:]
+
+          bot_start = app.index('function BotTab({ token, lang }) {')
+          bot_end = app.index('// ── Backtest Tab', bot_start)
+          controls_at = app.index(controls_marker)
+          error_at = app.index(error_marker, bot_start, bot_end)
+          pnl_at = app.index(pnl_marker, bot_start, bot_end)
+
+          assert app.count(controls_marker) == 1
+          assert bot_start < controls_at < error_at < pnl_at < bot_end
+          assert app.index(refresh_marker, controls_at, error_at) > controls_at
+
+          path.write_text(app, encoding='utf-8')
+          print('BOTTAB_CONTROLS_V8_OK', bot_start, controls_at, error_at, pnl_at, bot_end)
+          PY
+
+      - name: Commit actual Home source correction
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add App.js
+          git commit -m 'Move controls into the real BotTab top'
+          git push origin HEAD:main
