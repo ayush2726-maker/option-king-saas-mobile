@@ -2,22 +2,16 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - .github/v6-build-trigger.txt
 
 permissions:
   contents: read
 
 concurrency:
-  group: option-king-ai-v6-apk
+  group: option-king-ai-apk
   cancel-in-progress: true
 
 jobs:
   build-apk:
-    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'RUN V6 APK ONCE'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
@@ -94,7 +88,7 @@ jobs:
           npx expo export --platform android --output-dir /tmp/okai-export --clear
           test -f /tmp/okai-export/metadata.json
 
-      - name: Build signed APK locally
+      - name: Build signed APK locally without EAS cloud quota
         run: |
           mkdir -p "$EAS_LOCAL_BUILD_WORKINGDIR" "$EAS_LOCAL_BUILD_ARTIFACTS_DIR"
           eas build \
