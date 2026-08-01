@@ -10,11 +10,12 @@ on:
       - eas.json
       - package.json
       - .easignore
+      - assets/icon.png
       - assets/option-king-icon-v2.svg
       - .github/workflows/build-android-apk.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -23,13 +24,15 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       CI: '1'
-      EAS_NO_VCS: '1'
       EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
       EAS_LOCAL_BUILD_WORKINGDIR: ${{ github.workspace }}/local-build-working
       EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ github.workspace }}/local-build-artifacts
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -53,7 +56,7 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Generate selected launcher icon
+      - name: Generate and validate selected launcher PNG
         run: |
           python -m pip install --disable-pip-version-check cairosvg pillow
           python - <<'PY'
@@ -72,22 +75,37 @@ jobs:
           image = Image.open(io.BytesIO(png)).convert('RGB')
           image.save(target, format='PNG', optimize=False)
 
+          raw = target.read_bytes()
+          assert raw[:8] == b'\x89PNG\r\n\x1a\n', raw[:8]
           verified = Image.open(target)
           verified.verify()
           assert verified.format == 'PNG', verified.format
           assert verified.size == (1024, 1024), verified.size
-          assert target.read_bytes()[:8] == b'\x89PNG\r\n\x1a\n'
-          print(f'Valid launcher PNG generated: {target} ({target.stat().st_size} bytes)')
+          print(f'Valid committed launcher PNG ready: {target} ({target.stat().st_size} bytes)')
           PY
           file assets/icon.png
           ls -lh assets/icon.png
-          git status --short assets/icon.png
+
+      - name: Commit valid PNG before EAS packaging
+        run: |
+          git config user.name "option-king-build-bot"
+          git config user.email "actions@github.com"
+          git add -f assets/icon.png
+          if git diff --cached --quiet; then
+            echo "Launcher PNG already matches generated valid file"
+          else
+            git commit -m "Store valid Option King AI launcher PNG [skip ci]"
+            git push origin HEAD:main
+          fi
+          git show HEAD:assets/icon.png | head -c 8 | od -An -t x1
+          test "$(git show HEAD:assets/icon.png | head -c 8 | od -An -t x1 | tr -d ' \n')" = "89504e470d0a1a0a"
 
       - name: Install EAS CLI
         run: npm install --global eas-cli
 
-      - name: Verify Expo prebuild before EAS
+      - name: Verify committed Expo prebuild
         run: |
+          test -z "$(git status --porcelain assets/icon.png)"
           npx expo config --type public
           rm -rf android
           npx expo prebuild --no-install --platform android
@@ -102,21 +120,21 @@ jobs:
             --profile preview \
             --local \
             --non-interactive \
-            --output "$GITHUB_WORKSPACE/Option-King-AI-v4.apk"
+            --output "$GITHUB_WORKSPACE/Option-King-AI-v5.apk"
 
       - name: Verify APK output
         run: |
-          test -s Option-King-AI-v4.apk
-          file Option-King-AI-v4.apk
-          sha256sum Option-King-AI-v4.apk | tee Option-King-AI-v4.sha256
+          test -s Option-King-AI-v5.apk
+          file Option-King-AI-v5.apk
+          sha256sum Option-King-AI-v5.apk | tee Option-King-AI-v5.sha256
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Option-King-AI-v4-APK
+          name: Option-King-AI-v5-APK
           path: |
-            Option-King-AI-v4.apk
-            Option-King-AI-v4.sha256
+            Option-King-AI-v5.apk
+            Option-King-AI-v5.sha256
           if-no-files-found: error
           retention-days: 30
 
@@ -124,7 +142,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: Option-King-AI-v4-build-diagnostics
+          name: Option-King-AI-v5-build-diagnostics
           path: |
             local-build-working
             local-build-artifacts
