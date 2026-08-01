@@ -1,0 +1,15 @@
+node_modules/
+.expo/
+dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+.env
+
+# Keep generated launcher assets in the EAS build archive.
+!assets/icon.png
+!assets/option-king-icon-v2.svg
