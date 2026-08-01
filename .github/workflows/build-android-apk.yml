@@ -9,6 +9,7 @@ on:
       - app.json
       - eas.json
       - package.json
+      - .easignore
       - assets/option-king-icon-v2.svg
       - .github/workflows/build-android-apk.yml
 
@@ -22,6 +23,9 @@ jobs:
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       CI: '1'
+      EAS_NO_VCS: '1'
+      EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
+      EAS_LOCAL_BUILD_WORKINGDIR: ${{ github.workspace }}/local-build-working
       EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ github.workspace }}/local-build-artifacts
     steps:
       - name: Checkout repository
@@ -49,7 +53,7 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Generate selected launcher icons
+      - name: Generate selected launcher icon
         run: |
           python -m pip install --disable-pip-version-check cairosvg pillow
           python - <<'PY'
@@ -59,61 +63,60 @@ jobs:
           from PIL import Image
 
           source = Path('assets/option-king-icon-v2.svg')
-          assets = Path('assets')
-
-          full_png = cairosvg.svg2png(
-              url=str(source), output_width=1024, output_height=1024
+          target = Path('assets/icon.png')
+          png = cairosvg.svg2png(
+              url=str(source),
+              output_width=1024,
+              output_height=1024,
           )
-          Image.open(io.BytesIO(full_png)).convert('RGBA').save(
-              assets / 'icon.png', optimize=True
-          )
+          image = Image.open(io.BytesIO(png)).convert('RGB')
+          image.save(target, format='PNG', optimize=False)
 
-          safe_png = cairosvg.svg2png(
-              url=str(source), output_width=720, output_height=720
-          )
-          safe = Image.open(io.BytesIO(safe_png)).convert('RGBA')
-          canvas = Image.new('RGBA', (1024, 1024), (0, 0, 0, 0))
-          canvas.alpha_composite(safe, (152, 152))
-          canvas.save(assets / 'adaptive-icon.png', optimize=True)
-
-          for name in ('icon.png', 'adaptive-icon.png'):
-              image = Image.open(assets / name)
-              assert image.size == (1024, 1024), (name, image.size)
-              assert image.format == 'PNG', (name, image.format)
-          print('Generated and verified Option King AI PNG icons')
+          verified = Image.open(target)
+          verified.verify()
+          assert verified.format == 'PNG', verified.format
+          assert verified.size == (1024, 1024), verified.size
+          assert target.read_bytes()[:8] == b'\x89PNG\r\n\x1a\n'
+          print(f'Valid launcher PNG generated: {target} ({target.stat().st_size} bytes)')
           PY
+          file assets/icon.png
+          ls -lh assets/icon.png
+          git status --short assets/icon.png
 
       - name: Install EAS CLI
         run: npm install --global eas-cli
 
-      - name: Verify Expo configuration
+      - name: Verify Expo prebuild before EAS
         run: |
           npx expo config --type public
-          npx expo-doctor || true
+          rm -rf android
+          npx expo prebuild --no-install --platform android
+          test -f android/gradlew
+          rm -rf android
 
       - name: Build signed APK locally
         run: |
-          mkdir -p "$EAS_LOCAL_BUILD_ARTIFACTS_DIR"
+          mkdir -p "$EAS_LOCAL_BUILD_WORKINGDIR" "$EAS_LOCAL_BUILD_ARTIFACTS_DIR"
           eas build \
             --platform android \
             --profile preview \
             --local \
             --non-interactive \
-            --output "$GITHUB_WORKSPACE/Option-King-AI-v3.apk"
+            --output "$GITHUB_WORKSPACE/Option-King-AI-v4.apk"
 
       - name: Verify APK output
         run: |
-          test -s Option-King-AI-v3.apk
-          file Option-King-AI-v3.apk
-          sha256sum Option-King-AI-v3.apk | tee Option-King-AI-v3.sha256
+          test -s Option-King-AI-v4.apk
+          file Option-King-AI-v4.apk
+          sha256sum Option-King-AI-v4.apk | tee Option-King-AI-v4.sha256
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Option-King-AI-v3-APK
+          name: Option-King-AI-v4-APK
           path: |
-            Option-King-AI-v3.apk
-            Option-King-AI-v3.sha256
+            Option-King-AI-v4.apk
+            Option-King-AI-v4.sha256
           if-no-files-found: error
           retention-days: 30
 
@@ -121,7 +124,9 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: Option-King-AI-v3-build-diagnostics
-          path: local-build-artifacts
+          name: Option-King-AI-v4-build-diagnostics
+          path: |
+            local-build-working
+            local-build-artifacts
           if-no-files-found: ignore
           retention-days: 14

@@ -10,12 +10,8 @@
       "backgroundColor": "#040d18"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#040d18"
-      },
       "package": "com.optionkingai.saas",
-      "versionCode": 3,
+      "versionCode": 4,
       "jsEngine": "jsc"
     },
     "ios": {
