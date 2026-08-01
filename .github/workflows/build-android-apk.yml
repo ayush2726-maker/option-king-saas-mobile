@@ -12,6 +12,8 @@ on:
       - .easignore
       - assets/icon.png
       - assets/option-king-icon-v2.svg
+      - src/components/AiDecisionCard.js
+      - .github/workflows/build-android-apk.yml
 
 permissions:
   contents: write
@@ -55,25 +57,8 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Fix and validate AI decision card syntax
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('src/components/AiDecisionCard.js')
-          text = path.read_text(encoding='utf-8')
-          broken = 't.monitorOnly)))))));'
-          fixed = 't.monitorOnly))))));'
-          if broken in text:
-              text = text.replace(broken, fixed, 1)
-              path.write_text(text, encoding='utf-8')
-              print('Removed extra closing parenthesis from AiDecisionCard.js')
-          elif fixed in text:
-              print('AiDecisionCard.js syntax fix already present')
-          else:
-              raise SystemExit('Expected AiDecisionCard.js ending was not found')
-          PY
-          node --check src/components/AiDecisionCard.js
+      - name: Validate AI decision card syntax
+        run: node --check src/components/AiDecisionCard.js
 
       - name: Generate and validate selected launcher PNG
         run: |
@@ -100,25 +85,23 @@ jobs:
           verified.verify()
           assert verified.format == 'PNG', verified.format
           assert verified.size == (1024, 1024), verified.size
-          print(f'Valid committed launcher PNG ready: {target} ({target.stat().st_size} bytes)')
+          print(f'Valid launcher PNG ready: {target} ({target.stat().st_size} bytes)')
           PY
           file assets/icon.png
           ls -lh assets/icon.png
 
-      - name: Commit validated sources before EAS packaging
+      - name: Commit validated launcher PNG before EAS packaging
         run: |
           git config user.name "option-king-build-bot"
           git config user.email "actions@github.com"
-          git add -f assets/icon.png src/components/AiDecisionCard.js
+          git add -f assets/icon.png
           if git diff --cached --quiet; then
-            echo "Validated source and launcher PNG are already committed"
+            echo "Launcher PNG is already committed"
           else
-            git commit -m "Fix AI card syntax and store valid launcher PNG [skip ci]"
+            git commit -m "Store validated Option King AI launcher PNG [skip ci]"
             git push origin HEAD:main
           fi
-          git show HEAD:assets/icon.png | head -c 8 | od -An -t x1
           test "$(git show HEAD:assets/icon.png | head -c 8 | od -An -t x1 | tr -d ' \n')" = "89504e470d0a1a0a"
-          node --check src/components/AiDecisionCard.js
 
       - name: Install EAS CLI
         run: npm install --global eas-cli
