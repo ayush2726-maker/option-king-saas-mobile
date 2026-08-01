@@ -1,2 +1,3 @@
 Option King AI v6 APK one-shot build trigger.
-Created after JavaScript, Expo prebuild, Metro bundle, and launcher icon validation were added.
+Validated source, committed launcher PNG, Expo prebuild, and Metro bundle must pass before local APK build.
+Trigger nonce: 2026-08-02T01:29:00+05:30
