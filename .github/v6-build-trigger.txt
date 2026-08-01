@@ -1,0 +1,2 @@
+Option King AI v6 APK one-shot build trigger.
+Created after JavaScript, Expo prebuild, Metro bundle, and launcher icon validation were added.
