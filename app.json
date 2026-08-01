@@ -15,7 +15,7 @@
         "backgroundColor": "#040d18"
       },
       "package": "com.optionkingai.saas",
-      "versionCode": 2,
+      "versionCode": 3,
       "jsEngine": "jsc"
     },
     "ios": {
