@@ -2,12 +2,22 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/v6-build-trigger.txt
 
 permissions:
   contents: read
 
+concurrency:
+  group: option-king-ai-v6-apk
+  cancel-in-progress: true
+
 jobs:
   build-apk:
+    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'RUN V6 APK ONCE'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
