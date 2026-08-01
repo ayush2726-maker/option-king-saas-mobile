@@ -269,7 +269,7 @@ function AiDecisionCard({ token }) {
         React.createElement(TabBar, { activeTab, onChange: setActiveTab, t }),
         React.createElement(ScrollView, { style: { flex: 1 }, contentContainerStyle: { paddingBottom: 34 }, showsVerticalScrollIndicator: false }, activeTab === "overview" ? overview : activeTab === "learning" ? learning : news,
           error ? React.createElement(Text, { style: { color: COLORS.gold, fontSize: 9, lineHeight: 15, marginTop: 12 } }, `${t.retrying}: ${error}`) : loading ? React.createElement(View, { style: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 } }, React.createElement(ActivityIndicator, { size: "small", color: COLORS.blue }), React.createElement(Text, { style: { color: COLORS.blue, fontSize: 10 } }, t.refreshing)) : null,
-          React.createElement(Text, { style: { color: COLORS.blue, fontSize: 9, fontWeight: "900", lineHeight: 15, marginTop: 14, textAlign: "center" } }, t.monitorOnly)))))));
+          React.createElement(Text, { style: { color: COLORS.blue, fontSize: 9, fontWeight: "900", lineHeight: 15, marginTop: 14, textAlign: "center" } }, t.monitorOnly))))));
 }
 
 module.exports = AiDecisionCard;
