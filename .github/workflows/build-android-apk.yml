@@ -12,7 +12,6 @@ on:
       - .easignore
       - assets/icon.png
       - assets/option-king-icon-v2.svg
-      - .github/workflows/build-android-apk.yml
 
 permissions:
   contents: write
@@ -56,6 +55,26 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Fix and validate AI decision card syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/components/AiDecisionCard.js')
+          text = path.read_text(encoding='utf-8')
+          broken = 't.monitorOnly)))))));'
+          fixed = 't.monitorOnly))))));'
+          if broken in text:
+              text = text.replace(broken, fixed, 1)
+              path.write_text(text, encoding='utf-8')
+              print('Removed extra closing parenthesis from AiDecisionCard.js')
+          elif fixed in text:
+              print('AiDecisionCard.js syntax fix already present')
+          else:
+              raise SystemExit('Expected AiDecisionCard.js ending was not found')
+          PY
+          node --check src/components/AiDecisionCard.js
+
       - name: Generate and validate selected launcher PNG
         run: |
           python -m pip install --disable-pip-version-check cairosvg pillow
@@ -86,31 +105,35 @@ jobs:
           file assets/icon.png
           ls -lh assets/icon.png
 
-      - name: Commit valid PNG before EAS packaging
+      - name: Commit validated sources before EAS packaging
         run: |
           git config user.name "option-king-build-bot"
           git config user.email "actions@github.com"
-          git add -f assets/icon.png
+          git add -f assets/icon.png src/components/AiDecisionCard.js
           if git diff --cached --quiet; then
-            echo "Launcher PNG already matches generated valid file"
+            echo "Validated source and launcher PNG are already committed"
           else
-            git commit -m "Store valid Option King AI launcher PNG [skip ci]"
+            git commit -m "Fix AI card syntax and store valid launcher PNG [skip ci]"
             git push origin HEAD:main
           fi
           git show HEAD:assets/icon.png | head -c 8 | od -An -t x1
           test "$(git show HEAD:assets/icon.png | head -c 8 | od -An -t x1 | tr -d ' \n')" = "89504e470d0a1a0a"
+          node --check src/components/AiDecisionCard.js
 
       - name: Install EAS CLI
         run: npm install --global eas-cli
 
-      - name: Verify committed Expo prebuild
+      - name: Verify committed Expo prebuild and Metro bundle
         run: |
-          test -z "$(git status --porcelain assets/icon.png)"
+          test -z "$(git status --porcelain assets/icon.png src/components/AiDecisionCard.js)"
           npx expo config --type public
           rm -rf android
           npx expo prebuild --no-install --platform android
           test -f android/gradlew
           rm -rf android
+          rm -rf /tmp/okai-export
+          npx expo export --platform android --output-dir /tmp/okai-export --clear
+          test -f /tmp/okai-export/metadata.json
 
       - name: Build signed APK locally
         run: |
@@ -120,21 +143,21 @@ jobs:
             --profile preview \
             --local \
             --non-interactive \
-            --output "$GITHUB_WORKSPACE/Option-King-AI-v5.apk"
+            --output "$GITHUB_WORKSPACE/Option-King-AI-v6.apk"
 
       - name: Verify APK output
         run: |
-          test -s Option-King-AI-v5.apk
-          file Option-King-AI-v5.apk
-          sha256sum Option-King-AI-v5.apk | tee Option-King-AI-v5.sha256
+          test -s Option-King-AI-v6.apk
+          file Option-King-AI-v6.apk
+          sha256sum Option-King-AI-v6.apk | tee Option-King-AI-v6.sha256
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Option-King-AI-v5-APK
+          name: Option-King-AI-v6-APK
           path: |
-            Option-King-AI-v5.apk
-            Option-King-AI-v5.sha256
+            Option-King-AI-v6.apk
+            Option-King-AI-v6.sha256
           if-no-files-found: error
           retention-days: 30
 
@@ -142,7 +165,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: Option-King-AI-v5-build-diagnostics
+          name: Option-King-AI-v6-build-diagnostics
           path: |
             local-build-working
             local-build-artifacts
