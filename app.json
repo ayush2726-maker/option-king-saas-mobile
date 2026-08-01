@@ -20,6 +20,7 @@
     },
     "extra": {
       "saasUrl": "https://option-king-saas-production.up.railway.app",
+      "buildMarker": "option-king-ai-v6-icon-build",
       "eas": {
         "projectId": "53c0c5ce-07e1-4036-9bda-62c8cf063d62"
       }
