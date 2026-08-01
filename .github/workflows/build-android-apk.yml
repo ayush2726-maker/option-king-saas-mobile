@@ -8,14 +8,21 @@ on:
     paths:
       - app.json
       - eas.json
+      - package.json
       - assets/option-king-icon-v2.svg
+      - .github/workflows/build-android-apk.yml
+
+permissions:
+  contents: read
 
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      CI: '1'
+      EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ github.workspace }}/local-build-artifacts
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,12 +32,21 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Install JavaScript dependencies
         run: npm install --no-audit --no-fund
 
       - name: Generate selected launcher icons
@@ -59,14 +75,53 @@ jobs:
           canvas = Image.new('RGBA', (1024, 1024), (0, 0, 0, 0))
           canvas.alpha_composite(safe, (152, 152))
           canvas.save(assets / 'adaptive-icon.png', optimize=True)
-          print('Generated selected Option King AI launcher and adaptive icons')
+
+          for name in ('icon.png', 'adaptive-icon.png'):
+              image = Image.open(assets / name)
+              assert image.size == (1024, 1024), (name, image.size)
+              assert image.format == 'PNG', (name, image.format)
+          print('Generated and verified Option King AI PNG icons')
           PY
 
       - name: Install EAS CLI
         run: npm install --global eas-cli
 
       - name: Verify Expo configuration
-        run: npx expo config --type public
+        run: |
+          npx expo config --type public
+          npx expo-doctor || true
 
-      - name: Build signed Android APK
-        run: eas build --platform android --profile preview --non-interactive --wait
+      - name: Build signed APK locally
+        run: |
+          mkdir -p "$EAS_LOCAL_BUILD_ARTIFACTS_DIR"
+          eas build \
+            --platform android \
+            --profile preview \
+            --local \
+            --non-interactive \
+            --output "$GITHUB_WORKSPACE/Option-King-AI-v3.apk"
+
+      - name: Verify APK output
+        run: |
+          test -s Option-King-AI-v3.apk
+          file Option-King-AI-v3.apk
+          sha256sum Option-King-AI-v3.apk | tee Option-King-AI-v3.sha256
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Option-King-AI-v3-APK
+          path: |
+            Option-King-AI-v3.apk
+            Option-King-AI-v3.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload local build diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Option-King-AI-v3-build-diagnostics
+          path: local-build-artifacts
+          if-no-files-found: ignore
+          retention-days: 14
