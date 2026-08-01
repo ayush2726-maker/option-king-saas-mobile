@@ -11,7 +11,7 @@
     },
     "android": {
       "package": "com.optionkingai.saas",
-      "versionCode": 5,
+      "versionCode": 6,
       "jsEngine": "jsc"
     },
     "ios": {
