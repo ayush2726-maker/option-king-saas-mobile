@@ -11,16 +11,11 @@ const { installMultiOpenTradeEnhancement } = require(
 );
 installMultiOpenTradeEnhancement();
 
-// Loading the app module installs the existing navigation, Home accordion and
-// layout wrappers. Sector rotation is deliberately installed AFTER this require,
-// making it the outermost Home ScrollView transform instead of being overwritten.
+// AppNavigationPatched installs HomeAccordionEnhancementV3 before the underlying
+// dashboard loads. Sector Rotation is now injected inside that exact active Home
+// runtime, avoiding wrapper-order and JSX-runtime timing problems.
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
-
-const { installSectorRotationEnhancement } = require(
-  './src/runtime/SectorRotationEnhancement'
-);
-installSectorRotationEnhancement();
 
 function SecuredOptionKingApp() {
   return React.createElement(
