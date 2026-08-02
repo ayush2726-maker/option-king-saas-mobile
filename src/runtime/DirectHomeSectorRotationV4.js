@@ -80,26 +80,47 @@ function isCurrentHomeScrollView(type, props) {
     "start bot",
     "bot start",
     "bot start karo",
+    "बॉट प्रारंभ करें",
+    "बॉट शुरू करें",
+    "बॉट चालू करें",
+    "बॉट प्रारंभ",
   ]);
   const hasStop = includesAny(controls, [
     "stop bot",
     "bot stop",
     "bot stop karo",
+    "बॉट बंद करें",
+    "बॉट रोकें",
+    "बॉट बंद",
   ]);
   const hasRefresh = includesAny(refresh, [
     "refresh status",
     "status refresh",
     "status refresh karo",
+    "स्थिति रीफ्रेश करें",
+    "स्थिति ताज़ा करें",
+    "स्टेटस रीफ्रेश करें",
+    "रीफ्रेश स्थिति",
   ]);
   const hasHomeIdentity = includesAny(visibleHome, [
     "today net p&l",
     "bot status",
     "active strategy",
+    "आज का नेट पी&एल",
+    "आज का शुद्ध पी&एल",
+    "बॉट स्थिति",
+    "सक्रिय रणनीति",
+    "कुल पी&एल",
   ]);
 
+  // During a language switch the Refresh Status card can temporarily contain
+  // only a spinner. Start + Stop + dashboard identity are already unique to
+  // the real Home screen, so keep the second slot structural in that state.
+  const hasRefreshSlot = hasRefresh || items.length >= 2;
+
   // The production bundle may minify function names, so identify the visible
-  // Home screen only from its stable first controls and dashboard content.
-  return hasStart && hasStop && hasRefresh && hasHomeIdentity;
+  // Home screen from stable bilingual controls and dashboard content only.
+  return hasStart && hasStop && hasRefreshSlot && hasHomeIdentity;
 }
 
 function injectSectorCard(props) {
@@ -111,7 +132,7 @@ function injectSectorCard(props) {
   let rotation;
   try {
     rotation = React.createElement(SectorRotationCard, {
-      key: "okai-current-home-sector-v6",
+      key: "okai-current-home-sector-v7",
       __okaiSectorRotationCard: true,
     });
   } finally {
@@ -142,7 +163,7 @@ function patchJsxRuntime(runtime) {
 
   ["jsx", "jsxs", "jsxDEV"].forEach((key) => {
     const previous = runtime[key];
-    if (typeof previous !== "function" || previous.__okaiCurrentHomeSectorV6) {
+    if (typeof previous !== "function" || previous.__okaiCurrentHomeSectorV7) {
       return;
     }
 
@@ -155,13 +176,13 @@ function patchJsxRuntime(runtime) {
       return transform(previous, type, props, reactKey, rest);
     };
 
-    wrapped.__okaiCurrentHomeSectorV6 = true;
+    wrapped.__okaiCurrentHomeSectorV7 = true;
     runtime[key] = wrapped;
   });
 }
 
 function installDirectHomeSectorRotationV4() {
-  if (installed || React.__OKAI_CURRENT_HOME_SECTOR_V6_PATCHED__) return;
+  if (installed || React.__OKAI_CURRENT_HOME_SECTOR_V7_PATCHED__) return;
   installed = true;
 
   const previousCreateElement = React.createElement.bind(React);
@@ -187,10 +208,10 @@ function installDirectHomeSectorRotationV4() {
   patchJsxRuntime(jsxRuntime);
   patchJsxRuntime(jsxDevRuntime);
 
-  React.__OKAI_CURRENT_HOME_SECTOR_V6_PATCHED__ = true;
+  React.__OKAI_CURRENT_HOME_SECTOR_V7_PATCHED__ = true;
 }
 
 module.exports = {
   installDirectHomeSectorRotationV4,
-  OKAI_DIRECT_HOME_SECTOR_MARKER: "OKAI-DIRECT-CURRENT-HOME-SCROLL-V6",
+  OKAI_DIRECT_HOME_SECTOR_MARKER: "OKAI-DIRECT-CURRENT-HOME-SCROLL-V7",
 };
