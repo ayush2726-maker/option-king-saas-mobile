@@ -1,19 +1,17 @@
 {
-  "release": "validate-node-cache-fix-and-sector-rotation-ota",
+  "release": "hindi-news-headlines-ota",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-03T00:21:00+05:30",
-  "reason": "Re-publish the verified direct Home sector rotation bundle after fixing Validate Mobile App Setup Node lockfile-cache failure.",
+  "requested_at": "2026-08-03T00:48:00+05:30",
+  "reason": "Translate live AI news headlines into Hindi whenever the AI screen language is Hindi, while keeping English headlines in English mode.",
   "validation": {
-    "setup_node_cache": "disabled because the repository has no package-lock.json, npm-shrinkwrap.json, or yarn.lock",
-    "dependency_install": "npm install --no-audit --no-fund",
     "required_checks": [
       "JavaScript syntax",
-      "sector rotation tests",
       "AI tests",
       "professional language tests",
       "Android Metro export"
-    ]
+    ],
+    "fallback": "If a translation request temporarily fails, keep the original headline instead of breaking the AI screen."
   },
-  "trade_safety": "No trade entry, exit, quantity, stop-loss, risk, score, or broker-order logic changes."
+  "trade_safety": "Display-only language change. No trade entry, exit, quantity, stop-loss, risk, score, broker, or order logic changes."
 }
