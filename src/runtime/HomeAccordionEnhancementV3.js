@@ -6,6 +6,7 @@ const {
   View,
 } = require("react-native");
 const jsxRuntime = require("react/jsx-runtime");
+const SectorRotationCard = require("../components/SectorRotationCard");
 
 let jsxDevRuntime = null;
 try {
@@ -186,7 +187,14 @@ function isHomeDashboard(children) {
   );
 }
 
-function moveBotControlsToTop(children) {
+function isSectorRotationCard(element) {
+  return (
+    React.isValidElement(element) &&
+    (element.type === SectorRotationCard || element.props?.__okaiSectorRotationCard)
+  );
+}
+
+function arrangeHomeDashboard(children) {
   const items = React.Children.toArray(children);
   if (!items.length || !isHomeDashboard(items)) return children;
 
@@ -195,6 +203,9 @@ function moveBotControlsToTop(children) {
   const rest = [];
 
   items.forEach((item) => {
+    if (isSectorRotationCard(item)) {
+      return;
+    }
     if (isStartStopControl(item)) {
       startStop.push(item);
     } else if (isRefreshControl(item)) {
@@ -204,8 +215,12 @@ function moveBotControlsToTop(children) {
     }
   });
 
-  if (!startStop.length && !refresh.length) return children;
-  return [...startStop, ...refresh, ...rest];
+  const rotation = React.createElement(SectorRotationCard, {
+    key: "okai-sector-rotation-home-v2",
+    __okaiSectorRotationCard: true,
+  });
+
+  return [...startStop, ...refresh, rotation, ...rest];
 }
 
 function isScrollViewType(type) {
@@ -215,12 +230,12 @@ function isScrollViewType(type) {
 function refineProps(type, props) {
   if (!isScrollViewType(type)) return props;
 
-  const reordered = moveBotControlsToTop(props?.children);
-  if (reordered === props?.children) return props;
+  const arranged = arrangeHomeDashboard(props?.children);
+  if (arranged === props?.children) return props;
 
   return {
     ...(props || {}),
-    children: reordered,
+    children: arranged,
     stickyHeaderIndices: undefined,
   };
 }
@@ -460,6 +475,10 @@ function installHomeAccordionEnhancementV3() {
   React.__OKAI_HOME_ACCORDION_V2_PATCHED__ = true;
   React.__OKAI_HOME_ACCORDION_V3_PATCHED__ = true;
   React.__OKAI_LIVE_SCORE_V3_PATCHED__ = true;
+  React.__OKAI_SECTOR_ROTATION_HOME_V2_PATCHED__ = true;
 }
 
-module.exports = { installHomeAccordionEnhancementV3 };
+module.exports = {
+  installHomeAccordionEnhancementV3,
+  OKAI_SECTOR_ROTATION_HOME_RUNTIME_MARKER: "OKAI_SECTOR_ROTATION_HOME_RUNTIME_V2",
+};
