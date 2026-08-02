@@ -25,20 +25,24 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies without lockfile cache
+        run: npm install --no-audit --no-fund
 
       - name: Check JavaScript syntax
         run: |
           node --check src/components/AiDecisionCard.js
+          node --check src/components/SectorRotationCard.js
+          node --check src/runtime/DirectHomeSectorRotationV4.js
           node --check src/i18n/professionalCopy.js
           node --check src/i18n/professionalCopyCatalog.js
           node --check src/i18n/professionalFeatureCatalog.js
           node --check src/i18n/professionalOverlayCatalog.js
           node --check src/i18n/professionalLocalizer.js
           node --check src/i18n/ProfessionalLanguageEnhancement.js
+
+      - name: Run sector rotation tests
+        run: npm run sector:test
 
       - name: Run AI tests
         run: npm run ai:test
