@@ -11,13 +11,8 @@ const { installMultiOpenTradeEnhancement } = require(
 );
 installMultiOpenTradeEnhancement();
 
-// Deterministic current-Home wrapper. Navigation maps Home to BotTab, so this
-// injects Sector Rotation into BotTab after Start/Stop and Refresh Status.
-const { installDirectHomeSectorRotationV4 } = require(
-  './src/runtime/DirectHomeSectorRotationV4'
-);
-installDirectHomeSectorRotationV4();
-
+// Sector Rotation now renders directly inside the dedicated Advanced AI tab.
+// Do not install the old Home ScrollView injector.
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
 

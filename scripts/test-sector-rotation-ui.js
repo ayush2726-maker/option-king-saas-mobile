@@ -4,16 +4,12 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 const files = {
   index: fs.readFileSync(path.join(root, "index.js"), "utf8"),
-  navigation: fs.readFileSync(
-    path.join(root, "src/runtime/NavigationHelpEnhancement.js"),
-    "utf8"
-  ),
   card: fs.readFileSync(
     path.join(root, "src/components/SectorRotationCard.js"),
     "utf8"
   ),
-  directRuntime: fs.readFileSync(
-    path.join(root, "src/runtime/DirectHomeSectorRotationV4.js"),
+  aiRuntime: fs.readFileSync(
+    path.join(root, "src/runtime/AdvancedAiTabEnhancement.js"),
     "utf8"
   ),
   biometric: fs.readFileSync(
@@ -28,34 +24,32 @@ function requireMarker(source, marker, label) {
   }
 }
 
-requireMarker(files.index, "installDirectHomeSectorRotationV4", "current Home install");
 requireMarker(files.index, "AppTradeExplanationPatched", "app root wiring");
-requireMarker(files.navigation, 'return value === "home" ? "bot" : value', "Home to Bot route mapping");
 requireMarker(files.card, "/market/sector-rotation?index=", "live API call");
 requireMarker(files.card, '"NIFTY", "BANKNIFTY", "SENSEX"', "index tabs");
 requireMarker(files.card, "OKAI_SECTOR_ROTATION_UI_V1", "card marker");
 requireMarker(files.card, "Trade entry, exit aur orders untouched", "trade safety copy");
-requireMarker(files.directRuntime, "isCurrentHomeScrollView", "current Home ScrollView detection");
-requireMarker(files.directRuntime, '"start bot"', "English Start control signature");
-requireMarker(files.directRuntime, '"stop bot"', "English Stop control signature");
-requireMarker(files.directRuntime, '"बॉट प्रारंभ करें"', "Hindi Start control signature");
-requireMarker(files.directRuntime, '"बॉट बंद करें"', "Hindi Stop control signature");
-requireMarker(files.directRuntime, '"स्थिति रीफ्रेश करें"', "Hindi Refresh control signature");
-requireMarker(files.directRuntime, '"बॉट स्थिति"', "Hindi Home dashboard identity");
-requireMarker(files.directRuntime, "hasRefreshSlot", "spinner-safe refresh slot");
-requireMarker(files.directRuntime, "okai-current-home-sector-v7", "card instance");
-requireMarker(files.directRuntime, "OKAI-DIRECT-CURRENT-HOME-SCROLL-V7", "runtime marker");
-requireMarker(files.directRuntime, "items.slice(0, 2)", "visible card placement");
+requireMarker(files.aiRuntime, 'require("../components/SectorRotationCard")', "AI tab card import");
+requireMarker(files.aiRuntime, "aiScreenChildren", "AI screen render path");
+requireMarker(files.aiRuntime, "okai-ai-tab-sector-rotation-v1", "AI tab card instance");
+requireMarker(files.aiRuntime, "OKAI-AI-TAB-SECTOR-ROTATION-V1", "AI placement marker");
+requireMarker(files.aiRuntime, "okai-advanced-ai-screen", "Advanced AI screen remains present");
 requireMarker(files.biometric, "15 * 60 * 1000", "15-minute biometric grace");
 requireMarker(files.biometric, "OKAI_BIOMETRIC_APP_LOCK_15M_V2", "biometric marker");
 requireMarker(files.index, "BiometricAppLock15m", "15-minute lock wiring");
 
-if (files.directRuntime.includes("function BotTab")) {
-  throw new Error("Production sector injection must not depend on BotTab function names");
+if (files.index.includes("installDirectHomeSectorRotationV4")) {
+  throw new Error("Sector Rotation must not be installed on Home");
 }
 
 if (files.index.includes("installSectorRotationEnhancement")) {
-  throw new Error("Legacy sector wrapper must not be installed from index.js");
+  throw new Error("Legacy Home Sector Rotation wrapper must stay disabled");
 }
 
-console.log("Bilingual minification-safe Home sector injection and biometric grace checks passed");
+const sectorPosition = files.aiRuntime.indexOf("okai-ai-tab-sector-rotation-v1");
+const aiScreenPosition = files.aiRuntime.indexOf("okai-advanced-ai-screen");
+if (sectorPosition < 0 || aiScreenPosition < 0 || sectorPosition > aiScreenPosition) {
+  throw new Error("Sector Rotation must render before the Advanced AI report inside AI tab");
+}
+
+console.log("Sector Rotation renders only in the dedicated AI tab");

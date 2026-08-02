@@ -1,19 +1,19 @@
 {
-  "release": "guaranteed-hindi-news-headline-fallback-ota",
+  "release": "sector-rotation-ai-tab-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-03T01:19:00+05:30",
-  "reason": "Guarantee Hindi display for the currently visible live AI headlines even when online or Railway translation is unavailable.",
+  "requested_at": "2026-08-03T01:30:00+05:30",
+  "reason": "Move Sector Rotation from Home into the dedicated Advanced AI tab while retaining the latest guaranteed Hindi news fallback from main.",
   "validation": {
     "required_checks": [
       "JavaScript syntax",
-      "bilingual Sector Rotation tests",
+      "Sector Rotation AI-tab placement test",
       "AI tests",
       "professional language tests",
       "Android Metro export"
     ],
-    "news_fix": "Translate the current Iran, Trump, Saudi and US geopolitical headlines locally in the professional Hindi UI before any network fallback is needed.",
-    "english_mode": "Keep the original English headlines unchanged when English is selected."
+    "placement": "Sector Rotation renders before the Advanced AI report in the AI tab and the old Home injector is disabled.",
+    "preserved_main_update": "Guaranteed Hindi AI-news headline fallback remains included."
   },
-  "trade_safety": "Display-only language fallback. No trade entry, exit, quantity, stop-loss, risk, score, broker, or order logic changes."
+  "trade_safety": "UI placement only. No trade entry, exit, quantity, stop-loss, risk, score, broker, or order logic changes."
 }
