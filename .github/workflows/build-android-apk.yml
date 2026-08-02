@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Final Option King AI APK
 
 on:
   workflow_dispatch:
@@ -12,13 +12,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: option-king-ai-apk
+  group: option-king-ai-final-apk
   cancel-in-progress: true
 
 jobs:
-  build-apk:
+  validate-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       CI: '1'
@@ -27,13 +27,13 @@ jobs:
       EAS_LOCAL_BUILD_ARTIFACTS_DIR: ${{ github.workspace }}/local-build-artifacts
 
     steps:
-      - name: Checkout repository
+      - name: Checkout final source
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 1
 
-      - name: Setup Node
+      - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -52,16 +52,42 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install JavaScript dependencies
+      - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Validate JavaScript source
+      - name: Validate every JavaScript source file
+        shell: bash
         run: |
-          node --check src/components/AiDecisionCard.js
-          node --check index.js
+          set -euo pipefail
+          mapfile -d '' files < <(find . \
+            -path './node_modules' -prune -o \
+            -path './android' -prune -o \
+            -path './.git' -prune -o \
+            -type f -name '*.js' -print0)
+          echo "Checking ${#files[@]} JavaScript files"
+          for file in "${files[@]}"; do
+            node --check "$file"
+          done
 
-      - name: Validate committed launcher PNG
+      - name: Run project regression checks
+        shell: bash
         run: |
+          set -euo pipefail
+          npm run ai:test
+          npm run ai:health
+          npm run language:test
+
+      - name: Validate Expo dependency compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx expo install --check
+          npx expo-doctor
+
+      - name: Validate committed launcher icon
+        shell: bash
+        run: |
+          set -euo pipefail
           python -m pip install --disable-pip-version-check pillow
           python - <<'PY'
           from pathlib import Path
@@ -75,27 +101,31 @@ jobs:
           image = Image.open(target)
           assert image.format == 'PNG', image.format
           assert image.size == (1024, 1024), image.size
-          print(f'Valid launcher PNG: {target} ({target.stat().st_size} bytes)')
+          assert image.mode in {'RGB', 'RGBA'}, image.mode
+          print(f'Valid launcher icon: {target} ({target.stat().st_size} bytes, {image.mode})')
           PY
           file assets/icon.png
 
-      - name: Install EAS CLI
-        run: npm install --global eas-cli
-
-      - name: Verify Expo prebuild and Metro bundle
+      - name: Validate Expo config, clean prebuild and Android Metro bundle
+        shell: bash
         run: |
+          set -euo pipefail
           npx expo config --type public
-          rm -rf android
-          npx expo prebuild --no-install --platform android
+          rm -rf android /tmp/okai-export
+          npx expo prebuild --clean --no-install --platform android
           test -f android/gradlew
+          test -f android/app/src/main/AndroidManifest.xml
           rm -rf android
-          rm -rf /tmp/okai-export
           npx expo export --platform android --output-dir /tmp/okai-export --clear
           test -f /tmp/okai-export/metadata.json
+          find /tmp/okai-export -type f | sort | head -50
 
-      - name: Build signed APK locally without EAS cloud quota
+      - name: Build one signed APK locally without Expo cloud quota
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p "$EAS_LOCAL_BUILD_WORKINGDIR" "$EAS_LOCAL_BUILD_ARTIFACTS_DIR"
+          npm install --global eas-cli
           eas build \
             --platform android \
             --profile preview \
@@ -103,13 +133,15 @@ jobs:
             --non-interactive \
             --output "$GITHUB_WORKSPACE/Option-King-AI-v6.apk"
 
-      - name: Verify APK output
+      - name: Verify final APK
+        shell: bash
         run: |
+          set -euo pipefail
           test -s Option-King-AI-v6.apk
           file Option-King-AI-v6.apk
           sha256sum Option-King-AI-v6.apk | tee Option-King-AI-v6.sha256
 
-      - name: Upload APK artifact
+      - name: Upload final APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: Option-King-AI-v6-APK
@@ -119,11 +151,11 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload local build diagnostics
+      - name: Upload diagnostics only when pipeline fails
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: Option-King-AI-v6-build-diagnostics
+          name: Option-King-AI-v6-final-diagnostics
           path: |
             local-build-working
             local-build-artifacts
