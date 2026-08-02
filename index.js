@@ -11,9 +11,14 @@ const { installMultiOpenTradeEnhancement } = require(
 );
 installMultiOpenTradeEnhancement();
 
-// AppNavigationPatched installs HomeAccordionEnhancementV3 before the underlying
-// dashboard loads. Sector Rotation is now injected inside that exact active Home
-// runtime, avoiding wrapper-order and JSX-runtime timing problems.
+// Deterministic HomeTab wrapper. It identifies the actual HomeTab component and
+// injects Sector Rotation into its returned ScrollView, avoiding fragile runtime
+// child-text and wrapper-order detection.
+const { installDirectHomeSectorRotationV4 } = require(
+  './src/runtime/DirectHomeSectorRotationV4'
+);
+installDirectHomeSectorRotationV4();
+
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
 
