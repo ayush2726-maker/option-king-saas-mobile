@@ -12,6 +12,7 @@ const AsyncStorage = require("@react-native-async-storage/async-storage").defaul
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
 const LANGUAGE_KEY = "okai_advanced_ai_language_v1";
+const TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single";
 
 const COLORS = {
   surface: "#13131f",
@@ -216,6 +217,30 @@ function formatFailure(item, language) {
   return (language === "hi" ? hi : en)[raw] || raw.replaceAll("_", " ").toLowerCase();
 }
 function shorten(text, max = 130) { const value = String(text || "").trim(); return value.length <= max ? value : value.slice(0, max - 1).trimEnd() + "…"; }
+function containsHindi(text) { return /[\u0900-\u097F]/.test(String(text || "")); }
+function headlineKey(headline, index) { return String(firstValue(headline?.event_id, headline?.url, headline?.title, index)); }
+function embeddedHindiHeadline(headline) {
+  const value = firstValue(headline?.title_hi, headline?.hindi_title, headline?.translated_title_hi, headline?.translations?.hi);
+  return value ? String(value).trim() : "";
+}
+async function translateHeadlineToHindi(text) {
+  const original = String(text || "").trim();
+  if (!original || containsHindi(original)) return original;
+  const query = `${TRANSLATE_URL}?client=gtx&sl=auto&tl=hi&dt=t&q=${encodeURIComponent(original)}`;
+  const response = await fetch(query);
+  if (!response.ok) throw new Error(`Headline translation HTTP ${response.status}`);
+  const payload = await response.json();
+  const translated = Array.isArray(payload?.[0])
+    ? payload[0].map((part) => String(part?.[0] || "")).join("").trim()
+    : "";
+  return translated || original;
+}
+function displayHeadlineTitle(headline, index, language, translations) {
+  const original = String(headline?.title || "").trim();
+  if (language !== "hi" || !original) return original;
+  const embedded = embeddedHindiHeadline(headline);
+  return embedded || translations[headlineKey(headline, index)] || original;
+}
 function StatusPill({ label, color }) { return React.createElement(View, { style: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: color + "22", borderWidth: 1, borderColor: color + "55" } }, React.createElement(Text, { style: { color, fontSize: 10, fontWeight: "900" } }, label)); }
 function Metric({ label, value, color }) { return React.createElement(View, { style: { width: "48%", minHeight: 78, padding: 11, borderRadius: 12, backgroundColor: COLORS.surface2, borderWidth: 1, borderColor: COLORS.border, justifyContent: "center" } }, React.createElement(Text, { style: { color: COLORS.muted, fontSize: 9, fontWeight: "800" } }, label), React.createElement(Text, { style: { color: color || COLORS.text, fontSize: 14, fontWeight: "900", marginTop: 6, lineHeight: 19 } }, String(value ?? "--"))); }
 function SectionTitle({ title }) { return React.createElement(Text, { style: { color: COLORS.text, fontSize: 15, fontWeight: "900", marginTop: 18, marginBottom: 9 } }, title); }
@@ -229,7 +254,7 @@ function TabBar({ activeTab, onChange, t }) {
 }
 
 function AiDecisionCard({ token }) {
-  const [storedToken, setStoredToken] = React.useState(token || ""); const [advancedReport, setAdvancedReport] = React.useState(null); const [newsReport, setNewsReport] = React.useState(null); const [error, setError] = React.useState(""); const [loading, setLoading] = React.useState(false); const [visible, setVisible] = React.useState(false); const [activeTab, setActiveTab] = React.useState("overview"); const [language, setLanguage] = React.useState("hi");
+  const [storedToken, setStoredToken] = React.useState(token || ""); const [advancedReport, setAdvancedReport] = React.useState(null); const [newsReport, setNewsReport] = React.useState(null); const [translatedHeadlines, setTranslatedHeadlines] = React.useState({}); const [error, setError] = React.useState(""); const [loading, setLoading] = React.useState(false); const [visible, setVisible] = React.useState(false); const [activeTab, setActiveTab] = React.useState("overview"); const [language, setLanguage] = React.useState("hi");
   React.useEffect(() => { let active = true; Promise.all([token ? Promise.resolve(token) : AsyncStorage.getItem("saas_token"), AsyncStorage.getItem(LANGUAGE_KEY)]).then(([savedToken, savedLanguage]) => { if (!active) return; if (savedToken) setStoredToken(savedToken); if (savedLanguage === "hi" || savedLanguage === "en") setLanguage(savedLanguage); }).catch(() => {}); return () => { active = false; }; }, [token]);
   React.useEffect(() => {
     let active = true; let timer = null;
@@ -237,6 +262,26 @@ function AiDecisionCard({ token }) {
     async function load() { if (!storedToken) return; if (active) setLoading(true); const results = await Promise.allSettled([fetchJson("/bot/ai-advanced-monitor?recent_limit=1"), fetchJson("/bot/ai-news-monitor?recent_limit=1")]); if (!active) return; const errors = []; if (results[0].status === "fulfilled") { const normalized = normalizeAdvancedReport(results[0].value); if (normalized) setAdvancedReport(normalized); else errors.push("Advanced AI response invalid"); } else errors.push(String(results[0].reason?.message || "Advanced AI unavailable")); if (results[1].status === "fulfilled") { const normalized = normalizeNewsReport(results[1].value); if (normalized) setNewsReport(normalized); else errors.push("News AI response invalid"); } else errors.push(String(results[1].reason?.message || "News AI unavailable")); setError(errors.join(" • ")); setLoading(false); }
     load(); timer = setInterval(load, 15000); return () => { active = false; if (timer) clearInterval(timer); };
   }, [storedToken]);
+  React.useEffect(() => {
+    let active = true;
+    if (language !== "hi" || !newsReport?.headlines?.length) return () => { active = false; };
+    const pending = newsReport.headlines.slice(0, 5).map((headline, index) => ({
+      headline,
+      index,
+      key: headlineKey(headline, index),
+      title: String(headline?.title || "").trim(),
+    })).filter((item) => item.title && !containsHindi(item.title) && !embeddedHindiHeadline(item.headline) && !translatedHeadlines[item.key]);
+    if (!pending.length) return () => { active = false; };
+    Promise.allSettled(pending.map((item) => translateHeadlineToHindi(item.title))).then((results) => {
+      if (!active) return;
+      const next = {};
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled" && result.value) next[pending[index].key] = result.value;
+      });
+      if (Object.keys(next).length) setTranslatedHeadlines((previous) => ({ ...previous, ...next }));
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [language, newsReport?.headlines, translatedHeadlines]);
   function changeLanguage(next) { setLanguage(next); AsyncStorage.setItem(LANGUAGE_KEY, next).catch(() => {}); }
   const t = COPY[language]; const displayStatus = advancedReport?.displayStatus || "COLLECTING"; const mainColor = statusColor(displayStatus); const optionColor = directionColor(advancedReport?.optionDecision); const newsColor = directionColor(newsReport?.bias); const modelNews = advancedReport?.newsEffect || {}; const group = advancedReport?.groupImportance || {}; const topFeatures = (advancedReport?.topFeatures || []).slice(0, 6); const failedChecks = advancedReport?.failedChecks || [];
   const overview = React.createElement(View, null,
@@ -256,7 +301,7 @@ function AiDecisionCard({ token }) {
     React.createElement(InfoBox, { color: newsColor, text: newsReport?.fresh ? `${t.currentReading}: ${biasLabel(newsReport.bias, t)} • ${String(newsReport.marketReaction || "").replaceAll("_", " ").toLowerCase()}` : t.noFreshNews }), React.createElement(InfoBox, { color: COLORS.purple, text: newsSummary(modelNews.usefulness, t) }),
     modelNews.validation_accuracy_with_news_percent != null ? React.createElement(InfoBox, { color: COLORS.blue, text: `${t.withNews}: ${modelNews.validation_accuracy_with_news_percent}% • ${t.withoutNews}: ${modelNews.validation_accuracy_without_news_percent ?? "--"}% • Δ ${Number(modelNews.accuracy_delta_percentage_points || 0) >= 0 ? "+" : ""}${modelNews.accuracy_delta_percentage_points || 0} pp` }) : null,
     newsReport?.hitRate15m != null ? React.createElement(InfoBox, { color: COLORS.purple, text: `${t.fusionResult}: ${newsReport.hitRate15m}% • ${t.baseDifference}: ${Number(newsReport.benefit15m || 0) >= 0 ? "+" : ""}${newsReport.benefit15m || 0} ${t.spotPoints}` }) : null,
-    React.createElement(SectionTitle, { title: t.headlines }), newsReport?.headlines?.length ? React.createElement(View, null, newsReport.headlines.slice(0, 5).map((headline, index) => React.createElement(View, { key: `${headline?.title || index}-${index}`, style: { backgroundColor: COLORS.surface2, borderWidth: 1, borderColor: COLORS.border, borderRadius: 11, padding: 11, marginBottom: 7 } }, React.createElement(Text, { style: { color: COLORS.text, fontSize: 10, lineHeight: 16 } }, shorten(headline?.title)), React.createElement(Text, { style: { color: directionColor(headline?.direction), fontSize: 9, fontWeight: "900", marginTop: 5 } }, biasLabel(headline?.direction, t))))) : React.createElement(InfoBox, { color: COLORS.gold, text: t.noHeadlines }));
+    React.createElement(SectionTitle, { title: t.headlines }), newsReport?.headlines?.length ? React.createElement(View, null, newsReport.headlines.slice(0, 5).map((headline, index) => React.createElement(View, { key: `${headlineKey(headline, index)}-${index}`, style: { backgroundColor: COLORS.surface2, borderWidth: 1, borderColor: COLORS.border, borderRadius: 11, padding: 11, marginBottom: 7 } }, React.createElement(Text, { style: { color: COLORS.text, fontSize: 10, lineHeight: 16 } }, shorten(displayHeadlineTitle(headline, index, language, translatedHeadlines))), React.createElement(Text, { style: { color: directionColor(headline?.direction), fontSize: 9, fontWeight: "900", marginTop: 5 } }, biasLabel(headline?.direction, t))))) : React.createElement(InfoBox, { color: COLORS.gold, text: t.noHeadlines }));
   return React.createElement(React.Fragment, null,
     React.createElement(View, { style: { backgroundColor: COLORS.surface3, borderRadius: 17, padding: 15, borderWidth: 1, borderColor: mainColor + "77" } },
       React.createElement(View, { style: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" } }, React.createElement(View, { style: { flex: 1, paddingRight: 10 } }, React.createElement(Text, { style: { color: COLORS.text, fontSize: 17, fontWeight: "900" } }, `🧬 ${t.title}`), React.createElement(Text, { style: { color: COLORS.muted, fontSize: 10, lineHeight: 15, marginTop: 4 } }, t.compactLine)), React.createElement(StatusPill, { label: prettyStatus(displayStatus, t), color: mainColor })),
