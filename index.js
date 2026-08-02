@@ -11,9 +11,8 @@ const { installMultiOpenTradeEnhancement } = require(
 );
 installMultiOpenTradeEnhancement();
 
-// Deterministic HomeTab wrapper. It identifies the actual HomeTab component and
-// injects Sector Rotation into its returned ScrollView, avoiding fragile runtime
-// child-text and wrapper-order detection.
+// Deterministic current-Home wrapper. Navigation maps Home to BotTab, so this
+// injects Sector Rotation into BotTab after Start/Stop and Refresh Status.
 const { installDirectHomeSectorRotationV4 } = require(
   './src/runtime/DirectHomeSectorRotationV4'
 );
