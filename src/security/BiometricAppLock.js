@@ -13,7 +13,6 @@ const LocalAuthentication = require("expo-local-authentication");
 
 const TOKEN_KEY = "saas_token";
 const USER_KEY = "saas_user";
-const RELOCK_AFTER_BACKGROUND_MS = 3000;
 
 function BiometricAppLock({ children }) {
   const [checking, setChecking] = React.useState(true);
@@ -22,8 +21,16 @@ function BiometricAppLock({ children }) {
   const [message, setMessage] = React.useState("");
   const biometricReadyRef = React.useRef(false);
   const authenticatingRef = React.useRef(false);
-  const backgroundAtRef = React.useRef(0);
+  const wasBackgroundedRef = React.useRef(false);
   const mountedRef = React.useRef(true);
+
+  const clearSessionForPasswordLogin = React.useCallback(async () => {
+    await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+    biometricReadyRef.current = false;
+    if (!mountedRef.current) return;
+    setLocked(false);
+    setMessage("");
+  }, []);
 
   const authenticate = React.useCallback(async () => {
     if (!mountedRef.current || authenticatingRef.current || !biometricReadyRef.current) {
@@ -85,8 +92,7 @@ function BiometricAppLock({ children }) {
       setChecking(false);
 
       if (!ready) {
-        setLocked(false);
-        setMessage("");
+        await clearSessionForPasswordLogin();
         return;
       }
 
@@ -98,11 +104,10 @@ function BiometricAppLock({ children }) {
       }
     } catch (error) {
       if (!mountedRef.current) return;
-      biometricReadyRef.current = false;
-      setLocked(false);
       setChecking(false);
+      await clearSessionForPasswordLogin();
     }
-  }, [authenticate]);
+  }, [authenticate, clearSessionForPasswordLogin]);
 
   React.useEffect(() => {
     mountedRef.current = true;
@@ -110,22 +115,14 @@ function BiometricAppLock({ children }) {
 
     const subscription = AppState.addEventListener("change", async (nextState) => {
       if (nextState === "inactive" || nextState === "background") {
-        backgroundAtRef.current = Date.now();
+        wasBackgroundedRef.current = true;
         if (biometricReadyRef.current) setLocked(true);
         return;
       }
 
-      if (nextState === "active") {
-        const elapsed = backgroundAtRef.current
-          ? Date.now() - backgroundAtRef.current
-          : 0;
-        backgroundAtRef.current = 0;
-
-        if (elapsed >= RELOCK_AFTER_BACKGROUND_MS) {
-          await evaluateSession({ prompt: true });
-        } else {
-          await evaluateSession({ prompt: false });
-        }
+      if (nextState === "active" && wasBackgroundedRef.current) {
+        wasBackgroundedRef.current = false;
+        await evaluateSession({ prompt: true });
       }
     });
 
@@ -138,14 +135,11 @@ function BiometricAppLock({ children }) {
   const usePasswordLogin = React.useCallback(async () => {
     setAuthenticating(true);
     try {
-      await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
-      biometricReadyRef.current = false;
-      setLocked(false);
-      setMessage("");
+      await clearSessionForPasswordLogin();
     } finally {
-      setAuthenticating(false);
+      if (mountedRef.current) setAuthenticating(false);
     }
-  }, []);
+  }, [clearSessionForPasswordLogin]);
 
   if (checking) {
     return React.createElement(
