@@ -10,6 +10,7 @@ on:
       - "AppPaymentsPatched.js"
       - "index.js"
       - "src/**"
+      - "scripts/**"
       - "app.json"
       - "eas.json"
       - "package.json"
@@ -22,12 +23,12 @@ permissions:
 
 concurrency:
   group: production-ota
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - name: Check Expo token
         id: token
@@ -62,22 +63,22 @@ jobs:
           set -o pipefail
           npm install --no-audit --no-fund 2>&1 | tee /tmp/okai-ota/install.log
 
-      - name: Apply verified AI card parser hotfix
-        id: parser_hotfix
+      - name: Run source and regression checks
+        id: checks
+        env:
+          CI: "1"
         shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("src/components/AiDecisionCard.js")
-          text = path.read_text()
-          old = 't.monitorOnly)))))));'
-          new = 't.monitorOnly))))));'
-          if old not in text:
-              raise SystemExit("Expected AiDecisionCard parser bug was not found")
-          path.write_text(text.replace(old, new, 1))
-          print("Fixed extra closing parenthesis in AiDecisionCard.js")
-          PY
+          set -o pipefail
+          {
+            node --check src/components/SectorRotationCard.js
+            node --check src/runtime/SectorRotationEnhancement.js
+            npm run sector:test
+            npm run ai:test
+            npm run ai:health
+            npm run language:test
+            npx expo install --check
+          } 2>&1 | tee /tmp/okai-ota/checks.log
 
       - name: Validate Android export
         id: export
@@ -86,7 +87,9 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          rm -rf /tmp/okai-ota-export
           npx expo export --platform android --clear --output-dir /tmp/okai-ota-export 2>&1 | tee /tmp/okai-ota/export.log
+          test -f /tmp/okai-ota-export/metadata.json
 
       - name: Publish Android update to production branch
         id: publish
@@ -100,10 +103,10 @@ jobs:
             --branch production \
             --platform android \
             --clear-cache \
-            --message "OKAI Android OTA ${SHORT_SHA}: dedicated bilingual AI tab" \
+            --message "OKAI Android OTA ${SHORT_SHA}: live sector rotation for NIFTY BANKNIFTY SENSEX" \
             --non-interactive 2>&1 | tee /tmp/okai-ota/publish.log
 
-      - name: Point and resume production channel
+      - name: Point and verify production channel
         id: channel
         env:
           CI: "1"
@@ -129,7 +132,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TOKEN_OUTCOME: ${{ steps.token.outcome }}
           INSTALL_OUTCOME: ${{ steps.install.outcome }}
-          HOTFIX_OUTCOME: ${{ steps.parser_hotfix.outcome }}
+          CHECKS_OUTCOME: ${{ steps.checks.outcome }}
           EXPORT_OUTCOME: ${{ steps.export.outcome }}
           PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
           CHANNEL_OUTCOME: ${{ steps.channel.outcome }}
@@ -143,7 +146,7 @@ jobs:
 
           logs = {}
           root = Path('/tmp/okai-ota')
-          for name in ('install', 'export', 'publish', 'channel-edit', 'channel-resume', 'channel-view'):
+          for name in ('install', 'checks', 'export', 'publish', 'channel-edit', 'channel-resume', 'channel-view'):
               path = root / f'{name}.log'
               if path.exists():
                   text = path.read_text(errors='replace')
@@ -152,12 +155,17 @@ jobs:
           outcomes = {
               'token': os.getenv('TOKEN_OUTCOME') or 'unknown',
               'install': os.getenv('INSTALL_OUTCOME') or 'unknown',
-              'parser_hotfix': os.getenv('HOTFIX_OUTCOME') or 'unknown',
+              'checks': os.getenv('CHECKS_OUTCOME') or 'unknown',
               'export': os.getenv('EXPORT_OUTCOME') or 'unknown',
               'publish': os.getenv('PUBLISH_OUTCOME') or 'unknown',
               'channel': os.getenv('CHANNEL_OUTCOME') or 'unknown',
           }
-          success = outcomes['publish'] == 'success' and outcomes['channel'] == 'success'
+          success = (
+              outcomes['checks'] == 'success'
+              and outcomes['export'] == 'success'
+              and outcomes['publish'] == 'success'
+              and outcomes['channel'] == 'success'
+          )
           payload = {
               'success': success,
               'status': 'PUBLISHED' if success else 'FAILED',
@@ -171,7 +179,9 @@ jobs:
               'steps': outcomes,
               'logs_tail': logs,
           }
-          Path('/tmp/ota-status.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n')
+          Path('/tmp/ota-status.json').write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + '\n'
+          )
           PY
 
           CONTENT=$(base64 -w0 /tmp/ota-status.json)
