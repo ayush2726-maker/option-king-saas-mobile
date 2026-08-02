@@ -9,9 +9,17 @@
     "splash": {
       "backgroundColor": "#040d18"
     },
+    "plugins": [
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Option King AI to use Face ID for secure app unlock."
+        }
+      ]
+    ],
     "android": {
       "package": "com.optionkingai.saas",
-      "versionCode": 6,
+      "versionCode": 7,
       "jsEngine": "jsc"
     },
     "ios": {
@@ -20,7 +28,7 @@
     },
     "extra": {
       "saasUrl": "https://option-king-saas-production.up.railway.app",
-      "buildMarker": "option-king-ai-v6-pr-merge-trigger",
+      "buildMarker": "option-king-ai-v7-biometric-final",
       "eas": {
         "projectId": "53c0c5ce-07e1-4036-9bda-62c8cf063d62"
       }
