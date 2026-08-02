@@ -2,9 +2,11 @@ const React = require("react");
 const ReactNative = require("react-native");
 const AiDecisionCardModule = require("../components/AiDecisionCard");
 const AdvancedAiTabScreenModule = require("../screens/AdvancedAiTabScreen");
+const SectorRotationCardModule = require("../components/SectorRotationCard");
 
 const AiDecisionCard = AiDecisionCardModule.default || AiDecisionCardModule;
 const AdvancedAiTabScreen = AdvancedAiTabScreenModule.default || AdvancedAiTabScreenModule;
+const SectorRotationCard = SectorRotationCardModule.default || SectorRotationCardModule;
 const { ScrollView, StyleSheet, Text, TouchableOpacity, View } = ReactNative;
 
 let installed = false;
@@ -149,6 +151,11 @@ function aiScreenChildren(children, createElement) {
   ));
   return [
     otaBanner || null,
+    createElement(SectorRotationCard, {
+      key: "okai-ai-tab-sector-rotation-v1",
+      __okaiSectorRotationCard: true,
+      __okaiAdvancedAiStandalone: true,
+    }),
     createElement(AdvancedAiTabScreen, {
       key: "okai-advanced-ai-screen",
       __okaiAdvancedAiStandalone: true,
@@ -224,4 +231,7 @@ function installAdvancedAiTabEnhancement() {
   try { patchRuntime(require("react/jsx-dev-runtime")); } catch (_) {}
 }
 
-module.exports = { installAdvancedAiTabEnhancement };
+module.exports = {
+  installAdvancedAiTabEnhancement,
+  OKAI_AI_SECTOR_ROTATION_MARKER: "OKAI-AI-TAB-SECTOR-ROTATION-V1",
+};
