@@ -22,6 +22,18 @@ const C = {
   accent: "#7c6deb",
 };
 
+const HOME_SOURCE_MARKERS = [
+  "TODAY NET P&L",
+  "AUTO Portfolio",
+  "Start Bot",
+  "Bot Start",
+  "Refresh Status",
+  "Status Refresh",
+  "Trading Mode",
+  "AUTO Scan Instruments",
+  "Auto Scan Instruments",
+];
+
 // Only these two Home cards remain collapsible.
 const SECTIONS = [
   {
@@ -51,8 +63,14 @@ function componentSource(type) {
   }
 }
 
-function collectText(value, output = []) {
-  if (value == null || value === false) return output;
+function includesText(haystack, needle) {
+  return String(haystack || "")
+    .toLowerCase()
+    .includes(String(needle || "").toLowerCase());
+}
+
+function collectSignature(value, output = [], depth = 0) {
+  if (value == null || value === false || depth > 12) return output;
 
   if (typeof value === "string" || typeof value === "number") {
     output.push(String(value));
@@ -60,37 +78,39 @@ function collectText(value, output = []) {
   }
 
   if (Array.isArray(value)) {
-    value.forEach((item) => collectText(item, output));
+    value.forEach((item) => collectSignature(item, output, depth + 1));
     return output;
   }
 
-  if (React.isValidElement(value)) {
-    collectText(value.props?.children, output);
-    collectText(value.props?.label, output);
-    collectText(value.props?.title, output);
+  if (!React.isValidElement(value)) return output;
+
+  collectSignature(value.props?.children, output, depth + 1);
+  collectSignature(value.props?.label, output, depth + 1);
+  collectSignature(value.props?.title, output, depth + 1);
+  collectSignature(value.props?.accessibilityLabel, output, depth + 1);
+
+  const source = componentSource(value.type);
+  if (source) {
+    HOME_SOURCE_MARKERS.forEach((marker) => {
+      if (includesText(source, marker)) output.push(marker);
+    });
   }
 
   return output;
 }
 
-function textOf(value) {
-  return collectText(value)
+function signatureOf(value) {
+  return collectSignature(value)
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function includesText(haystack, needle) {
-  return String(haystack || "")
-    .toLowerCase()
-    .includes(String(needle || "").toLowerCase());
-}
-
 function findSection(props) {
-  const text = textOf(props?.children);
+  const signature = signatureOf(props?.children);
   return (
     SECTIONS.find((section) =>
-      section.matches.some((match) => includesText(text, match))
+      section.matches.some((match) => includesText(signature, match))
     ) || null
   );
 }
@@ -122,9 +142,8 @@ function looksLikeLiveScoreCard(type, props) {
     return false;
   }
 
-  const text = textOf(props?.children);
   return (
-    includesText(text, "Live Strategy Score") &&
+    includesText(signatureOf(props?.children), "Live Strategy Score") &&
     looksLikeCardShell(type, props)
   );
 }
@@ -137,7 +156,7 @@ function stripOriginalHeading(children, section) {
 
   if (firstMeaningfulIndex < 0) return children;
 
-  const firstText = textOf(items[firstMeaningfulIndex]);
+  const firstText = signatureOf(items[firstMeaningfulIndex]);
   const isHeading = section.matches.some((match) =>
     includesText(firstText, match)
   );
@@ -153,37 +172,55 @@ function stripLiveScoreHeading(children) {
   );
 
   if (firstMeaningfulIndex < 0) return children;
-  const firstText = textOf(items[firstMeaningfulIndex]);
+  const firstText = signatureOf(items[firstMeaningfulIndex]);
 
   if (!includesText(firstText, "Live Strategy Score")) return children;
   return items.filter((_, index) => index !== firstMeaningfulIndex);
 }
 
 function isStartStopControl(element) {
-  const text = textOf(element);
+  const signature = signatureOf(element);
   const hasStart =
-    includesText(text, "Start Bot") ||
-    includesText(text, "Bot Start");
+    includesText(signature, "Start Bot") ||
+    includesText(signature, "Bot Start");
   const hasStop =
-    includesText(text, "Stop Bot") ||
-    includesText(text, "Bot Stop");
+    includesText(signature, "Stop Bot") ||
+    includesText(signature, "Bot Stop");
   return hasStart && hasStop;
 }
 
 function isRefreshControl(element) {
-  const text = textOf(element);
+  const signature = signatureOf(element);
   return (
-    includesText(text, "Refresh Status") ||
-    includesText(text, "Status Refresh")
+    includesText(signature, "Refresh Status") ||
+    includesText(signature, "Status Refresh")
   );
 }
 
 function isHomeDashboard(children) {
-  const text = textOf(children);
+  const signature = signatureOf(children);
+  const hasPnl = includesText(signature, "TODAY NET P&L");
+  const hasPortfolio = includesText(signature, "AUTO Portfolio");
+  const hasStart =
+    includesText(signature, "Start Bot") ||
+    includesText(signature, "Bot Start");
+  const hasRefresh =
+    includesText(signature, "Refresh Status") ||
+    includesText(signature, "Status Refresh");
+  const hasTradingMode = includesText(signature, "Trading Mode");
+  const hasAutoScan =
+    includesText(signature, "AUTO Scan Instruments") ||
+    includesText(signature, "Auto Scan Instruments");
+
+  // Primary match: the visible Home header and portfolio cards.
+  if (hasPnl && hasPortfolio && (hasStart || hasRefresh)) return true;
+
+  // Production fallback: some Home cards are wrapper components whose text only
+  // exists inside the component source, not in props.children.
   return (
-    includesText(text, "TODAY NET P&L") &&
-    includesText(text, "AUTO Portfolio") &&
-    (includesText(text, "Start Bot") || includesText(text, "Bot Start"))
+    hasTradingMode &&
+    hasAutoScan &&
+    (hasPnl || hasPortfolio || hasStart || hasRefresh)
   );
 }
 
@@ -203,9 +240,7 @@ function arrangeHomeDashboard(children) {
   const rest = [];
 
   items.forEach((item) => {
-    if (isSectorRotationCard(item)) {
-      return;
-    }
+    if (isSectorRotationCard(item)) return;
     if (isStartStopControl(item)) {
       startStop.push(item);
     } else if (isRefreshControl(item)) {
@@ -216,7 +251,7 @@ function arrangeHomeDashboard(children) {
   });
 
   const rotation = React.createElement(SectorRotationCard, {
-    key: "okai-sector-rotation-home-v2",
+    key: "okai-sector-rotation-home-v3",
     __okaiSectorRotationCard: true,
   });
 
@@ -475,10 +510,10 @@ function installHomeAccordionEnhancementV3() {
   React.__OKAI_HOME_ACCORDION_V2_PATCHED__ = true;
   React.__OKAI_HOME_ACCORDION_V3_PATCHED__ = true;
   React.__OKAI_LIVE_SCORE_V3_PATCHED__ = true;
-  React.__OKAI_SECTOR_ROTATION_HOME_V2_PATCHED__ = true;
+  React.__OKAI_SECTOR_ROTATION_HOME_V3_PATCHED__ = true;
 }
 
 module.exports = {
   installHomeAccordionEnhancementV3,
-  OKAI_SECTOR_ROTATION_HOME_RUNTIME_MARKER: "OKAI_SECTOR_ROTATION_HOME_RUNTIME_V2",
+  OKAI_SECTOR_ROTATION_HOME_RUNTIME_MARKER: "OKAI_SECTOR_ROTATION_HOME_RUNTIME_V3",
 };
