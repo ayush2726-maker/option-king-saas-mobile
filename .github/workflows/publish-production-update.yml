@@ -73,6 +73,7 @@ jobs:
           {
             node --check src/components/SectorRotationCard.js
             node --check src/runtime/SectorRotationEnhancement.js
+            node --check src/runtime/DirectHomeSectorRotationV4.js
             npm run sector:test
             npm run ai:test
             npm run ai:health
@@ -103,7 +104,7 @@ jobs:
             --branch production \
             --platform android \
             --clear-cache \
-            --message "OKAI Android OTA ${SHORT_SHA}: live sector rotation for NIFTY BANKNIFTY SENSEX" \
+            --message "OKAI Android OTA ${SHORT_SHA}: sector rotation and 15-minute biometric grace" \
             --non-interactive 2>&1 | tee /tmp/okai-ota/publish.log
 
       - name: Point and verify production channel
@@ -116,6 +117,17 @@ jobs:
           eas channel:edit production --branch production --non-interactive 2>&1 | tee /tmp/okai-ota/channel-edit.log
           eas channel:resume production --branch production --non-interactive 2>&1 | tee /tmp/okai-ota/channel-resume.log || true
           eas channel:view production --json --non-interactive 2>&1 | tee /tmp/okai-ota/channel-view.log
+
+      - name: Bridge legacy default channel to production branch
+        id: legacy_channel
+        env:
+          CI: "1"
+        shell: bash
+        run: |
+          set -o pipefail
+          eas channel:create default --non-interactive 2>&1 | tee /tmp/okai-ota/default-channel-create.log || true
+          eas channel:edit default --branch production --non-interactive 2>&1 | tee /tmp/okai-ota/default-channel-edit.log
+          eas channel:view default --json --non-interactive 2>&1 | tee /tmp/okai-ota/default-channel-view.log
 
       - name: Upload OTA diagnostics
         if: always()
@@ -136,6 +148,7 @@ jobs:
           EXPORT_OUTCOME: ${{ steps.export.outcome }}
           PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
           CHANNEL_OUTCOME: ${{ steps.channel.outcome }}
+          LEGACY_CHANNEL_OUTCOME: ${{ steps.legacy_channel.outcome }}
         shell: bash
         run: |
           python - <<'PY'
@@ -146,7 +159,11 @@ jobs:
 
           logs = {}
           root = Path('/tmp/okai-ota')
-          for name in ('install', 'checks', 'export', 'publish', 'channel-edit', 'channel-resume', 'channel-view'):
+          for name in (
+              'install', 'checks', 'export', 'publish',
+              'channel-edit', 'channel-resume', 'channel-view',
+              'default-channel-create', 'default-channel-edit', 'default-channel-view'
+          ):
               path = root / f'{name}.log'
               if path.exists():
                   text = path.read_text(errors='replace')
@@ -158,18 +175,20 @@ jobs:
               'checks': os.getenv('CHECKS_OUTCOME') or 'unknown',
               'export': os.getenv('EXPORT_OUTCOME') or 'unknown',
               'publish': os.getenv('PUBLISH_OUTCOME') or 'unknown',
-              'channel': os.getenv('CHANNEL_OUTCOME') or 'unknown',
+              'production_channel': os.getenv('CHANNEL_OUTCOME') or 'unknown',
+              'legacy_default_channel': os.getenv('LEGACY_CHANNEL_OUTCOME') or 'unknown',
           }
           success = (
               outcomes['checks'] == 'success'
               and outcomes['export'] == 'success'
               and outcomes['publish'] == 'success'
-              and outcomes['channel'] == 'success'
+              and outcomes['production_channel'] == 'success'
+              and outcomes['legacy_default_channel'] == 'success'
           )
           payload = {
               'success': success,
               'status': 'PUBLISHED' if success else 'FAILED',
-              'channel': 'production',
+              'channels': ['production', 'default'],
               'branch': 'production',
               'platform': 'android',
               'runtime_version': '1.0.1',
@@ -188,11 +207,11 @@ jobs:
           STATUS_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/contents/.ota-status.json" --jq '.sha' 2>/dev/null || true)
           if [ -n "$STATUS_SHA" ]; then
             gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/.ota-status.json" \
-              -f message="Record production OTA result for ${GITHUB_SHA::7}" \
+              -f message="Record dual-channel OTA result for ${GITHUB_SHA::7}" \
               -f content="$CONTENT" \
               -f sha="$STATUS_SHA" >/dev/null
           else
             gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/.ota-status.json" \
-              -f message="Record production OTA result for ${GITHUB_SHA::7}" \
+              -f message="Record dual-channel OTA result for ${GITHUB_SHA::7}" \
               -f content="$CONTENT" >/dev/null
           fi
