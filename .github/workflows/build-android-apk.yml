@@ -1,4 +1,4 @@
-name: Final Option King AI APK
+name: Final Option King AI Biometric APK
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - .github/v6-build.trigger
+      - .github/v7-build.trigger
 
 permissions:
   contents: read
@@ -55,19 +55,45 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Validate every JavaScript source file
+      - name: Validate biometric source and configuration
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -d '' files < <(find . \
-            -path './node_modules' -prune -o \
-            -path './android' -prune -o \
-            -path './.git' -prune -o \
-            -type f -name '*.js' -print0)
-          echo "Checking ${#files[@]} JavaScript files"
-          for file in "${files[@]}"; do
-            node --check "$file"
-          done
+          node --check src/security/BiometricAppLock.js
+          node - <<'NODE'
+          const fs = require('fs');
+          const pkg = require('./package.json');
+          const app = require('./app.json');
+          const index = fs.readFileSync('index.js', 'utf8');
+          const lock = fs.readFileSync('src/security/BiometricAppLock.js', 'utf8');
+
+          if (pkg.dependencies['expo-local-authentication'] !== '~14.0.1') {
+            throw new Error('Expo SDK 51 biometric dependency is not pinned correctly');
+          }
+          if (Number(app.expo.android.versionCode) !== 7) {
+            throw new Error('Android versionCode must be 7');
+          }
+          const plugins = app.expo.plugins || [];
+          const hasPlugin = plugins.some((item) =>
+            item === 'expo-local-authentication' ||
+            (Array.isArray(item) && item[0] === 'expo-local-authentication')
+          );
+          if (!hasPlugin) throw new Error('expo-local-authentication plugin missing');
+          if (!index.includes("./src/security/BiometricAppLock")) {
+            throw new Error('Root biometric gate is not installed');
+          }
+          for (const marker of [
+            'authenticateAsync',
+            'hasHardwareAsync',
+            'isEnrolledAsync',
+            'saas_token',
+            'Use Password Login',
+            'OKAI_BIOMETRIC_APP_LOCK_V1',
+          ]) {
+            if (!lock.includes(marker)) throw new Error(`Biometric marker missing: ${marker}`);
+          }
+          console.log('Biometric source and configuration checks passed');
+          NODE
 
       - name: Run project regression checks
         shell: bash
@@ -83,6 +109,7 @@ jobs:
           set -euo pipefail
           npx expo install --check
           npx expo-doctor
+          node -e "require.resolve('expo-local-authentication/package.json'); console.log('Biometric native package resolved')"
 
       - name: Validate committed launcher icon
         shell: bash
@@ -106,15 +133,17 @@ jobs:
           PY
           file assets/icon.png
 
-      - name: Validate Expo config, clean prebuild and Android Metro bundle
+      - name: Validate clean Android prebuild and Metro bundle
         shell: bash
         run: |
           set -euo pipefail
-          npx expo config --type public
+          npx expo config --type public > /tmp/okai-expo-config.txt
+          grep -q 'expo-local-authentication' /tmp/okai-expo-config.txt
           rm -rf android /tmp/okai-export
           npx expo prebuild --clean --no-install --platform android
           test -f android/gradlew
           test -f android/app/src/main/AndroidManifest.xml
+          grep -R -q 'USE_BIOMETRIC' node_modules/expo-local-authentication/android
           rm -rf android
           npx expo export --platform android --output-dir /tmp/okai-export --clear
           test -f /tmp/okai-export/metadata.json
@@ -131,23 +160,23 @@ jobs:
             --profile preview \
             --local \
             --non-interactive \
-            --output "$GITHUB_WORKSPACE/Option-King-AI-v6.apk"
+            --output "$GITHUB_WORKSPACE/Option-King-AI-v7.apk"
 
       - name: Verify final APK
         shell: bash
         run: |
           set -euo pipefail
-          test -s Option-King-AI-v6.apk
-          file Option-King-AI-v6.apk
-          sha256sum Option-King-AI-v6.apk | tee Option-King-AI-v6.sha256
+          test -s Option-King-AI-v7.apk
+          file Option-King-AI-v7.apk
+          sha256sum Option-King-AI-v7.apk | tee Option-King-AI-v7.sha256
 
       - name: Upload final APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Option-King-AI-v6-APK
+          name: Option-King-AI-v7-Biometric-APK
           path: |
-            Option-King-AI-v6.apk
-            Option-King-AI-v6.sha256
+            Option-King-AI-v7.apk
+            Option-King-AI-v7.sha256
           if-no-files-found: error
           retention-days: 30
 
@@ -155,9 +184,10 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: Option-King-AI-v6-final-diagnostics
+          name: Option-King-AI-v7-final-diagnostics
           path: |
             local-build-working
             local-build-artifacts
+            /tmp/okai-expo-config.txt
           if-no-files-found: ignore
           retention-days: 14
