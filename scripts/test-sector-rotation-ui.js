@@ -8,8 +8,8 @@ const files = {
     path.join(root, "src/components/SectorRotationCard.js"),
     "utf8"
   ),
-  homeRuntime: fs.readFileSync(
-    path.join(root, "src/runtime/HomeAccordionEnhancementV3.js"),
+  directRuntime: fs.readFileSync(
+    path.join(root, "src/runtime/DirectHomeSectorRotationV4.js"),
     "utf8"
   ),
   biometric: fs.readFileSync(
@@ -24,21 +24,18 @@ function requireMarker(source, marker, label) {
   }
 }
 
+requireMarker(files.index, "installDirectHomeSectorRotationV4", "direct Home install");
 requireMarker(files.index, "AppTradeExplanationPatched", "app root wiring");
 requireMarker(files.card, "/market/sector-rotation?index=", "live API call");
 requireMarker(files.card, '"NIFTY", "BANKNIFTY", "SENSEX"', "index tabs");
 requireMarker(files.card, "OKAI_SECTOR_ROTATION_UI_V1", "card marker");
 requireMarker(files.card, "Trade entry, exit aur orders untouched", "trade safety copy");
-requireMarker(files.homeRuntime, 'require("../components/SectorRotationCard")', "active Home card import");
-requireMarker(files.homeRuntime, "collectSignature", "source-aware Home detection");
-requireMarker(files.homeRuntime, "componentSource(value.type)", "wrapped component source scan");
-requireMarker(files.homeRuntime, "arrangeHomeDashboard", "direct Home injection");
-requireMarker(files.homeRuntime, "okai-sector-rotation-home-v3", "Home card instance");
-requireMarker(files.homeRuntime, "OKAI_SECTOR_ROTATION_HOME_RUNTIME_V3", "active runtime marker");
-requireMarker(files.homeRuntime, "TODAY NET P&L", "Home dashboard targeting");
-requireMarker(files.homeRuntime, "Trading Mode", "production Home fallback");
-requireMarker(files.homeRuntime, "AUTO Scan Instruments", "production Home fallback");
-requireMarker(files.homeRuntime, "isSectorRotationCard", "duplicate prevention");
+requireMarker(files.directRuntime, "function HomeTab", "real HomeTab detection");
+requireMarker(files.directRuntime, "originalType", "direct function render");
+requireMarker(files.directRuntime, "injectIntoHomeTree", "render-tree injection");
+requireMarker(files.directRuntime, "okai-direct-home-sector-v4", "card instance");
+requireMarker(files.directRuntime, "OKAI-DIRECT-HOME-SECTOR-V4", "runtime marker");
+requireMarker(files.directRuntime, "Math.min(2, items.length)", "visible card placement");
 requireMarker(files.biometric, "15 * 60 * 1000", "15-minute biometric grace");
 requireMarker(files.biometric, "OKAI_BIOMETRIC_APP_LOCK_15M_V2", "biometric marker");
 requireMarker(files.index, "BiometricAppLock15m", "15-minute lock wiring");
@@ -47,4 +44,4 @@ if (files.index.includes("installSectorRotationEnhancement")) {
   throw new Error("Legacy sector wrapper must not be installed from index.js");
 }
 
-console.log("Sector rotation source-aware Home wiring and biometric grace checks passed");
+console.log("Deterministic HomeTab sector injection and biometric grace checks passed");
