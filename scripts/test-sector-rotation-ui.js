@@ -8,8 +8,8 @@ const files = {
     path.join(root, "src/components/SectorRotationCard.js"),
     "utf8"
   ),
-  runtime: fs.readFileSync(
-    path.join(root, "src/runtime/SectorRotationEnhancement.js"),
+  homeRuntime: fs.readFileSync(
+    path.join(root, "src/runtime/HomeAccordionEnhancementV3.js"),
     "utf8"
   ),
   biometric: fs.readFileSync(
@@ -24,22 +24,23 @@ function requireMarker(source, marker, label) {
   }
 }
 
-requireMarker(files.index, "installSectorRotationEnhancement", "index wiring");
+requireMarker(files.index, "AppTradeExplanationPatched", "app root wiring");
 requireMarker(files.card, "/market/sector-rotation?index=", "live API call");
 requireMarker(files.card, '"NIFTY", "BANKNIFTY", "SENSEX"', "index tabs");
 requireMarker(files.card, "OKAI_SECTOR_ROTATION_UI_V1", "card marker");
 requireMarker(files.card, "Trade entry, exit aur orders untouched", "trade safety copy");
-requireMarker(files.runtime, "OKAI_SECTOR_ROTATION_RUNTIME_V1", "runtime marker");
-requireMarker(files.runtime, "TODAY NET P&L", "Home dashboard targeting");
-requireMarker(files.runtime, "isSectorRotationCard", "duplicate prevention");
-requireMarker(files.biometric, "15 * 60 * 1000", "15 minute biometric grace");
+requireMarker(files.homeRuntime, 'require("../components/SectorRotationCard")', "active Home card import");
+requireMarker(files.homeRuntime, "arrangeHomeDashboard", "direct Home injection");
+requireMarker(files.homeRuntime, "okai-sector-rotation-home-v2", "Home card instance");
+requireMarker(files.homeRuntime, "OKAI_SECTOR_ROTATION_HOME_RUNTIME_V2", "active runtime marker");
+requireMarker(files.homeRuntime, "TODAY NET P&L", "Home dashboard targeting");
+requireMarker(files.homeRuntime, "isSectorRotationCard", "duplicate prevention");
+requireMarker(files.biometric, "15 * 60 * 1000", "15-minute biometric grace");
 requireMarker(files.biometric, "OKAI_BIOMETRIC_APP_LOCK_15M_V2", "biometric marker");
-requireMarker(files.index, "BiometricAppLock15m", "15 minute lock wiring");
+requireMarker(files.index, "BiometricAppLock15m", "15-minute lock wiring");
 
-const appLoad = files.index.indexOf("require('./AppTradeExplanationPatched')");
-const sectorInstall = files.index.indexOf("installSectorRotationEnhancement();");
-if (appLoad < 0 || sectorInstall < 0 || sectorInstall <= appLoad) {
-  throw new Error("Sector rotation must install after the app/Home wrappers load");
+if (files.index.includes("installSectorRotationEnhancement")) {
+  throw new Error("Legacy sector wrapper must not be installed from index.js");
 }
 
-console.log("Sector rotation UI and 15-minute biometric checks passed");
+console.log("Sector rotation direct Home wiring and biometric grace checks passed");
