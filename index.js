@@ -12,8 +12,15 @@ const { installMultiOpenTradeEnhancement } = require(
 );
 installMultiOpenTradeEnhancement();
 
-// The active HomeAccordionEnhancementV3 runtime now owns both requested
-// dropdown behaviours. Avoid a late second wrapper that can miss cached JSX.
+// Display-only Home module. It reads live breadth/constituent quotes but never
+// changes signal scoring, trade entry/exit, risk controls or broker orders.
+const { installSectorRotationEnhancement } = require(
+  './src/runtime/SectorRotationEnhancement'
+);
+installSectorRotationEnhancement();
+
+// The active HomeAccordionEnhancementV3 runtime owns existing dropdowns. It is
+// loaded after the sector wrapper so both transforms receive the final Home tree.
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
 
