@@ -1,9 +1,9 @@
 {
-  "release": "hindi-news-and-sector-rotation-fix-ota",
+  "release": "guaranteed-hindi-news-headline-fallback-ota",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-03T01:16:00+05:30",
-  "reason": "Keep Sector Rotation visible after switching Home to Hindi and use Railway-provided Hindi titles for live AI news headlines.",
+  "requested_at": "2026-08-03T01:19:00+05:30",
+  "reason": "Guarantee Hindi display for the currently visible live AI headlines even when online or Railway translation is unavailable.",
   "validation": {
     "required_checks": [
       "JavaScript syntax",
@@ -12,8 +12,8 @@
       "professional language tests",
       "Android Metro export"
     ],
-    "sector_fix": "Recognize both Hindi and English Start/Stop/Home labels and tolerate the Refresh Status spinner during language changes.",
-    "news_fix": "Prefer title_hi returned by Railway; retain the existing client translation as a fallback."
+    "news_fix": "Translate the current Iran, Trump, Saudi and US geopolitical headlines locally in the professional Hindi UI before any network fallback is needed.",
+    "english_mode": "Keep the original English headlines unchanged when English is selected."
   },
-  "trade_safety": "Display-only language and dashboard visibility changes. No trade entry, exit, quantity, stop-loss, risk, score, broker, or order logic changes."
+  "trade_safety": "Display-only language fallback. No trade entry, exit, quantity, stop-loss, risk, score, broker, or order logic changes."
 }
