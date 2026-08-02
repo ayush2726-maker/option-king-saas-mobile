@@ -36,12 +36,15 @@ requireMarker(files.card, '"NIFTY", "BANKNIFTY", "SENSEX"', "index tabs");
 requireMarker(files.card, "OKAI_SECTOR_ROTATION_UI_V1", "card marker");
 requireMarker(files.card, "Trade entry, exit aur orders untouched", "trade safety copy");
 requireMarker(files.directRuntime, "isCurrentHomeScrollView", "current Home ScrollView detection");
-requireMarker(files.directRuntime, '"start bot"', "Start control signature");
-requireMarker(files.directRuntime, '"stop bot"', "Stop control signature");
-requireMarker(files.directRuntime, '"refresh status"', "Refresh control signature");
-requireMarker(files.directRuntime, '"today net p&l"', "Home dashboard identity");
-requireMarker(files.directRuntime, "okai-current-home-sector-v6", "card instance");
-requireMarker(files.directRuntime, "OKAI-DIRECT-CURRENT-HOME-SCROLL-V6", "runtime marker");
+requireMarker(files.directRuntime, '"start bot"', "English Start control signature");
+requireMarker(files.directRuntime, '"stop bot"', "English Stop control signature");
+requireMarker(files.directRuntime, '"बॉट प्रारंभ करें"', "Hindi Start control signature");
+requireMarker(files.directRuntime, '"बॉट बंद करें"', "Hindi Stop control signature");
+requireMarker(files.directRuntime, '"स्थिति रीफ्रेश करें"', "Hindi Refresh control signature");
+requireMarker(files.directRuntime, '"बॉट स्थिति"', "Hindi Home dashboard identity");
+requireMarker(files.directRuntime, "hasRefreshSlot", "spinner-safe refresh slot");
+requireMarker(files.directRuntime, "okai-current-home-sector-v7", "card instance");
+requireMarker(files.directRuntime, "OKAI-DIRECT-CURRENT-HOME-SCROLL-V7", "runtime marker");
 requireMarker(files.directRuntime, "items.slice(0, 2)", "visible card placement");
 requireMarker(files.biometric, "15 * 60 * 1000", "15-minute biometric grace");
 requireMarker(files.biometric, "OKAI_BIOMETRIC_APP_LOCK_15M_V2", "biometric marker");
@@ -55,4 +58,4 @@ if (files.index.includes("installSectorRotationEnhancement")) {
   throw new Error("Legacy sector wrapper must not be installed from index.js");
 }
 
-console.log("Minification-safe current Home sector injection and biometric grace checks passed");
+console.log("Bilingual minification-safe Home sector injection and biometric grace checks passed");
