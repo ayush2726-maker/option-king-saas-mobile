@@ -1,0 +1,1 @@
+Installed v7 APK did not receive production OTA. Bridge fix: map the legacy default EAS Update channel to the production branch. Permanent fix: bake expo-channel-name=production into the next native APK.
