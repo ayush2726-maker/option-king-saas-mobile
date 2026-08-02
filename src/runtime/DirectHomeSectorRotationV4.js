@@ -9,47 +9,48 @@ try {
 } catch (_) {}
 
 let installed = false;
+let injecting = false;
 
 function componentName(type) {
   return String(type?.displayName || type?.name || "");
 }
 
-function componentSource(type) {
-  if (typeof type !== "function") return "";
-  try {
-    return Function.prototype.toString.call(type);
-  } catch (_) {
-    return "";
-  }
-}
-
-function looksLikeCurrentHomeBotTab(type, props) {
-  if (
-    typeof type !== "function" ||
-    props?.__okaiDirectBotHomeSectorBypass
-  ) {
-    return false;
-  }
-
-  const name = componentName(type);
-  const source = componentSource(type);
-
-  // NavigationHelpEnhancement maps the visible Home button to the real BotTab.
-  // Therefore BotTab—not the legacy HomeTab—is the authoritative Home screen.
-  if (name === "BotTab" || source.includes("function BotTab")) {
-    return true;
-  }
-
-  return (
-    source.includes("Start Bot") &&
-    source.includes("Stop Bot") &&
-    source.includes("TODAY NET P&L") &&
-    source.includes("Bot Status")
-  );
-}
-
 function isScrollViewType(type) {
   return type === ScrollView || componentName(type) === "ScrollView";
+}
+
+function collectText(value, output = [], depth = 0) {
+  if (value == null || value === false || depth > 12) return output;
+
+  if (typeof value === "string" || typeof value === "number") {
+    output.push(String(value));
+    return output;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectText(item, output, depth + 1));
+    return output;
+  }
+
+  if (!React.isValidElement(value)) return output;
+
+  collectText(value.props?.label, output, depth + 1);
+  collectText(value.props?.title, output, depth + 1);
+  collectText(value.props?.accessibilityLabel, output, depth + 1);
+  collectText(value.props?.children, output, depth + 1);
+  return output;
+}
+
+function signatureOf(value) {
+  return collectText(value)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function includesAny(signature, values) {
+  return values.some((value) => signature.includes(String(value).toLowerCase()));
 }
 
 function isSectorCard(element) {
@@ -59,72 +60,81 @@ function isSectorCard(element) {
   );
 }
 
-function injectIntoCurrentHomeTree(value, state) {
-  if (state.done || !React.isValidElement(value)) return value;
-
-  if (isScrollViewType(value.type)) {
-    const items = React.Children.toArray(value.props?.children).filter(
-      (item) => !isSectorCard(item)
-    );
-
-    const rotation = React.createElement(SectorRotationCard, {
-      key: "okai-direct-bot-home-sector-v5",
-      __okaiSectorRotationCard: true,
-    });
-
-    // Current Home/BotTab starts with Start/Stop controls and Refresh Status.
-    // Place Sector Rotation immediately after those two controls.
-    const insertAt = Math.min(2, items.length);
-    const children = [
-      ...items.slice(0, insertAt),
-      rotation,
-      ...items.slice(insertAt),
-    ];
-
-    state.done = true;
-    return React.cloneElement(value, {
-      ...(value.props || {}),
-      __okaiDirectBotHomeSectorInjected: true,
-      children,
-    });
+function isCurrentHomeScrollView(type, props) {
+  if (
+    !isScrollViewType(type) ||
+    props?.__okaiCurrentHomeSectorInjected ||
+    injecting
+  ) {
+    return false;
   }
 
-  const originalChildren = value.props?.children;
-  if (originalChildren == null) return value;
+  const items = React.Children.toArray(props?.children);
+  if (items.length < 2) return false;
 
-  const nextChildren = React.Children.map(originalChildren, (child) =>
-    injectIntoCurrentHomeTree(child, state)
-  );
+  const controls = signatureOf(items[0]);
+  const refresh = signatureOf(items[1]);
+  const visibleHome = signatureOf(items.slice(0, 8));
 
-  if (nextChildren === originalChildren) return value;
-  return React.cloneElement(value, {
-    ...(value.props || {}),
-    children: nextChildren,
-  });
+  const hasStart = includesAny(controls, [
+    "start bot",
+    "bot start",
+    "bot start karo",
+  ]);
+  const hasStop = includesAny(controls, [
+    "stop bot",
+    "bot stop",
+    "bot stop karo",
+  ]);
+  const hasRefresh = includesAny(refresh, [
+    "refresh status",
+    "status refresh",
+    "status refresh karo",
+  ]);
+  const hasHomeIdentity = includesAny(visibleHome, [
+    "today net p&l",
+    "bot status",
+    "active strategy",
+  ]);
+
+  // The production bundle may minify function names, so identify the visible
+  // Home screen only from its stable first controls and dashboard content.
+  return hasStart && hasStop && hasRefresh && hasHomeIdentity;
 }
 
-function DirectBotHomeSectorWrapper({ originalType, originalProps }) {
-  // BotTab is a plain function component. Calling it inside this stable wrapper
-  // preserves its hook order while allowing deterministic ScrollView injection.
-  const rendered = originalType({
-    ...(originalProps || {}),
-    __okaiDirectBotHomeSectorBypass: true,
-  });
+function injectSectorCard(props) {
+  const items = React.Children.toArray(props?.children).filter(
+    (item) => !isSectorCard(item)
+  );
 
-  return injectIntoCurrentHomeTree(rendered, { done: false });
+  injecting = true;
+  let rotation;
+  try {
+    rotation = React.createElement(SectorRotationCard, {
+      key: "okai-current-home-sector-v6",
+      __okaiSectorRotationCard: true,
+    });
+  } finally {
+    injecting = false;
+  }
+
+  return {
+    ...(props || {}),
+    __okaiCurrentHomeSectorInjected: true,
+    children: [
+      ...items.slice(0, 2),
+      rotation,
+      ...items.slice(2),
+    ],
+  };
 }
 
 function transform(previous, type, props, reactKey, rest) {
-  if (looksLikeCurrentHomeBotTab(type, props)) {
-    return previous(
-      DirectBotHomeSectorWrapper,
-      { originalType: type, originalProps: props || {} },
-      reactKey,
-      ...(rest || [])
-    );
-  }
+  const nextProps = isCurrentHomeScrollView(type, props || {})
+    ? injectSectorCard(props || {})
+    : props;
 
-  return previous(type, props, reactKey, ...(rest || []));
+  return previous(type, nextProps, reactKey, ...(rest || []));
 }
 
 function patchJsxRuntime(runtime) {
@@ -132,11 +142,11 @@ function patchJsxRuntime(runtime) {
 
   ["jsx", "jsxs", "jsxDEV"].forEach((key) => {
     const previous = runtime[key];
-    if (typeof previous !== "function" || previous.__okaiDirectBotHomeSectorV5) {
+    if (typeof previous !== "function" || previous.__okaiCurrentHomeSectorV6) {
       return;
     }
 
-    const wrapped = function okaiDirectBotHomeSectorJsx(
+    const wrapped = function okaiCurrentHomeSectorJsx(
       type,
       props,
       reactKey,
@@ -145,17 +155,17 @@ function patchJsxRuntime(runtime) {
       return transform(previous, type, props, reactKey, rest);
     };
 
-    wrapped.__okaiDirectBotHomeSectorV5 = true;
+    wrapped.__okaiCurrentHomeSectorV6 = true;
     runtime[key] = wrapped;
   });
 }
 
 function installDirectHomeSectorRotationV4() {
-  if (installed || React.__OKAI_DIRECT_BOT_HOME_SECTOR_V5_PATCHED__) return;
+  if (installed || React.__OKAI_CURRENT_HOME_SECTOR_V6_PATCHED__) return;
   installed = true;
 
   const previousCreateElement = React.createElement.bind(React);
-  React.createElement = function okaiDirectBotHomeSectorCreateElement(
+  React.createElement = function okaiCurrentHomeSectorCreateElement(
     type,
     props,
     ...children
@@ -167,23 +177,20 @@ function installDirectHomeSectorRotationV4() {
         }
       : props || {};
 
-    if (looksLikeCurrentHomeBotTab(type, suppliedProps)) {
-      return previousCreateElement(DirectBotHomeSectorWrapper, {
-        originalType: type,
-        originalProps: suppliedProps,
-      });
-    }
+    const nextProps = isCurrentHomeScrollView(type, suppliedProps)
+      ? injectSectorCard(suppliedProps)
+      : suppliedProps;
 
-    return previousCreateElement(type, suppliedProps);
+    return previousCreateElement(type, nextProps);
   };
 
   patchJsxRuntime(jsxRuntime);
   patchJsxRuntime(jsxDevRuntime);
 
-  React.__OKAI_DIRECT_BOT_HOME_SECTOR_V5_PATCHED__ = true;
+  React.__OKAI_CURRENT_HOME_SECTOR_V6_PATCHED__ = true;
 }
 
 module.exports = {
   installDirectHomeSectorRotationV4,
-  OKAI_DIRECT_HOME_SECTOR_MARKER: "OKAI-DIRECT-BOT-HOME-SECTOR-V5",
+  OKAI_DIRECT_HOME_SECTOR_MARKER: "OKAI-DIRECT-CURRENT-HOME-SCROLL-V6",
 };
