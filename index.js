@@ -4,8 +4,7 @@ import { registerRootComponent } from 'expo';
 const React = require('react');
 const BiometricAppLock = require('./src/security/BiometricAppLock15m');
 
-// Must be installed before the app module loads so the multi-open-trade wrapper
-// can replace the legacy single Active Trade card.
+// Keep the legacy early hook for backward compatibility with older bundles.
 const { installMultiOpenTradeEnhancement } = require(
   './src/runtime/MultiOpenTradeEnhancement'
 );
@@ -23,6 +22,15 @@ installLiveScoreBodyPreserveV4();
 // Do not install the old Home ScrollView injector.
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
+
+// Install LAST, after every navigation/trade/runtime wrapper has loaded. This
+// final render-tree guard replaces the visible single Active Trade card with
+// separate cards for every open position and suppresses the old global floating
+// exit overlay. Each exit request always carries that card's own trade_id.
+const { installFinalMultiOpenTradeScreenV2 } = require(
+  './src/runtime/FinalMultiOpenTradeScreenV2'
+);
+installFinalMultiOpenTradeScreenV2();
 
 function SecuredOptionKingApp() {
   return React.createElement(
