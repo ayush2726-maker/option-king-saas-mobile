@@ -1,20 +1,22 @@
 {
-  "release": "hindi-ai-news-response-patch-v1-retry",
+  "release": "dedicated-ai-screen-hindi-headlines-v2",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-03T14:05:00+05:30",
-  "reason": "Publish the direct Hindi title_hi response patch after earlier overlapping OTA runs were cancelled.",
+  "requested_at": "2026-08-03T14:47:00+05:30",
+  "reason": "The dedicated Advanced AI screen renders headline.title directly, so translate and replace that field only while the saved app language is Hindi.",
   "validation": {
     "required_checks": [
-      "Hindi news response enrichment regression",
+      "Hindi live-headline rendering regression using the currently reported Sudan, China and Iran titles",
+      "English headline preservation regression",
       "Professional bilingual language tests",
       "JavaScript syntax",
       "Android Metro export",
       "Existing mobile validation suite"
     ],
-    "news_fix": "The runtime fetch patch enriches /bot/ai-news-monitor top_headlines with title_hi before AiDecisionCard normalizes the response.",
-    "language_behavior": "Hindi mode reads title_hi; English mode continues reading the original English title.",
-    "fallback": "Existing Railway and client translation remain available; the deterministic response patch covers the currently visible headlines when external translation is unavailable."
+    "root_cause": "Earlier fixes populated title_hi, but AdvancedAiTabScreen ignored title_hi and displayed headline.title, leaving visible headlines in English.",
+    "news_fix": "The fetch runtime now reads okai_lang. In Hindi mode it obtains embedded, deterministic or live translated Hindi text and writes it into both title_hi and title before the dedicated AI screen normalizes the response.",
+    "language_behavior": "Hindi mode renders Hindi title text. English mode receives and renders the untouched original English title.",
+    "cache": "Successful live translations are cached to avoid retranslating the same headline every 15 seconds."
   },
   "trade_safety": "Display-only news language correction. No signal, score, strategy, entry, exit, quantity, stop-loss, cooldown, risk, broker or order logic changes."
 }
