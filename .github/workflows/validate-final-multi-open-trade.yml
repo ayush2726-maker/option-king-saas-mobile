@@ -1,0 +1,35 @@
+name: Validate Final Multi-Open Trade UI
+
+on:
+  pull_request:
+    paths:
+      - "index.js"
+      - "src/runtime/FinalMultiOpenTradeScreenV2.js"
+      - "scripts/test-final-multi-open-trade.js"
+      - ".github/workflows/validate-final-multi-open-trade.yml"
+      - "ota-release.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check JavaScript syntax
+        run: |
+          node --check src/runtime/FinalMultiOpenTradeScreenV2.js
+          node --check scripts/test-final-multi-open-trade.js
+          node --check index.js
+      - name: Verify separate open cards and scoped exits
+        run: node scripts/test-final-multi-open-trade.js
+      - name: Verify Android Metro bundle
+        run: npx expo export --platform android --output-dir dist-final-multi-open
