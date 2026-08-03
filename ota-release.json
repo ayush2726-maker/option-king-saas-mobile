@@ -1,9 +1,9 @@
 {
-  "release": "hindi-ai-news-response-patch-v1",
+  "release": "hindi-ai-news-response-patch-v1-retry",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-03T14:02:00+05:30",
-  "reason": "Inject deterministic Hindi title_hi values into the live AI news-monitor response before the Advanced AI screen reads it.",
+  "requested_at": "2026-08-03T14:05:00+05:30",
+  "reason": "Publish the direct Hindi title_hi response patch after earlier overlapping OTA runs were cancelled.",
   "validation": {
     "required_checks": [
       "Hindi news response enrichment regression",
@@ -12,9 +12,9 @@
       "Android Metro export",
       "Existing mobile validation suite"
     ],
-    "news_fix": "The runtime fetch patch enriches /bot/ai-news-monitor top_headlines with title_hi for the currently visible headlines before AiDecisionCard normalizes the response.",
+    "news_fix": "The runtime fetch patch enriches /bot/ai-news-monitor top_headlines with title_hi before AiDecisionCard normalizes the response.",
     "language_behavior": "Hindi mode reads title_hi; English mode continues reading the original English title.",
-    "fallback": "Existing Railway and client translation remain available; the new deterministic response patch covers the visible headlines even when external translation is unavailable."
+    "fallback": "Existing Railway and client translation remain available; the deterministic response patch covers the currently visible headlines when external translation is unavailable."
   },
   "trade_safety": "Display-only news language correction. No signal, score, strategy, entry, exit, quantity, stop-loss, cooldown, risk, broker or order logic changes."
 }
