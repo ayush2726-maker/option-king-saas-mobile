@@ -11,6 +11,14 @@ const { installMultiOpenTradeEnhancement } = require(
 );
 installMultiOpenTradeEnhancement();
 
+// Install before AppTradeExplanationPatched loads HomeAccordionEnhancementV3.
+// The inner runtime intercepts that accordion wrapper and preserves a score card
+// whose heading and all rows share one top-level container.
+const { installLiveScoreBodyPreserveV4 } = require(
+  './src/runtime/LiveScoreBodyPreserveV4'
+);
+installLiveScoreBodyPreserveV4();
+
 // Sector Rotation now renders directly inside the dedicated Advanced AI tab.
 // Do not install the old Home ScrollView injector.
 const AppModule = require('./AppTradeExplanationPatched');
