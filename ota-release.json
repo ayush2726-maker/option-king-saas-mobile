@@ -1,22 +1,22 @@
 {
-  "release": "dedicated-ai-screen-hindi-headlines-v2-retry",
+  "release": "direct-multi-trade-card-v3",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-03T14:53:00+05:30",
-  "reason": "Retry after earlier overlapping source and test commits cancelled each other's OTA runs. The dedicated Advanced AI screen renders headline.title directly, so Hindi mode must replace that visible field before normalization.",
+  "requested_at": "2026-08-03T15:18:00+05:30",
+  "reason": "The previous final render-tree patch suppressed the floating global exit button but did not match the visible legacy Active Paper Trade card in production. Replace that exact card directly with one card per open position and a trade-scoped exit button.",
   "validation": {
     "required_checks": [
-      "Hindi live-headline rendering regression using the currently reported Sudan, China and Iran titles",
-      "English headline preservation regression",
-      "Professional bilingual language tests",
+      "Direct legacy Active Trade card replacement",
+      "Two simultaneous OPEN trades displayed separately",
+      "Per-card manual exit sends the pressed trade_id only",
+      "Legacy floating EXIT TRADE NOW remains suppressed",
       "JavaScript syntax",
       "Android Metro export",
       "Existing mobile validation suite"
     ],
-    "root_cause": "AdvancedAiTabScreen ignored title_hi and always displayed headline.title.",
-    "news_fix": "The fetch runtime reads okai_lang. In Hindi mode it obtains embedded, deterministic or live translated Hindi text and writes it into title before the dedicated AI screen reads the response.",
-    "language_behavior": "Hindi mode renders Hindi titles; English mode keeps original English titles.",
-    "cache": "Successful live translations are cached to avoid retranslating the same headline every 15 seconds."
+    "root_cause": "The V2 ScrollView signature did not match the production Trade tab, while its independent global-overlay suppression still applied.",
+    "ui_fix": "Install a final V3 wrapper that detects the actual legacy Active Paper/Live Trade card and replaces that component directly, independent of ScrollView structure or minified names.",
+    "data_fix": "Merge OPEN positions from trade history, trade-live and bot signal payloads, refresh every three seconds, and keep each position's live values separate."
   },
-  "trade_safety": "Display-only news language correction. No signal, score, strategy, entry, exit, quantity, stop-loss, cooldown, risk, broker or order logic changes."
+  "trade_safety": "Trade-tab display and explicit user-requested manual exit targeting only. No automatic signal, score, strategy, entry, exit, quantity, stop-loss, cooldown, risk, broker or order rule changes."
 }

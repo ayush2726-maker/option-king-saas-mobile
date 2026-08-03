@@ -31,14 +31,19 @@ installLiveScoreBodyPreserveV4();
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
 
-// Install LAST, after every navigation/trade/runtime wrapper has loaded. This
-// final render-tree guard replaces the visible single Active Trade card with
-// separate cards for every open position and suppresses the old global floating
-// exit overlay. Each exit request always carries that card's own trade_id.
+// Keep the existing final guard for legacy floating-exit suppression.
 const { installFinalMultiOpenTradeScreenV2 } = require(
   './src/runtime/FinalMultiOpenTradeScreenV2'
 );
 installFinalMultiOpenTradeScreenV2();
+
+// Install after every other wrapper. This directly replaces the visible legacy
+// Active Paper/Live Trade card itself, so the multi-position UI no longer
+// depends on ScrollView text signatures or minified component names.
+const { installDirectActiveTradeCardV3 } = require(
+  './src/runtime/DirectActiveTradeCardV3'
+);
+installDirectActiveTradeCardV3();
 
 function SecuredOptionKingApp() {
   return React.createElement(
