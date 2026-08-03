@@ -1,20 +1,21 @@
 {
-  "release": "live-score-body-and-upstox-sector-change-fix-v1",
+  "release": "final-multi-open-trade-cards-v2",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-03T10:18:00+05:30",
-  "reason": "Restore the blank Live Strategy Score accordion body and publish the mobile half of the Upstox Sector Rotation live-change correction.",
+  "requested_at": "2026-08-03T13:06:00+05:30",
+  "reason": "Show every open position as its own Active Trade card and remove the legacy global floating exit button.",
   "validation": {
     "required_checks": [
-      "Live Strategy Score single-container body preservation",
+      "Final multi-open trade render-tree regression",
       "JavaScript syntax",
-      "Sector Rotation AI-tab placement test",
-      "AI tests",
-      "professional language tests",
-      "Android Metro export"
+      "Per-trade trade_id exit verification",
+      "Legacy floating exit suppression",
+      "Android Metro export",
+      "Existing mobile validation suite"
     ],
-    "live_score_fix": "Preserve a production score card whose heading and all score rows share one top-level container instead of deleting the complete body.",
-    "sector_backend_dependency": "Railway separately derives Upstox previous close from official net_change before calculating live percentages."
+    "active_trade_ui": "Every OPEN history row renders as a separate card with symbol, quantity, entry, live price, SL, P&L and its own exit button.",
+    "exit_scope": "The pressed card sends only its own trade_id to /bot/manual-exit; other open trades remain untouched.",
+    "floating_exit": "The old ManualExitOverlay / EXIT TRADE NOW floating control is suppressed after all app wrappers load."
   },
-  "trade_safety": "Display-data and UI rendering fixes only. No trade entry, exit, quantity, stop-loss, risk, score calculation, broker order, or cooldown logic changes."
+  "trade_safety": "UI and manual-exit targeting correction only. No signal, strategy score, automatic entry, automatic exit, quantity, stop-loss, cooldown, risk or broker-order rule changes."
 }
