@@ -1,0 +1,30 @@
+name: Validate Live Strategy Score Body
+
+on:
+  pull_request:
+    paths:
+      - "index.js"
+      - "src/runtime/LiveScoreBodyPreserveV4.js"
+      - "scripts/test-live-score-body-preserve.js"
+      - ".github/workflows/validate-live-score-body.yml"
+      - "ota-release.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Check JavaScript syntax
+        run: |
+          node --check src/runtime/LiveScoreBodyPreserveV4.js
+          node --check scripts/test-live-score-body-preserve.js
+      - name: Verify score body preservation
+        run: node scripts/test-live-score-body-preserve.js

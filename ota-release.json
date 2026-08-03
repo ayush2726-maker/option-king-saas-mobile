@@ -1,19 +1,20 @@
 {
-  "release": "sector-rotation-ai-tab-v1",
+  "release": "live-score-body-and-upstox-sector-change-fix-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-03T01:30:00+05:30",
-  "reason": "Move Sector Rotation from Home into the dedicated Advanced AI tab while retaining the latest guaranteed Hindi news fallback from main.",
+  "requested_at": "2026-08-03T10:18:00+05:30",
+  "reason": "Restore the blank Live Strategy Score accordion body and publish the mobile half of the Upstox Sector Rotation live-change correction.",
   "validation": {
     "required_checks": [
+      "Live Strategy Score single-container body preservation",
       "JavaScript syntax",
       "Sector Rotation AI-tab placement test",
       "AI tests",
       "professional language tests",
       "Android Metro export"
     ],
-    "placement": "Sector Rotation renders before the Advanced AI report in the AI tab and the old Home injector is disabled.",
-    "preserved_main_update": "Guaranteed Hindi AI-news headline fallback remains included."
+    "live_score_fix": "Preserve a production score card whose heading and all score rows share one top-level container instead of deleting the complete body.",
+    "sector_backend_dependency": "Railway separately derives Upstox previous close from official net_change before calculating live percentages."
   },
-  "trade_safety": "UI placement only. No trade entry, exit, quantity, stop-loss, risk, score, broker, or order logic changes."
+  "trade_safety": "Display-data and UI rendering fixes only. No trade entry, exit, quantity, stop-loss, risk, score calculation, broker order, or cooldown logic changes."
 }
