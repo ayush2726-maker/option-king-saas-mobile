@@ -4,6 +4,14 @@ import { registerRootComponent } from 'expo';
 const React = require('react');
 const BiometricAppLock = require('./src/security/BiometricAppLock15m');
 
+// Install before the AI screen loads. The patch enriches the existing
+// /bot/ai-news-monitor response with deterministic Hindi title_hi values.
+// English mode still reads the original title field, so English remains intact.
+const { installHindiNewsResponsePatch } = require(
+  './src/runtime/HindiNewsResponsePatch'
+);
+installHindiNewsResponsePatch();
+
 // Keep the legacy early hook for backward compatibility with older bundles.
 const { installMultiOpenTradeEnhancement } = require(
   './src/runtime/MultiOpenTradeEnhancement'
