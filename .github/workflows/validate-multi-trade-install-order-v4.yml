@@ -29,10 +29,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
 
       - name: Install mobile dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       - name: Check multi-trade runtime syntax
         run: node --check src/runtime/DirectActiveTradeCardV3.js
