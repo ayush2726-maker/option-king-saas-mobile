@@ -1,9 +1,9 @@
 {
-  "release": "ai-model-status-count-cleanup-v11",
+  "release": "ai-model-status-count-cleanup-v12-retry",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-04T23:48:00+05:30",
-  "reason": "The Advanced AI model-status card mixed the validation result with the completed minimum-sample threshold, showing confusing text such as Rejected 588/300 after the 300-sample requirement had already been met.",
+  "requested_at": "2026-08-04T23:58:00+05:30",
+  "reason": "Retry the Advanced AI status-card cleanup after the previous OTA workflow was cancelled by overlapping commits. The UI should no longer show completed sample progress such as Rejected 588/300.",
   "validation": {
     "required_checks": [
       "Advanced AI overview model card shows only the model status",
