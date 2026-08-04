@@ -1,23 +1,23 @@
 {
-  "release": "direct-manual-exit-screen-v5",
+  "release": "global-root-manual-exit-v6",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-04T11:02:38+05:30",
-  "reason": "The visible AUTO Portfolio Active Positions card in App.js does not contain an exit button. The older runtime only targeted a separate legacy Active Paper/Live Trade card, so installing that hook earlier still did not add a control to the actual card the user was viewing.",
+  "requested_at": "2026-08-04T11:22:00+05:30",
+  "reason": "The screen-signature runtime injection was published successfully but still did not render on the user's installed app screen. Replace screen matching with a root-mounted control that does not depend on TradeTab, BotTab, ScrollView signatures, card text, or active-trade state.",
   "validation": {
     "required_checks": [
-      "DirectManualExitScreenV5 installs before AppTradeExplanationPatched",
-      "Manual Trade Exit panel is injected into both Trade and Bot screen ScrollViews",
-      "Every open trade receives a separate EXIT THIS TRADE button",
-      "Confirmation identifies symbol, quantity and live price",
-      "Manual exit POST sends only the selected trade_id",
-      "The panel refreshes open trades every three seconds",
-      "No automatic strategy or execution rules are changed",
-      "JavaScript syntax and Android Metro export"
+      "GlobalManualExitOverlayV6 mounts directly under BiometricAppLock",
+      "A permanent red EXIT button renders at bottom-right after app unlock",
+      "Button is visible on Home, Trade, Bot, Tools and Account screens",
+      "Pressing EXIT opens a full-screen open-trades list",
+      "Every open trade receives a separate selected-trade exit action",
+      "Manual exit sends only the selected trade_id",
+      "No automatic strategy or execution rule changes",
+      "JavaScript checks and Android Metro export"
     ],
-    "root_cause": "The actual AUTO Portfolio Active Positions JSX rendered trade details and P&L but no TouchableOpacity or manual-exit action. The previous patch targeted a different legacy card signature.",
-    "ui_fix": "Add a screen-level Manual Trade Exit panel at the top of both Trade and Bot screens, independent of the legacy card replacement. The panel stays visible as an update marker and shows per-trade red exit buttons whenever an open trade exists.",
-    "data_behavior": "Open trades are normalized from trade history, trade-live and bot signal payloads. Each button is tied to that trade's id and refreshes after the server confirms exit."
+    "root_cause": "Runtime screen detection remained dependent on the final rendered JSX tree. A root-mounted overlay is independent of all screen/card matching and therefore provides a deterministic visible control.",
+    "ui_fix": "Mount GlobalManualExitOverlayV6 in index.js around the entire app. Show a permanent bottom-right red EXIT button with an open-position count badge and a modal containing per-trade exits.",
+    "data_behavior": "Open trades refresh from trade history, trade-live and bot signal payloads. Selected trade exit uses its exact id."
   },
   "trade_safety": "Explicit user-requested manual exit UI only. No signal, score, entry, automatic exit, quantity, stop-loss, cooldown, capital allocation, broker or order-placement rule changes."
 }
