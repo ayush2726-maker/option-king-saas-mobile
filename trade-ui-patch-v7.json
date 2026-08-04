@@ -1,0 +1,6 @@
+{
+  "patch": "OKAI-MULTI-ACTIVE-TRADE-TAB-V7",
+  "requested_at": "2026-08-04T11:41:00+05:30",
+  "problem": "The floating exit badge correctly reports two open trades, but the Trade tab card reads only signal.active_trade/latest_trade and therefore renders one active position.",
+  "expected": "Render every open trade as a separate card with its own live price, SL, P&L and selected-trade exit button."
+}
