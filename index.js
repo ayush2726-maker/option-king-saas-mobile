@@ -26,6 +26,15 @@ const { installLiveScoreBodyPreserveV4 } = require(
 );
 installLiveScoreBodyPreserveV4();
 
+// IMPORTANT: install before AppTradeExplanationPatched (and therefore App.js)
+// is required. App.js captures jsx/jsxs functions while its module is loading.
+// Installing afterward leaves the old single Active Paper Trade card permanently
+// bound to the unpatched JSX runtime, even though the patch exists in the bundle.
+const { installDirectActiveTradeCardV3 } = require(
+  './src/runtime/DirectActiveTradeCardV3'
+);
+installDirectActiveTradeCardV3();
+
 // Sector Rotation now renders directly inside the dedicated Advanced AI tab.
 // Do not install the old Home ScrollView injector.
 const AppModule = require('./AppTradeExplanationPatched');
@@ -36,14 +45,6 @@ const { installFinalMultiOpenTradeScreenV2 } = require(
   './src/runtime/FinalMultiOpenTradeScreenV2'
 );
 installFinalMultiOpenTradeScreenV2();
-
-// Install after every other wrapper. This directly replaces the visible legacy
-// Active Paper/Live Trade card itself, so the multi-position UI no longer
-// depends on ScrollView text signatures or minified component names.
-const { installDirectActiveTradeCardV3 } = require(
-  './src/runtime/DirectActiveTradeCardV3'
-);
-installDirectActiveTradeCardV3();
 
 function SecuredOptionKingApp() {
   return React.createElement(
