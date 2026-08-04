@@ -15,6 +15,7 @@ on:
       - "eas.json"
       - "package.json"
       - "ota-release.json"
+      - "trade-ui-patch-v7.json"
       - ".github/workflows/publish-production-update.yml"
   workflow_dispatch:
 
@@ -44,6 +45,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Apply multi-active-trade source patch
+        id: trade_patch
+        shell: bash
+        run: |
+          python3 scripts/patch_multi_active_trades_v7.py
+          grep -q "OKAI-MULTI-ACTIVE-TRADE-TAB-V7" App.js
+          grep -q "Active Paper Trades" App.js
+          grep -q "EXIT THIS TRADE" App.js
+          grep -q "Promise.allSettled" App.js
+          git diff --check
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -71,6 +83,9 @@ jobs:
         run: |
           set -o pipefail
           {
+            grep -q "OKAI-MULTI-ACTIVE-TRADE-TAB-V7" App.js
+            grep -q "Active Paper Trades" App.js
+            grep -q "EXIT THIS TRADE" App.js
             node --check src/components/SectorRotationCard.js
             node --check src/runtime/SectorRotationEnhancement.js
             node --check src/runtime/DirectHomeSectorRotationV4.js
@@ -104,7 +119,7 @@ jobs:
             --branch production \
             --platform android \
             --clear-cache \
-            --message "OKAI Android OTA ${SHORT_SHA}: sector rotation and 15-minute biometric grace" \
+            --message "OKAI Android OTA ${SHORT_SHA}: render every active trade with selected-trade exit" \
             --non-interactive 2>&1 | tee /tmp/okai-ota/publish.log
 
       - name: Point and verify production channel
