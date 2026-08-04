@@ -1,22 +1,23 @@
 {
-  "release": "multi-trade-install-order-v4",
+  "release": "direct-manual-exit-screen-v5",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-04T10:32:00+05:30",
-  "reason": "The V3 multi-trade runtime was installed after AppTradeExplanationPatched loaded App.js. App.js had already captured the original jsx/jsxs functions, so the legacy single Active Paper Trade card remained visible and no per-trade exit buttons rendered. Install the V3 JSX hook before the app module loads.",
+  "requested_at": "2026-08-04T11:02:38+05:30",
+  "reason": "The visible AUTO Portfolio Active Positions card in App.js does not contain an exit button. The older runtime only targeted a separate legacy Active Paper/Live Trade card, so installing that hook earlier still did not add a control to the actual card the user was viewing.",
   "validation": {
     "required_checks": [
-      "DirectActiveTradeCardV3 installs before AppTradeExplanationPatched",
-      "Two simultaneous OPEN trades are normalized and rendered separately",
-      "Each exit request sends only the pressed trade_id",
-      "Legacy floating EXIT TRADE NOW remains suppressed",
-      "JavaScript syntax",
-      "Android Metro export",
-      "Existing mobile validation suite"
+      "DirectManualExitScreenV5 installs before AppTradeExplanationPatched",
+      "Manual Trade Exit panel is injected into both Trade and Bot screen ScrollViews",
+      "Every open trade receives a separate EXIT THIS TRADE button",
+      "Confirmation identifies symbol, quantity and live price",
+      "Manual exit POST sends only the selected trade_id",
+      "The panel refreshes open trades every three seconds",
+      "No automatic strategy or execution rules are changed",
+      "JavaScript syntax and Android Metro export"
     ],
-    "root_cause": "Runtime installation order: patched jsx/jsxs exports were attached only after TradeTab had captured unpatched local references.",
-    "ui_fix": "Move installDirectActiveTradeCardV3 before requiring AppTradeExplanationPatched, while keeping the floating-overlay suppression guard after app load.",
-    "data_behavior": "Open trades continue to merge from trade history, trade-live and bot signal payloads every three seconds."
+    "root_cause": "The actual AUTO Portfolio Active Positions JSX rendered trade details and P&L but no TouchableOpacity or manual-exit action. The previous patch targeted a different legacy card signature.",
+    "ui_fix": "Add a screen-level Manual Trade Exit panel at the top of both Trade and Bot screens, independent of the legacy card replacement. The panel stays visible as an update marker and shows per-trade red exit buttons whenever an open trade exists.",
+    "data_behavior": "Open trades are normalized from trade history, trade-live and bot signal payloads. Each button is tied to that trade's id and refreshes after the server confirms exit."
   },
-  "trade_safety": "Trade-tab display and explicit user-requested manual exit targeting only. No automatic signal, score, strategy, entry, exit, quantity, stop-loss, cooldown, risk, broker or order rule changes."
+  "trade_safety": "Explicit user-requested manual exit UI only. No signal, score, entry, automatic exit, quantity, stop-loss, cooldown, capital allocation, broker or order-placement rule changes."
 }
