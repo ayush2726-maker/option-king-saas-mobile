@@ -1,22 +1,20 @@
 {
-  "release": "login-safe-exit-v10",
+  "release": "ai-model-status-count-cleanup-v11",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-04T23:10:00+05:30",
-  "reason": "The root-mounted manual EXIT control was rendering over Login, Register and Recovery because it wrapped the whole application without checking whether a user session existed.",
+  "requested_at": "2026-08-04T23:48:00+05:30",
+  "reason": "The Advanced AI model-status card mixed the validation result with the completed minimum-sample threshold, showing confusing text such as Rejected 588/300 after the 300-sample requirement had already been met.",
   "validation": {
     "required_checks": [
-      "SessionAwareManualExitOverlayV10 wraps the existing V9 exit overlay",
-      "No EXIT control is mounted when saas_token is absent",
-      "EXIT control becomes available shortly after a successful login",
-      "EXIT control disappears after logout",
-      "Existing selected-trade manual exit behavior remains unchanged",
-      "No strategy, broker, scoring, entry, automatic exit or capital logic changes",
+      "Advanced AI overview model card shows only the model status",
+      "Completed sample progress such as 588/300 is not displayed",
+      "The backend minimum training threshold remains 300",
+      "Validation accuracy, baseline accuracy, Brier score and failed checks remain visible",
+      "No AI prediction, retraining, strategy, broker, entry, exit or order logic changes",
       "JavaScript checks and Android Metro export"
     ],
-    "root_cause": "GlobalManualExitOverlayV9 was mounted at the application root and always rendered its floating button, even while the underlying App component was showing unauthenticated screens.",
-    "ui_fix": "Add a lightweight session-aware wrapper that mounts the existing manual-exit overlay only while a stored SaaS login token is present.",
-    "polling_behavior": "The session guard checks local login state every 1.5 seconds and when the app returns to the foreground; trade-data polling remains inside the existing V9 overlay only after login."
+    "ui_fix": "Remove the completed sample counter from the model-status value while keeping the internal sample data available for retraining and diagnostics.",
+    "logic_safety": "This is a presentation-only change. Model validation thresholds and monitor-only trade safety remain unchanged."
   },
-  "trade_safety": "Authentication-screen UI fix only. Manual exit payloads and all automatic trading logic remain unchanged."
+  "trade_safety": "Advanced AI UI only. Trade blocking and order execution remain OFF for this AI layer."
 }
