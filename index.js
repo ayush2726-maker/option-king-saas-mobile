@@ -3,6 +3,9 @@ import { registerRootComponent } from 'expo';
 
 const React = require('react');
 const BiometricAppLock = require('./src/security/BiometricAppLock15m');
+const GlobalManualExitOverlayV6 = require(
+  './src/components/GlobalManualExitOverlayV6'
+);
 
 // Install before the AI screen loads. The patch enriches the existing
 // /bot/ai-news-monitor response with deterministic Hindi title_hi values.
@@ -35,16 +38,13 @@ const { installDirectActiveTradeCardV3 } = require(
 );
 installDirectActiveTradeCardV3();
 
-// Install a direct screen-level manual exit panel before App.js loads.
-// It appears at the top of both Trade and Bot screens and exits only the
-// selected open trade using its trade_id.
+// Keep the previous screen-level panel as backward-compatible support.
 const { installDirectManualExitScreenV5 } = require(
   './src/runtime/DirectManualExitScreenV5'
 );
 installDirectManualExitScreenV5();
 
 // Sector Rotation now renders directly inside the dedicated Advanced AI tab.
-// Do not install the old Home ScrollView injector.
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
 
@@ -58,7 +58,11 @@ function SecuredOptionKingApp() {
   return React.createElement(
     BiometricAppLock,
     null,
-    React.createElement(App)
+    React.createElement(
+      GlobalManualExitOverlayV6,
+      null,
+      React.createElement(App)
+    )
   );
 }
 
