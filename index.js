@@ -35,6 +35,14 @@ const { installDirectActiveTradeCardV3 } = require(
 );
 installDirectActiveTradeCardV3();
 
+// Install a direct screen-level manual exit panel before App.js loads.
+// It appears at the top of both Trade and Bot screens and exits only the
+// selected open trade using its trade_id.
+const { installDirectManualExitScreenV5 } = require(
+  './src/runtime/DirectManualExitScreenV5'
+);
+installDirectManualExitScreenV5();
+
 // Sector Rotation now renders directly inside the dedicated Advanced AI tab.
 // Do not install the old Home ScrollView injector.
 const AppModule = require('./AppTradeExplanationPatched');
