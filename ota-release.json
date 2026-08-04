@@ -1,24 +1,22 @@
 {
-  "release": "mobile-performance-cleanup-v9",
+  "release": "login-safe-exit-v10",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-04T14:56:00+05:30",
-  "reason": "The app became very laggy after several overlapping trade UI runtimes, root overlays and polling loops were installed together. Remove duplicate render-tree wrappers and keep one actual multi-trade screen plus one low-load global exit control.",
+  "requested_at": "2026-08-04T23:10:00+05:30",
+  "reason": "The root-mounted manual EXIT control was rendering over Login, Register and Recovery because it wrapped the whole application without checking whether a user session existed.",
   "validation": {
     "required_checks": [
-      "No legacy MultiOpenTradeEnhancement installation",
-      "No DirectActiveTradeCardV3 installation",
-      "No DirectManualExitScreenV5 installation",
-      "No FinalMultiOpenTradeScreenV2 installation",
-      "Legacy AppPatched ManualExitOverlay suppressed without network polling",
-      "GlobalManualExitOverlayV9 polls count at 15-second cadence",
-      "Full live/signal refresh only when exit window is opened or manually refreshed",
-      "Open-trade count and selected-trade exit remain available",
+      "SessionAwareManualExitOverlayV10 wraps the existing V9 exit overlay",
+      "No EXIT control is mounted when saas_token is absent",
+      "EXIT control becomes available shortly after a successful login",
+      "EXIT control disappears after logout",
+      "Existing selected-trade manual exit behavior remains unchanged",
+      "No strategy, broker, scoring, entry, automatic exit or capital logic changes",
       "JavaScript checks and Android Metro export"
     ],
-    "performance_fix": "Replace four JSX/render-tree wrappers and two competing exit overlays with one direct Trade screen and a lightweight root overlay. Avoid state updates when open-trade snapshots are unchanged.",
-    "network_fix": "The closed root EXIT badge reads history only every 15 seconds; trade-live and bot-signal are fetched only for the opened exit modal.",
-    "ui_behavior": "The red EXIT button and per-trade exit modal remain available, while the main Trade tab continues to show every open trade separately."
+    "root_cause": "GlobalManualExitOverlayV9 was mounted at the application root and always rendered its floating button, even while the underlying App component was showing unauthenticated screens.",
+    "ui_fix": "Add a lightweight session-aware wrapper that mounts the existing manual-exit overlay only while a stored SaaS login token is present.",
+    "polling_behavior": "The session guard checks local login state every 1.5 seconds and when the app returns to the foreground; trade-data polling remains inside the existing V9 overlay only after login."
   },
-  "trade_safety": "Mobile UI and polling performance only. No signal, score, automatic entry, automatic exit, quantity, stop-loss, cooldown, capital allocation, broker or order-placement logic changes."
+  "trade_safety": "Authentication-screen UI fix only. Manual exit payloads and all automatic trading logic remain unchanged."
 }
