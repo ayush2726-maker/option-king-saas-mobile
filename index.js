@@ -3,8 +3,8 @@ import { registerRootComponent } from 'expo';
 
 const React = require('react');
 const BiometricAppLock = require('./src/security/BiometricAppLock15m');
-const GlobalManualExitOverlayV9 = require(
-  './src/components/GlobalManualExitOverlayV9'
+const SessionAwareManualExitOverlayV10 = require(
+  './src/components/SessionAwareManualExitOverlayV10'
 );
 
 // Install before the AI screen loads. Hindi mode receives deterministic title_hi
@@ -23,7 +23,7 @@ installLiveScoreBodyPreserveV4();
 
 // The old AppPatched ManualExitOverlay also polls trade-live every five seconds.
 // Suppress only that component with this lightweight no-network hook. The V9
-// root overlay below remains the single global manual-exit control.
+// root overlay remains the single global manual-exit control after login.
 const { installDisableLegacyManualExitOverlayV9 } = require(
   './src/runtime/DisableLegacyManualExitOverlayV9'
 );
@@ -39,7 +39,7 @@ function SecuredOptionKingApp() {
     BiometricAppLock,
     null,
     React.createElement(
-      GlobalManualExitOverlayV9,
+      SessionAwareManualExitOverlayV10,
       null,
       React.createElement(App)
     )
