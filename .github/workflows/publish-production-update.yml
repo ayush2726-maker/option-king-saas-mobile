@@ -56,6 +56,19 @@ jobs:
           grep -q "Promise.allSettled" App.js
           git diff --check
 
+      - name: Patch actual Live Score Trade tab
+        id: live_score_trade_patch
+        shell: bash
+        run: |
+          python3 scripts/patch_live_score_multi_trades_v8.py
+          grep -q "OKAI-LIVE-SCORE-MULTI-TRADE-V8" src/runtime/LiveScoreTradeTabEnhancement.js
+          grep -q "mergeOpenPositionsV8" src/runtime/LiveScoreTradeTabEnhancement.js
+          grep -q "Active.*Trades" src/runtime/LiveScoreTradeTabEnhancement.js
+          grep -q "__okaiMultiTradeBypass" src/runtime/LiveScoreTradeTabEnhancement.js
+          grep -q "EXIT THIS TRADE" src/runtime/LiveScoreTradeTabEnhancement.js
+          node --check src/runtime/LiveScoreTradeTabEnhancement.js
+          git diff --check
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -86,6 +99,10 @@ jobs:
             grep -q "OKAI-MULTI-ACTIVE-TRADE-TAB-V7" App.js
             grep -q "Active Paper Trades" App.js
             grep -q "EXIT THIS TRADE" App.js
+            grep -q "OKAI-LIVE-SCORE-MULTI-TRADE-V8" src/runtime/LiveScoreTradeTabEnhancement.js
+            grep -q "mergeOpenPositionsV8" src/runtime/LiveScoreTradeTabEnhancement.js
+            grep -q "__okaiMultiTradeBypass" src/runtime/LiveScoreTradeTabEnhancement.js
+            node --check src/runtime/LiveScoreTradeTabEnhancement.js
             node --check src/components/SectorRotationCard.js
             node --check src/runtime/SectorRotationEnhancement.js
             node --check src/runtime/DirectHomeSectorRotationV4.js
@@ -119,7 +136,7 @@ jobs:
             --branch production \
             --platform android \
             --clear-cache \
-            --message "OKAI Android OTA ${SHORT_SHA}: render every active trade with selected-trade exit" \
+            --message "OKAI Android OTA ${SHORT_SHA}: native Live Score multi-active-trade cards V8" \
             --non-interactive 2>&1 | tee /tmp/okai-ota/publish.log
 
       - name: Point and verify production channel
