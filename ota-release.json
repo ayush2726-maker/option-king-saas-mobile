@@ -1,23 +1,24 @@
 {
-  "release": "global-root-manual-exit-v6",
+  "release": "mobile-performance-cleanup-v9",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-04T11:22:00+05:30",
-  "reason": "The screen-signature runtime injection was published successfully but still did not render on the user's installed app screen. Replace screen matching with a root-mounted control that does not depend on TradeTab, BotTab, ScrollView signatures, card text, or active-trade state.",
+  "requested_at": "2026-08-04T14:56:00+05:30",
+  "reason": "The app became very laggy after several overlapping trade UI runtimes, root overlays and polling loops were installed together. Remove duplicate render-tree wrappers and keep one actual multi-trade screen plus one low-load global exit control.",
   "validation": {
     "required_checks": [
-      "GlobalManualExitOverlayV6 mounts directly under BiometricAppLock",
-      "A permanent red EXIT button renders at bottom-right after app unlock",
-      "Button is visible on Home, Trade, Bot, Tools and Account screens",
-      "Pressing EXIT opens a full-screen open-trades list",
-      "Every open trade receives a separate selected-trade exit action",
-      "Manual exit sends only the selected trade_id",
-      "No automatic strategy or execution rule changes",
+      "No legacy MultiOpenTradeEnhancement installation",
+      "No DirectActiveTradeCardV3 installation",
+      "No DirectManualExitScreenV5 installation",
+      "No FinalMultiOpenTradeScreenV2 installation",
+      "Legacy AppPatched ManualExitOverlay suppressed without network polling",
+      "GlobalManualExitOverlayV9 polls count at 15-second cadence",
+      "Full live/signal refresh only when exit window is opened or manually refreshed",
+      "Open-trade count and selected-trade exit remain available",
       "JavaScript checks and Android Metro export"
     ],
-    "root_cause": "Runtime screen detection remained dependent on the final rendered JSX tree. A root-mounted overlay is independent of all screen/card matching and therefore provides a deterministic visible control.",
-    "ui_fix": "Mount GlobalManualExitOverlayV6 in index.js around the entire app. Show a permanent bottom-right red EXIT button with an open-position count badge and a modal containing per-trade exits.",
-    "data_behavior": "Open trades refresh from trade history, trade-live and bot signal payloads. Selected trade exit uses its exact id."
+    "performance_fix": "Replace four JSX/render-tree wrappers and two competing exit overlays with one direct Trade screen and a lightweight root overlay. Avoid state updates when open-trade snapshots are unchanged.",
+    "network_fix": "The closed root EXIT badge reads history only every 15 seconds; trade-live and bot-signal are fetched only for the opened exit modal.",
+    "ui_behavior": "The red EXIT button and per-trade exit modal remain available, while the main Trade tab continues to show every open trade separately."
   },
-  "trade_safety": "Explicit user-requested manual exit UI only. No signal, score, entry, automatic exit, quantity, stop-loss, cooldown, capital allocation, broker or order-placement rule changes."
+  "trade_safety": "Mobile UI and polling performance only. No signal, score, automatic entry, automatic exit, quantity, stop-loss, cooldown, capital allocation, broker or order-placement logic changes."
 }
