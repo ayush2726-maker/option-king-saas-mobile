@@ -1,0 +1,42 @@
+name: Validate Multi Trade Install Order V4
+
+on:
+  pull_request:
+    paths:
+      - "index.js"
+      - "src/runtime/DirectActiveTradeCardV3.js"
+      - "tests/test_multi_trade_install_order_v4.py"
+      - ".github/workflows/validate-multi-trade-install-order-v4.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Run install-order regression tests
+        run: python -m pytest -q tests/test_multi_trade_install_order_v4.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install mobile dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Check multi-trade runtime syntax
+        run: node --check src/runtime/DirectActiveTradeCardV3.js
+
+      - name: Export Android Metro bundle
+        env:
+          EXPO_NO_TELEMETRY: "1"
+        run: npx expo export --platform android --output-dir /tmp/okai-multi-trade-v4

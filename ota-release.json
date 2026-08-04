@@ -1,22 +1,22 @@
 {
-  "release": "direct-multi-trade-card-v3",
+  "release": "multi-trade-install-order-v4",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-03T15:18:00+05:30",
-  "reason": "The previous final render-tree patch suppressed the floating global exit button but did not match the visible legacy Active Paper Trade card in production. Replace that exact card directly with one card per open position and a trade-scoped exit button.",
+  "requested_at": "2026-08-04T10:32:00+05:30",
+  "reason": "The V3 multi-trade runtime was installed after AppTradeExplanationPatched loaded App.js. App.js had already captured the original jsx/jsxs functions, so the legacy single Active Paper Trade card remained visible and no per-trade exit buttons rendered. Install the V3 JSX hook before the app module loads.",
   "validation": {
     "required_checks": [
-      "Direct legacy Active Trade card replacement",
-      "Two simultaneous OPEN trades displayed separately",
-      "Per-card manual exit sends the pressed trade_id only",
+      "DirectActiveTradeCardV3 installs before AppTradeExplanationPatched",
+      "Two simultaneous OPEN trades are normalized and rendered separately",
+      "Each exit request sends only the pressed trade_id",
       "Legacy floating EXIT TRADE NOW remains suppressed",
       "JavaScript syntax",
       "Android Metro export",
       "Existing mobile validation suite"
     ],
-    "root_cause": "The V2 ScrollView signature did not match the production Trade tab, while its independent global-overlay suppression still applied.",
-    "ui_fix": "Install a final V3 wrapper that detects the actual legacy Active Paper/Live Trade card and replaces that component directly, independent of ScrollView structure or minified names.",
-    "data_fix": "Merge OPEN positions from trade history, trade-live and bot signal payloads, refresh every three seconds, and keep each position's live values separate."
+    "root_cause": "Runtime installation order: patched jsx/jsxs exports were attached only after TradeTab had captured unpatched local references.",
+    "ui_fix": "Move installDirectActiveTradeCardV3 before requiring AppTradeExplanationPatched, while keeping the floating-overlay suppression guard after app load.",
+    "data_behavior": "Open trades continue to merge from trade history, trade-live and bot signal payloads every three seconds."
   },
   "trade_safety": "Trade-tab display and explicit user-requested manual exit targeting only. No automatic signal, score, strategy, entry, exit, quantity, stop-loss, cooldown, risk, broker or order rule changes."
 }
