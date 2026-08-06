@@ -1,20 +1,20 @@
 {
-  "release": "ai-model-status-count-cleanup-v12-retry",
+  "release": "final-decision-reason-panel-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-04T23:58:00+05:30",
-  "reason": "Retry the Advanced AI status-card cleanup after the previous OTA workflow was cancelled by overlapping commits. The UI should no longer show completed sample progress such as Rejected 588/300.",
+  "requested_at": "2026-08-06T15:12:00+05:30",
+  "reason": "Publish the Trade-tab Final Decision Reason panel that shows exact strategy and execution block reasons below Live Strategy Score.",
   "validation": {
     "required_checks": [
-      "Advanced AI overview model card shows only the model status",
-      "Completed sample progress such as 588/300 is not displayed",
-      "The backend minimum training threshold remains 300",
-      "Validation accuracy, baseline accuracy, Brier score and failed checks remain visible",
-      "No AI prediction, retraining, strategy, broker, entry, exit or order logic changes",
+      "Final Decision Reason appears immediately below Live Strategy Score",
+      "Selected index, side, score and threshold are visible",
+      "Strategy block reasons and execution guard reasons are shown separately",
+      "Existing Live Strategy Score breakdown remains unchanged",
+      "No entry, exit, SL, quantity, broker or order logic changes",
       "JavaScript checks and Android Metro export"
     ],
-    "ui_fix": "Remove the completed sample counter from the model-status value while keeping the internal sample data available for retraining and diagnostics.",
-    "logic_safety": "This is a presentation-only change. Model validation thresholds and monitor-only trade safety remain unchanged."
+    "ui_fix": "Install and publish the decision-reason runtime panel in the production Android bundle.",
+    "logic_safety": "Display-only change; trading behavior remains unchanged."
   },
-  "trade_safety": "Advanced AI UI only. Trade blocking and order execution remain OFF for this AI layer."
+  "trade_safety": "UI diagnostics only. No order execution or risk logic changes."
 }
