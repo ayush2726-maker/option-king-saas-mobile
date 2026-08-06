@@ -13,6 +13,23 @@ function num(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function istClock() {
+  const now = new Date(Date.now() + 330 * 60 * 1000);
+  return {
+    weekday: now.getUTCDay(),
+    minute: now.getUTCHours() * 60 + now.getUTCMinutes(),
+  };
+}
+
+function marketTimeReason() {
+  const { weekday, minute } = istClock();
+  if (weekday === 0 || weekday === 6) return 'MARKET_CLOSED_WEEKEND';
+  if (minute < 9 * 60 + 15) return 'AUTO_ENTRY_BLOCKED_BEFORE_0915_IST';
+  if (minute >= 15 * 60 + 30) return 'MARKET_CLOSED_AFTER_1530_IST';
+  if (minute >= 14 * 60 + 45) return 'AUTO_ENTRY_CUTOFF_1445_IST';
+  return '';
+}
+
 function collectReasons(signal, scan) {
   const reasons = [];
   const add = (value) => {
@@ -32,6 +49,9 @@ function collectReasons(signal, scan) {
   add(signal?.entry_guard?.reason);
   add(signal?.entry_attempt?.reason);
   add(signal?.entry_permission?.allowed === false ? signal?.entry_permission?.reason : null);
+
+  const timeReason = marketTimeReason();
+  if (timeReason) add(timeReason);
 
   const score = num(scan?.score ?? scan?.live_score_breakdown?.score, 0);
   const minimum = num(scan?.min_score ?? scan?.live_score_breakdown?.min_score ?? signal?.min_score, 82);
@@ -57,8 +77,9 @@ function DecisionPanel({ signal }) {
   const score = num(scan?.score ?? scan?.live_score_breakdown?.score, 0);
   const minimum = num(scan?.min_score ?? scan?.live_score_breakdown?.min_score ?? signal?.min_score, 82);
   const qualified = !!scan?.trade_allowed;
+  const timeReason = marketTimeReason();
   const attemptBlocked = !!(
-    signal?.entry_block_reason || signal?.last_entry_block_reason ||
+    timeReason || signal?.entry_block_reason || signal?.last_entry_block_reason ||
     signal?.entry_guard?.allowed === false || signal?.entry_attempt?.allowed === false ||
     signal?.entry_permission?.allowed === false
   );
@@ -68,7 +89,12 @@ function DecisionPanel({ signal }) {
 
   return React.createElement(
     View,
-    { style: { marginTop: 10, backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: color + '88', padding: 13 } },
+    {
+      style: {
+        marginTop: 10, backgroundColor: C.card, borderRadius: 14,
+        borderWidth: 1, borderColor: color + '88', padding: 13,
+      },
+    },
     React.createElement(
       View,
       { style: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
@@ -78,79 +104,69 @@ function DecisionPanel({ signal }) {
     React.createElement(Text, { style: { color: C.blue, fontSize: 12, fontWeight: '900', marginTop: 8 } }, `${scan?.underlying || 'INDEX'} • ${scan?.candidate_signal || scan?.signal || 'WAIT'} • ${score}/${minimum}`),
     reasons.map((reason, index) => React.createElement(
       Text,
-      { key: `${reason}-${index}`, style: { color: C.gold, fontSize: 11, lineHeight: 17, marginTop: 3 } },
+      { key: `${reason}-${index}`, style: { color: reason.includes('OK') ? C.green : C.gold, fontSize: 11, lineHeight: 17, marginTop: 3 } },
       `• ${reason}`
     )),
     React.createElement(Text, { style: { color: C.muted, fontSize: 10, lineHeight: 15, marginTop: 8 } },
       qualified
-        ? attemptBlocked ? 'Strategy pass hui, lekin order/execution guard ne trade roki.' : 'Strategy aur execution dono pass hain.'
+        ? attemptBlocked ? 'Strategy pass hui, lekin market-time/order execution guard ne trade roki.' : 'Strategy aur execution dono pass hain.'
         : 'Strategy qualification complete nahi hui; order attempt nahi hua.'
     )
   );
 }
 
-function componentSource(type) {
-  try { return Function.prototype.toString.call(type); } catch (_) { return ''; }
-}
-
-function isLiveScoreCard(type, props) {
-  if (!type || typeof type !== 'function' || props?.__okaiDecisionBypass) return false;
-  const name = String(type.displayName || type.name || '');
+function isLiveScoreCard(type) {
+  const name = String(type?.displayName || type?.name || '');
   if (name === 'LiveStrategyScoreCard') return true;
-  const source = componentSource(type);
-  return source.includes('Live Strategy Score') && source.includes('scan_results');
+  try {
+    const source = Function.prototype.toString.call(type);
+    return source.includes('Live Strategy Score') && source.includes('scan_results');
+  } catch (_) {
+    return false;
+  }
 }
 
-function wrap(previous, type, props, children, key) {
-  if (!isLiveScoreCard(type, props)) return previous(type, props, ...(children || []));
-  return React.createElement(
-    View,
-    null,
-    previous(type, { ...(props || {}), __okaiDecisionBypass: true }, ...(children || [])),
-    React.createElement(DecisionPanel, { signal: props?.signal || {}, key: 'okai-final-decision' })
-  );
+function wrap(previous, type, props, key, children) {
+  if (isLiveScoreCard(type) && !props?.__okaiDecisionBypass) {
+    return previous(
+      View,
+      null,
+      previous(type, { ...(props || {}), __okaiDecisionBypass: true }, ...(children || [])),
+      previous(DecisionPanel, { signal: props?.signal || {} })
+    );
+  }
+  return previous(type, props, ...(children || []));
 }
 
 function installFinalDecisionReasonPanelV1() {
   if (installed || React.__OKAI_FINAL_DECISION_REASON_V1__) return;
   installed = true;
-
-  const previousCreateElement = React.createElement.bind(React);
+  const previous = React.createElement.bind(React);
   React.createElement = function finalDecisionReasonCreateElement(type, props, ...children) {
-    if (isLiveScoreCard(type, props)) {
-      return previousCreateElement(
-        View,
-        null,
-        previousCreateElement(type, { ...(props || {}), __okaiDecisionBypass: true }, ...children),
-        previousCreateElement(DecisionPanel, { signal: props?.signal || {}, key: 'okai-final-decision' })
-      );
-    }
-    return previousCreateElement(type, props, ...children);
+    return wrap(previous, type, props, null, children);
   };
-
   try {
     const jsxRuntime = require('react/jsx-runtime');
-    ['jsx', 'jsxs'].forEach((method) => {
-      const previous = jsxRuntime[method];
-      if (typeof previous !== 'function') return;
-      jsxRuntime[method] = function finalDecisionReasonJsx(type, props, key) {
-        if (isLiveScoreCard(type, props)) {
-          return previous(
+    ['jsx', 'jsxs'].forEach((key) => {
+      const old = jsxRuntime[key];
+      if (typeof old !== 'function') return;
+      jsxRuntime[key] = function finalDecisionReasonJsx(type, props, reactKey) {
+        if (isLiveScoreCard(type) && !props?.__okaiDecisionBypass) {
+          return old(
             View,
             {
               children: [
-                previous(type, { ...(props || {}), __okaiDecisionBypass: true }, key),
-                previous(DecisionPanel, { signal: props?.signal || {} }, 'okai-final-decision'),
+                old(type, { ...(props || {}), __okaiDecisionBypass: true }, reactKey),
+                old(DecisionPanel, { signal: props?.signal || {} }, 'okai-final-decision'),
               ],
             },
-            key
+            reactKey
           );
         }
-        return previous(type, props, key);
+        return old(type, props, reactKey);
       };
     });
   } catch (_) {}
-
   React.__OKAI_FINAL_DECISION_REASON_V1__ = true;
 }
 
