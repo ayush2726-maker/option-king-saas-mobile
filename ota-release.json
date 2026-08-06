@@ -1,20 +1,20 @@
 {
-  "release": "final-decision-reason-panel-v1",
+  "release": "final-decision-panel-and-zero-exit-fix-v2",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-06T15:12:00+05:30",
-  "reason": "Publish the Trade-tab Final Decision Reason panel that shows exact strategy and execution block reasons below Live Strategy Score.",
+  "requested_at": "2026-08-06T15:20:00+05:30",
+  "reason": "Publish the Final Decision Reason panel through both React and JSX runtimes and hide the floating EXIT control whenever there are zero open trades.",
   "validation": {
     "required_checks": [
-      "Final Decision Reason appears immediately below Live Strategy Score",
-      "Selected index, side, score and threshold are visible",
-      "Strategy block reasons and execution guard reasons are shown separately",
-      "Existing Live Strategy Score breakdown remains unchanged",
-      "No entry, exit, SL, quantity, broker or order logic changes",
-      "JavaScript checks and Android Metro export"
+      "Final Decision Reason appears below Live Strategy Score",
+      "React.createElement and react/jsx-runtime render paths are covered",
+      "Floating EXIT button is absent when open trade count is zero",
+      "Floating EXIT button is present only when at least one open trade exists",
+      "Existing score, entry, SL, quantity and broker logic remain unchanged",
+      "Android Metro export succeeds"
     ],
-    "ui_fix": "Install and publish the decision-reason runtime panel in the production Android bundle.",
-    "logic_safety": "Display-only change; trading behavior remains unchanged."
+    "ui_fix": "Install the diagnostics hook before Trade modules load and gate the root exit overlay using real open-trade data.",
+    "logic_safety": "UI-only diagnostics and visibility changes. No trading behavior changes."
   },
-  "trade_safety": "UI diagnostics only. No order execution or risk logic changes."
+  "trade_safety": "No entry, exit algorithm, order, broker or risk-rule changes."
 }
