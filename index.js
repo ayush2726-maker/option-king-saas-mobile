@@ -22,17 +22,21 @@ const { installLiveScoreBodyPreserveV4 } = require(
 installLiveScoreBodyPreserveV4();
 
 // The old AppPatched ManualExitOverlay also polls trade-live every five seconds.
-// Suppress only that component with this lightweight no-network hook. The V9
-// root overlay remains the single global manual-exit control after login.
+// Suppress only that component with this lightweight no-network hook.
 const { installDisableLegacyManualExitOverlayV9 } = require(
   './src/runtime/DisableLegacyManualExitOverlayV9'
 );
 installDisableLegacyManualExitOverlayV9();
 
-// LiveScoreTradeTabEnhancement is patched during the verified OTA workflow to
-// render every open trade directly. No additional JSX/tree wrappers are needed.
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
+
+// Install after the Trade-tab enhancement module has loaded. It wraps the real
+// LiveStrategyScoreCard and renders exact strategy/execution reasons below it.
+const { installFinalDecisionReasonPanelV1 } = require(
+  './src/runtime/FinalDecisionReasonPanelV1'
+);
+installFinalDecisionReasonPanelV1();
 
 function SecuredOptionKingApp() {
   return React.createElement(
