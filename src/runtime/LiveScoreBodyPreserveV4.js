@@ -70,7 +70,31 @@ function looksLikeBrokenLiveScoreWrapper(type, props) {
   );
 }
 
+function originalIsSelfContainedLiveScore(originalType, originalProps) {
+  const name = componentName(originalType);
+  const source = componentSource(originalType);
+  const propsText = textOf(originalProps?.children).replace(/\s+/g, " ").toLowerCase();
+  return (
+    name === "LiveStrategyScoreCard" ||
+    (source.includes("Live Strategy Score") && source.includes("scan_results")) ||
+    propsText.includes("tap to view live strategy score") ||
+    propsText.includes("tap to close live score")
+  );
+}
+
 function FixedLiveScoreAccordionPanel({ originalType, originalProps }) {
+  // Newer LiveStrategyScoreCard already owns its accordion header, score value,
+  // chevron and expanded body. Wrapping it again creates the duplicated heading
+  // seen on the Trade screen. Let that modern card render itself directly.
+  if (originalIsSelfContainedLiveScore(originalType, originalProps)) {
+    return React.createElement(originalType, {
+      ...(originalProps || {}),
+      __okaiAccordionV3Bypass: true,
+      __okaiLiveScoreV3Bypass: true,
+      __okaiLiveScoreBodyPreserveBypass: true,
+    });
+  }
+
   const [open, setOpen] = React.useState(false);
   const bodyChildren = safeBodyChildren(originalProps?.children);
 
@@ -218,5 +242,5 @@ function installLiveScoreBodyPreserveV4() {
 module.exports = {
   installLiveScoreBodyPreserveV4,
   safeBodyChildren,
-  OKAI_LIVE_SCORE_BODY_MARKER: "OKAI-LIVE-SCORE-BODY-PRESERVE-V4",
+  OKAI_LIVE_SCORE_BODY_MARKER: "OKAI-LIVE-SCORE-BODY-PRESERVE-V5-NO-DUPLICATE-HEADER",
 };
