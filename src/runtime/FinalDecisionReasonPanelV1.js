@@ -13,6 +13,77 @@ function num(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function decisionScore(scan) {
+  return num(
+    scan?.decision_score ??
+    scan?.signal_data?.decision_score ??
+    scan?.live_score_breakdown?.decision_score ??
+    scan?.signal_data?.live_score_breakdown?.decision_score ??
+    scan?.score ??
+    scan?.live_score_breakdown?.score,
+    0
+  );
+}
+
+function normalizeComponent(item) {
+  if (!item || typeof item !== 'object') return item;
+  const fixed = { ...item };
+  if (item.decision_score != null) {
+    if (item.display_score == null) fixed.display_score = item.score;
+    fixed.score = num(item.decision_score, num(item.score, 0));
+  }
+  return fixed;
+}
+
+function normalizeBreakdown(payload, decision) {
+  if (!payload || typeof payload !== 'object') return payload;
+  const fixed = { ...payload };
+  fixed.score = decision;
+  fixed.decision_score = decision;
+  if (Array.isArray(payload.components)) {
+    fixed.components = payload.components.map(normalizeComponent);
+  }
+  return fixed;
+}
+
+function normalizeScanForDisplay(scan) {
+  if (!scan || typeof scan !== 'object') return scan;
+  const decision = decisionScore(scan);
+  const fixed = { ...scan, score: decision, decision_score: decision };
+
+  if (Array.isArray(scan.score_components)) {
+    fixed.score_components = scan.score_components.map(normalizeComponent);
+  }
+
+  if (scan.live_score_breakdown && typeof scan.live_score_breakdown === 'object') {
+    fixed.live_score_breakdown = normalizeBreakdown(scan.live_score_breakdown, decision);
+  }
+
+  if (scan.signal_data && typeof scan.signal_data === 'object') {
+    const signalData = { ...scan.signal_data, score: decision, decision_score: decision };
+    if (Array.isArray(signalData.score_components)) {
+      signalData.score_components = signalData.score_components.map(normalizeComponent);
+    }
+    if (signalData.live_score_breakdown && typeof signalData.live_score_breakdown === 'object') {
+      signalData.live_score_breakdown = normalizeBreakdown(signalData.live_score_breakdown, decision);
+    }
+    fixed.signal_data = signalData;
+  }
+  return fixed;
+}
+
+function normalizeSignalForDisplay(signal) {
+  if (!signal || typeof signal !== 'object') return signal || {};
+  const fixed = { ...signal };
+  if (Array.isArray(signal.scan_results)) {
+    fixed.scan_results = signal.scan_results.map(normalizeScanForDisplay);
+  }
+  if (signal.selected_for_entry && typeof signal.selected_for_entry === 'object') {
+    fixed.selected_for_entry = normalizeScanForDisplay(signal.selected_for_entry);
+  }
+  return fixed;
+}
+
 function istClock() {
   const now = new Date(Date.now() + 330 * 60 * 1000);
   return {
@@ -53,7 +124,7 @@ function collectReasons(signal, scan) {
   const timeReason = marketTimeReason();
   if (timeReason) add(timeReason);
 
-  const score = num(scan?.score ?? scan?.live_score_breakdown?.score, 0);
+  const score = decisionScore(scan);
   const minimum = num(scan?.min_score ?? scan?.live_score_breakdown?.min_score ?? signal?.min_score, 82);
   if (score < minimum) add(`SCORE_BELOW_${minimum}`);
   if (!scan?.trade_allowed && reasons.length === 0) add('STRATEGY_NOT_QUALIFIED');
@@ -67,25 +138,31 @@ function bestScan(signal) {
     const match = scans.find((item) => item?.underlying === selected.underlying);
     if (match) return match;
   }
-  return [...scans].sort((a, b) => num(b?.score) - num(a?.score))[0] || null;
+  return [...scans].sort((a, b) => decisionScore(b) - decisionScore(a))[0] || null;
 }
 
 function DecisionPanel({ signal }) {
-  const scan = bestScan(signal || {});
+  const cleanSignal = normalizeSignalForDisplay(signal || {});
+  const scan = bestScan(cleanSignal);
   if (!scan) return null;
 
-  const score = num(scan?.score ?? scan?.live_score_breakdown?.score, 0);
-  const minimum = num(scan?.min_score ?? scan?.live_score_breakdown?.min_score ?? signal?.min_score, 82);
+  const score = decisionScore(scan);
+  const minimum = num(scan?.min_score ?? scan?.live_score_breakdown?.min_score ?? cleanSignal?.min_score, 82);
   const qualified = !!scan?.trade_allowed;
   const timeReason = marketTimeReason();
   const attemptBlocked = !!(
-    timeReason || signal?.entry_block_reason || signal?.last_entry_block_reason ||
-    signal?.entry_guard?.allowed === false || signal?.entry_attempt?.allowed === false ||
-    signal?.entry_permission?.allowed === false
+    timeReason || cleanSignal?.entry_block_reason || cleanSignal?.last_entry_block_reason ||
+    cleanSignal?.entry_guard?.allowed === false || cleanSignal?.entry_attempt?.allowed === false ||
+    cleanSignal?.entry_permission?.allowed === false
   );
   const finalAllowed = qualified && !attemptBlocked;
   const color = finalAllowed ? C.green : qualified ? C.gold : C.red;
-  const reasons = collectReasons(signal, scan);
+  const reasons = collectReasons(cleanSignal, scan);
+  const visual = num(
+    scan?.display_score ?? scan?.visual_strength_score ??
+    scan?.live_score_breakdown?.display_score ?? score,
+    score
+  );
 
   return React.createElement(
     View,
@@ -102,6 +179,9 @@ function DecisionPanel({ signal }) {
       React.createElement(Text, { style: { color, fontSize: 12, fontWeight: '900' } }, finalAllowed ? 'QUALIFIED' : qualified ? 'EXECUTION BLOCK' : 'BLOCKED')
     ),
     React.createElement(Text, { style: { color: C.blue, fontSize: 12, fontWeight: '900', marginTop: 8 } }, `${scan?.underlying || 'INDEX'} • ${scan?.candidate_signal || scan?.signal || 'WAIT'} • ${score}/${minimum}`),
+    visual !== score
+      ? React.createElement(Text, { style: { color: C.muted, fontSize: 9, marginTop: 3 } }, `Visual strength ${visual}/100 • Engine decision ${score}/${minimum}`)
+      : null,
     reasons.map((reason, index) => React.createElement(
       Text,
       { key: `${reason}-${index}`, style: { color: reason.includes('OK') ? C.green : C.gold, fontSize: 11, lineHeight: 17, marginTop: 3 } },
@@ -128,11 +208,12 @@ function isLiveScoreCard(type) {
 
 function wrap(previous, type, props, key, children) {
   if (isLiveScoreCard(type) && !props?.__okaiDecisionBypass) {
+    const normalizedSignal = normalizeSignalForDisplay(props?.signal || {});
     return previous(
       View,
       null,
-      previous(type, { ...(props || {}), __okaiDecisionBypass: true }, ...(children || [])),
-      previous(DecisionPanel, { signal: props?.signal || {} })
+      previous(type, { ...(props || {}), signal: normalizedSignal, __okaiDecisionBypass: true }, ...(children || [])),
+      previous(DecisionPanel, { signal: normalizedSignal })
     );
   }
   return previous(type, props, ...(children || []));
@@ -152,12 +233,13 @@ function installFinalDecisionReasonPanelV1() {
       if (typeof old !== 'function') return;
       jsxRuntime[key] = function finalDecisionReasonJsx(type, props, reactKey) {
         if (isLiveScoreCard(type) && !props?.__okaiDecisionBypass) {
+          const normalizedSignal = normalizeSignalForDisplay(props?.signal || {});
           return old(
             View,
             {
               children: [
-                old(type, { ...(props || {}), __okaiDecisionBypass: true }, reactKey),
-                old(DecisionPanel, { signal: props?.signal || {} }, 'okai-final-decision'),
+                old(type, { ...(props || {}), signal: normalizedSignal, __okaiDecisionBypass: true }, reactKey),
+                old(DecisionPanel, { signal: normalizedSignal }, 'okai-final-decision'),
               ],
             },
             reactKey
@@ -170,4 +252,4 @@ function installFinalDecisionReasonPanelV1() {
   React.__OKAI_FINAL_DECISION_REASON_V1__ = true;
 }
 
-module.exports = { installFinalDecisionReasonPanelV1 };
+module.exports = { installFinalDecisionReasonPanelV1, normalizeSignalForDisplay, decisionScore };
