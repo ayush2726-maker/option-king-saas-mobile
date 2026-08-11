@@ -9,6 +9,7 @@ let cachedToken = "";
 let tokenReadAt = 0;
 
 const TOKEN_TTL_MS = 5 * 60 * 1000;
+const GET_TIMEOUT_MS = 8 * 1000;
 
 function urlText(input) {
   if (typeof input === "string") return input;
@@ -61,6 +62,9 @@ function ruleFor(url, method) {
   }
   if (url.includes("/bot/trade-live")) {
     return { name: "trade-live", ttl: 1500 };
+  }
+  if (/\/bot\/signal(?:\?|$)/.test(url)) {
+    return { name: "signal", ttl: 2000 };
   }
   return null;
 }
@@ -122,6 +126,52 @@ async function readResponse(response, url) {
   };
 }
 
+async function fetchAndReadWithTimeout(originalFetch, input, init, url) {
+  if (typeof AbortController !== "function") {
+    return readResponse(await originalFetch(input, init), url);
+  }
+
+  const controller = new AbortController();
+  const existingSignal = (init && init.signal) || (input && input.signal);
+  let removeAbortListener = null;
+
+  if (existingSignal) {
+    if (existingSignal.aborted) {
+      controller.abort();
+    } else if (typeof existingSignal.addEventListener === "function") {
+      const forwardAbort = () => controller.abort();
+      existingSignal.addEventListener("abort", forwardAbort, { once: true });
+      removeAbortListener = () => {
+        if (typeof existingSignal.removeEventListener === "function") {
+          existingSignal.removeEventListener("abort", forwardAbort);
+        }
+      };
+    }
+  }
+
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, GET_TIMEOUT_MS);
+
+  try {
+    const response = await originalFetch(input, {
+      ...(init || {}),
+      signal: controller.signal,
+    });
+    return await readResponse(response, url);
+  } catch (error) {
+    if (timedOut) {
+      throw new Error(`Request timed out after ${GET_TIMEOUT_MS / 1000}s`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    if (removeAbortListener) removeAbortListener();
+  }
+}
+
 function installAppNetworkPerformanceEnhancement() {
   if (installed || global.__OKAI_NETWORK_PERFORMANCE_PATCHED__) return;
   if (typeof global.fetch !== "function") return;
@@ -158,8 +208,12 @@ function installAppNetworkPerformanceEnhancement() {
     }
 
     const task = (async () => {
-      const networkResponse = await originalFetch(input, init);
-      const entry = await readResponse(networkResponse, url);
+      const entry = await fetchAndReadWithTimeout(
+        originalFetch,
+        input,
+        init,
+        url
+      );
       entry.name = rule.name;
       entry.expiresAt = Date.now() + rule.ttl;
 

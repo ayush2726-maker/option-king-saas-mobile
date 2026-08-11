@@ -8,11 +8,12 @@ if MARKER in source:
     print(f"{MARKER} already applied")
     raise SystemExit(0)
 
-source = source.replace(
-    "  ActivityIndicator,\n  RefreshControl,",
-    "  ActivityIndicator,\n  Alert,\n  RefreshControl,",
-    1,
-)
+if "  Alert,\n" not in source:
+    source = source.replace(
+        "  ActivityIndicator,\n",
+        "  ActivityIndicator,\n  Alert,\n",
+        1,
+    )
 
 start = source.index("function LiveScoreTradeTab({ token }) {")
 end = source.index("\nfunction componentSource(type) {", start)
@@ -149,38 +150,92 @@ function LiveScoreTradeTab({ token }) {
   const [msg, setMsg] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [busyTradeId, setBusyTradeId] = React.useState("");
+  const requestRef = React.useRef(false);
+  const aliveRef = React.useRef(true);
+  const appStateRef = React.useRef(AppState.currentState);
+  const initialLoadRef = React.useRef(true);
+  const historyLoadedAtRef = React.useRef(0);
 
   const loadTrade = React.useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    setMsg("");
+    if (requestRef.current || appStateRef.current !== "active") return;
+    requestRef.current = true;
+    const showLoader = !silent && !initialLoadRef.current;
+    if (showLoader && aliveRef.current) setLoading(true);
+    if (!silent && aliveRef.current) setMsg("");
+
     try {
-      const [sig, hist, live] = await Promise.all([
-        apiGet("/bot/signal", token),
-        loadHistory(token),
-        apiGet("/bot/trade-live", token).catch(() => null),
-      ]);
-      setSignal(sig || {});
-      const rows = Array.isArray(hist?.paper_trades)
-        ? hist.paper_trades
-        : Array.isArray(hist?.trades)
-        ? hist.trades
-        : [];
-      setHistory(rows);
-      setLivePayload(live || null);
-      if (live && typeof live === "object") updateTradeLiveSnapshot(live);
+      if (silent) {
+        // The global watcher already refreshes /bot/trade-live. Refresh the
+        // strategy snapshot every ten seconds and history only once a minute.
+        const refreshHistory =
+          Date.now() - historyLoadedAtRef.current >= HISTORY_POLL_MS;
+        if (refreshHistory) historyLoadedAtRef.current = Date.now();
+        const [sig, hist] = await Promise.all([
+          apiGet("/bot/signal", token),
+          refreshHistory ? loadHistory(token).catch(() => null) : null,
+        ]);
+        if (aliveRef.current) {
+          setSignal(sig || {});
+          const rows = Array.isArray(hist?.paper_trades)
+            ? hist.paper_trades
+            : Array.isArray(hist?.trades)
+            ? hist.trades
+            : null;
+          if (rows) setHistory(rows);
+        }
+      } else {
+        const [sig, hist, live] = await Promise.all([
+          apiGet("/bot/signal", token),
+          loadHistory(token).catch(() => null),
+          apiGet("/bot/trade-live", token).catch(() => null),
+        ]);
+        if (aliveRef.current) {
+          setSignal(sig || {});
+          const rows = Array.isArray(hist?.paper_trades)
+            ? hist.paper_trades
+            : Array.isArray(hist?.trades)
+            ? hist.trades
+            : null;
+          if (rows) {
+            setHistory(rows);
+            historyLoadedAtRef.current = Date.now();
+          }
+          setLivePayload(live || null);
+          if (live && typeof live === "object") updateTradeLiveSnapshot(live);
+        }
+      }
     } catch (error) {
-      if (!silent) setMsg(error?.message || "Trade data load failed");
+      if (!silent && aliveRef.current) {
+        setMsg(error?.message || "Trade data load failed");
+      }
+    } finally {
+      requestRef.current = false;
+      initialLoadRef.current = false;
+      if (showLoader && aliveRef.current) setLoading(false);
     }
-    if (!silent) setLoading(false);
   }, [token]);
 
   React.useEffect(() => {
+    aliveRef.current = true;
+    appStateRef.current = AppState.currentState;
     loadTrade(false);
-    const timer = setInterval(() => loadTrade(true), 3000);
-    return () => clearInterval(timer);
+    const timer = setInterval(() => loadTrade(true), SIGNAL_POLL_MS);
+    const subscription = AppState.addEventListener("change", (state) => {
+      appStateRef.current = state;
+      if (state === "active") loadTrade(true);
+    });
+
+    return () => {
+      aliveRef.current = false;
+      clearInterval(timer);
+      subscription.remove();
+    };
   }, [loadTrade]);
 
-  const openTrades = mergeOpenPositionsV8(history, livePayload, signal, snapshot);
+  const openTrades = React.useMemo(
+    () => mergeOpenPositionsV8(history, livePayload, signal, snapshot),
+    [history, livePayload, signal, snapshot]
+  );
   const isLiveMode = openTrades.some(
     (trade) => String(trade?.trading_mode || "paper").toLowerCase() === "live"
   ) || String(signal?.trading_mode || "paper").toLowerCase() === "live";
@@ -409,46 +464,7 @@ function LiveScoreTradeTab({ token }) {
         : null
     ),
     React.createElement(LiveStrategyScoreCard, { signal: signal || {} }),
-    React.createElement(
-      Card,
-      { style: { marginTop: 12 } },
-      React.createElement(
-        Row,
-        { style: { justifyContent: "space-between", marginBottom: 10 } },
-        React.createElement(Text, { style: { color: C.text, fontSize: 18, fontWeight: "900" } }, "📜 Trade History"),
-        React.createElement(Text, { style: { color: C.muted, fontSize: 10 } }, `${history.length} trades`)
-      ),
-      history.length === 0
-        ? React.createElement(Text, { style: { color: C.muted } }, "History load nahi hui. Pull-down refresh karein.")
-        : history.slice(0, 100).map((item, index) => {
-            const itemPnl = tradePnl(item);
-            const itemStatus = String(item?.status || "--").toUpperCase();
-            const entryTime = item?.entry_time || item?.created_at || item?.timestamp || item?.time || item?.date;
-            const exitTime = item?.exit_time || item?.closed_at || item?.updated_at;
-            const dateSource = tradeTimestamp(item, false);
-            return React.createElement(
-              View,
-              {
-                key: item?.id || `${item?.symbol || "trade"}-${index}`,
-                style: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
-              },
-              React.createElement(
-                Row,
-                { style: { justifyContent: "space-between", alignItems: "flex-start" } },
-                React.createElement(
-                  View,
-                  { style: { flex: 1, paddingRight: 8 } },
-                  React.createElement(Text, { style: { color: C.text, fontWeight: "900", fontSize: 13 } }, item?.symbol || "PAPER TRADE"),
-                  React.createElement(Text, { style: { color: C.blue, fontSize: 10, fontWeight: "900", marginTop: 4 } }, dateLabel(dateSource)),
-                  React.createElement(Text, { style: { color: C.muted, fontSize: 10, marginTop: 3 } }, `Entry ${timeLabel(entryTime)}${exitTime ? ` • Exit ${timeLabel(exitTime)}` : itemStatus === "OPEN" ? " • OPEN" : ""} IST`)
-                ),
-                React.createElement(StatusTag, { label: itemStatus, color: itemStatus === "OPEN" ? C.green : C.gold })
-              ),
-              React.createElement(Text, { style: { color: C.muted, fontSize: 11, marginTop: 6 } }, `${item?.side || "--"} • Qty ${item?.qty ?? "--"} • Entry ${price(item?.entry_price)} • Exit ${price(item?.exit_price)}`),
-              React.createElement(Text, { style: { color: itemPnl >= 0 ? C.green : C.red, fontWeight: "900", fontSize: 12, marginTop: 4, lineHeight: 17 } }, `${money(itemPnl, true)} NET • ${item?.reason || "--"}`)
-            );
-          })
-    )
+    React.createElement(TradeHistoryCard, { history })
   );
 }
 '''
