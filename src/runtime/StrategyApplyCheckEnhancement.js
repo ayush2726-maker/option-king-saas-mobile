@@ -116,6 +116,7 @@ function componentDetail(item, scan, config) {
 
   if (key === "volume") {
     if (current.toLowerCase().includes("unavailable")) {
+      if (item && item.preserve_backend_scale === true) return current;
       return "Volume unavailable: 50% neutral display score";
     }
     const ratio = asNumber(scan && scan.volume_ratio, NaN);
@@ -153,7 +154,17 @@ function applyActiveProfileToScan(scan, profile) {
     if (!Object.prototype.hasOwnProperty.call(weights, key)) return item;
 
     const isEnabled = enabled[key] !== false;
-    const newMax = isEnabled ? weights[key] : 0;
+    // Availability-normalized rows intentionally split the unavailable
+    // 15-point volume slot into 7 neutral points plus an 8-point
+    // normalization allowance. Keep that backend-authored scale intact;
+    // rescaling volume 7/7 back to 15/15 would make the visible rows disagree
+    // with the entry engine again.
+    const preserveBackendScale = item.preserve_backend_scale === true;
+    const newMax = isEnabled
+      ? preserveBackendScale
+        ? Math.max(0, Math.round(asNumber(item.max_score, 0)))
+        : weights[key]
+      : 0;
     const score = scaledScore(item.score, item.max_score, newMax);
     const decisionScore = scaledScore(
       item.decision_score != null ? item.decision_score : item.passed ? item.max_score : 0,

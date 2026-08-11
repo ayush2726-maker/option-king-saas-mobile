@@ -92,4 +92,87 @@ assert.strictEqual(patched.score, 76);
 assert.strictEqual(patched.decision_score, 76);
 assert.strictEqual(patched.display_score, 69);
 
+const normalizedProfile = {
+  profile_key: "okai_default_82",
+  name: "OKAI Default 82",
+  config: {
+    entry_threshold: 82,
+    adx_threshold: 25,
+    volume_threshold: 1.2,
+    weights: {
+      vwap: 11,
+      supertrend: 11,
+      ema_trend: 11,
+      orb: 11,
+      momentum: 11,
+      adx: 20,
+      volume: 15,
+      mtf: 10,
+    },
+    enabled: {},
+  },
+};
+
+const normalizedComponents = [
+  ["vwap", 11, 11],
+  ["supertrend", 11, 11],
+  ["ema_trend", 11, 11],
+  ["orb", 11, 11],
+  ["momentum", 0, 11],
+  ["adx", 15, 20],
+  ["volume", 7, 7],
+  ["availability_normalization", 7, 8],
+  ["mtf", 10, 10],
+].map(([key, value, max]) => ({
+  key,
+  score: value,
+  decision_score: value,
+  max_score: max,
+  passed: value > 0,
+  preserve_backend_scale:
+    key === "volume" || key === "availability_normalization",
+  detail:
+    key === "volume"
+      ? "Index volume unavailable: neutral 7-point contribution"
+      : "",
+}));
+
+const normalizedScan = {
+  underlying: "BANKNIFTY",
+  score: 83,
+  decision_score: 83,
+  min_score: 82,
+  volume_ratio: 0,
+  score_components: normalizedComponents,
+  live_score_breakdown: {
+    score: 83,
+    decision_score: 83,
+    availability_normalized: true,
+    components: normalizedComponents,
+  },
+};
+
+const normalizedPatched = patchSignalData(
+  { score: 83, decision_score: 83, scan_results: [normalizedScan] },
+  normalizedProfile
+);
+const normalizedRows = Object.fromEntries(
+  normalizedPatched.scan_results[0].score_components.map((item) => [item.key, item])
+);
+
+assert.strictEqual(normalizedPatched.score, 83);
+assert.strictEqual(normalizedRows.volume.score, 7);
+assert.strictEqual(normalizedRows.volume.decision_score, 7);
+assert.strictEqual(normalizedRows.volume.max_score, 7);
+assert.strictEqual(normalizedRows.availability_normalization.score, 7);
+assert.strictEqual(normalizedRows.availability_normalization.max_score, 8);
+assert.strictEqual(
+  normalizedRows.volume.detail,
+  "Index volume unavailable: neutral 7-point contribution"
+);
+assert.strictEqual(
+  normalizedPatched.scan_results[0].live_score_breakdown.decision_component_total,
+  83
+);
+
 console.log("PASS decision score is identical across Live Score and AUTO Portfolio");
