@@ -1,4 +1,9 @@
 const assert = require("assert");
+const {
+  marketTimeReason,
+  marketTimeLabel,
+  executionBlockReason,
+} = require("../src/runtime/EntryWindowStatus");
 
 const {
   __test: { patchSignalData },
@@ -78,8 +83,8 @@ assert.deepStrictEqual(
 );
 assert.deepStrictEqual(
   patched.scan_results.map((item) => item.display_score),
-  [63, 69, 54],
-  "visual strength must remain available only as display_score"
+  [64, 76, 64],
+  "every public display score must equal the engine decision score"
 );
 
 for (const item of patched.scan_results) {
@@ -90,7 +95,9 @@ for (const item of patched.scan_results) {
 
 assert.strictEqual(patched.score, 76);
 assert.strictEqual(patched.decision_score, 76);
-assert.strictEqual(patched.display_score, 69);
+assert.strictEqual(patched.display_score, 76);
+assert.strictEqual(patched.visual_strength_score, 76);
+assert.strictEqual(patched.diagnostic_visual_strength_score, 69);
 
 const normalizedProfile = {
   profile_key: "okai_default_82",
@@ -173,6 +180,27 @@ assert.strictEqual(
 assert.strictEqual(
   normalizedPatched.scan_results[0].live_score_breakdown.decision_component_total,
   83
+);
+
+// Explicit UTC timestamps map to the stated IST entry-window boundaries.
+assert.strictEqual(marketTimeReason(Date.parse("2026-08-11T09:14:00Z")), "");
+assert.strictEqual(
+  marketTimeReason(Date.parse("2026-08-11T09:15:00Z")),
+  "AUTO_ENTRY_CUTOFF_1445_IST"
+);
+assert.strictEqual(
+  marketTimeReason(Date.parse("2026-08-11T10:00:00Z")),
+  "MARKET_CLOSED_AFTER_1530_IST"
+);
+assert.strictEqual(marketTimeLabel("AUTO_ENTRY_CUTOFF_1445_IST"), "ENTRY CUTOFF");
+assert.strictEqual(marketTimeLabel("MARKET_CLOSED_AFTER_1530_IST"), "MARKET CLOSED");
+assert.strictEqual(
+  executionBlockReason(
+    {},
+    { execution_block_reason: "SERVER_ENTRY_CLOSED" },
+    Date.parse("2026-08-11T04:30:00Z")
+  ),
+  "SERVER_ENTRY_CLOSED"
 );
 
 console.log("PASS decision score is identical across Live Score and AUTO Portfolio");

@@ -13,6 +13,10 @@ const {
   updateTradeLiveSnapshot,
   useTradeLiveSnapshot,
 } = require("./TradeLivePriceEnhancement");
+const {
+  executionBlockReason,
+  marketTimeLabel,
+} = require("./EntryWindowStatus");
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
 const SIGNAL_POLL_MS = 10000;
@@ -266,6 +270,7 @@ function bestScan(signal) {
 function scanColor(scan, signal) {
   const score = scanScore(scan);
   const minScore = scanMinScore(scan, signal);
+  if (executionBlockReason(signal, scan)) return C.gold;
   if (scan?.trade_allowed) return C.green;
   if (score >= minScore) return C.gold;
   return C.red;
@@ -327,6 +332,12 @@ function MiniScanRow({ scan, signal, selected }) {
   const score = scanScore(scan);
   const minScore = scanMinScore(scan, signal);
   const side = scan?.candidate_signal || scan?.signal || "WAIT";
+  const executionReason = executionBlockReason(signal, scan);
+  const status = executionReason
+    ? marketTimeLabel(executionReason)
+    : scan?.trade_allowed
+    ? "ALLOW"
+    : "BLOCK";
   return React.createElement(
     View,
     {
@@ -348,7 +359,7 @@ function MiniScanRow({ scan, signal, selected }) {
     React.createElement(
       Text,
       { style: { color: C.muted, fontSize: 10, marginTop: 4 } },
-      `${side} • ${scan?.trade_allowed ? "ALLOW" : "BLOCK"} • ADX ${number(scan?.adx, 0).toFixed(1)} • Vol ${number(scan?.volume_ratio, 0).toFixed(2)}x`
+      `${side} • ${status} • ADX ${number(scan?.adx, 0).toFixed(1)} • Vol ${number(scan?.volume_ratio, 0).toFixed(2)}x`
     )
   );
 }
@@ -361,6 +372,9 @@ function LiveStrategyScoreCard({ signal }) {
   const score = selected ? scanScore(selected) : number(signal?.score, 0);
   const minScore = selected ? scanMinScore(selected, signal) : number(signal?.min_score, 82);
   const updated = timeLabel(signal?.updated_at);
+  const selectedExecutionReason = selected
+    ? executionBlockReason(signal, selected)
+    : "";
 
   const body = scans.length === 0
     ? React.createElement(
@@ -408,7 +422,11 @@ function LiveStrategyScoreCard({ signal }) {
                   `${selected?.underlying || "Selected"} breakdown`
                 ),
                 React.createElement(StatusTag, {
-                  label: selected?.trade_allowed ? "ALLOW" : "BLOCK",
+                  label: selectedExecutionReason
+                    ? marketTimeLabel(selectedExecutionReason)
+                    : selected?.trade_allowed
+                    ? "ALLOW"
+                    : "BLOCK",
                   color,
                 })
               ),

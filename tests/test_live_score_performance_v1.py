@@ -55,3 +55,12 @@ def test_cached_gets_have_timeout_and_signal_deduplication():
     assert 'return { name: "signal", ttl: 2000 };' in source
     assert "fetchAndReadWithTimeout" in source
     assert "Request timed out after" in source
+
+
+def test_account_dashboard_does_not_replay_graph_every_signal_tick():
+    source = (ROOT / "App.js").read_text(encoding="utf-8")
+
+    assert "const lastHeavyRefreshRef = useRef(0);" in source
+    assert "now - lastHeavyRefreshRef.current >= 60 * 1000" in source
+    assert "const [hist, trades] = await Promise.all([" in source
+    assert "if (!silent) {\n        const strat = await apiGet" in source

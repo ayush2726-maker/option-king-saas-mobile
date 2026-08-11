@@ -16,6 +16,10 @@ const LocalGatewayScreen = require("./src/screens/LocalGatewayScreen").default;
 const TelegramConnectCard = require("./src/components/TelegramConnectCard").default;
 const ThemePickerCard = require("./src/components/ThemePickerCard").default;
 const AccountAdminDashboardCard = require("./src/components/AccountAdminDashboardCard").default;
+const {
+  executionBlockReason,
+  marketTimeLabel,
+} = require("./src/runtime/EntryWindowStatus");
 
 
 // ── Global crash catcher (temporary debug tool) ──────────────
@@ -3594,6 +3598,7 @@ function BotTab({ token, lang }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const lastHeavyRefreshRef = useRef(0);
 
   async function loadChart(
     instrument = chartInstrumentRef.current,
@@ -3643,39 +3648,43 @@ function BotTab({ token, lang }) {
     try {
       const sig = await apiGet("/bot/signal", token);
       setSignal(sig);
-      const strat = await apiGet("/strategy/settings", token);
-      if (strat && strat.settings) {
-        setSettings(strat.settings);
 
-        if (
-          !chartSelectionInitializedRef.current
-        ) {
-          const initialChart = String(
-            strat.settings.primary_instrument
-            || "NIFTY"
-          ).toUpperCase();
+      // Settings change only through explicit user actions; do not download
+      // them on every 15-second live-score tick.
+      if (!silent) {
+        const strat = await apiGet("/strategy/settings", token);
+        if (strat && strat.settings) {
+          setSettings(strat.settings);
 
-          chartSelectionInitializedRef.current = true;
-          chartInstrumentRef.current = initialChart;
-          setChartInstrument(initialChart);
+          if (!chartSelectionInitializedRef.current) {
+            const initialChart = String(
+              strat.settings.primary_instrument || "NIFTY"
+            ).toUpperCase();
+
+            chartSelectionInitializedRef.current = true;
+            chartInstrumentRef.current = initialChart;
+            setChartInstrument(initialChart);
+          }
         }
       }
-      if (!silent || chartRangeRef.current === 1) {
+
+      const now = Date.now();
+      const refreshHeavyData =
+        !silent || now - lastHeavyRefreshRef.current >= 60 * 1000;
+      if (refreshHeavyData) {
+        lastHeavyRefreshRef.current = now;
         const historyLimit = chartRangeRef.current === 1 ? 600 : 6000;
-        const hist = await apiGet(
-          `/bot/signal-history?limit=${historyLimit}&days=${chartRangeRef.current}&instrument=${encodeURIComponent(chartInstrumentRef.current)}`,
-          token
-        );
+        const [hist, trades] = await Promise.all([
+          apiGet(
+            `/bot/signal-history?limit=${historyLimit}&days=${chartRangeRef.current}&instrument=${encodeURIComponent(chartInstrumentRef.current)}`,
+            token
+          ),
+          apiGet("/history/paper", token),
+          loadChart(chartInstrumentRef.current, true),
+        ]);
         if (hist && hist.points) {
           setHistory(hist.points);
         }
-
-        await loadChart(
-          chartInstrumentRef.current,
-          true
-        );
-
-        const trades = await apiGet("/history/paper", token);
         if (trades && trades.paper_trades) setPaperTrades(trades.paper_trades);
       }
     } catch (e) {
@@ -4270,9 +4279,13 @@ function BotTab({ token, lang }) {
 
         {autoScanResults.length > 0 ? (
           autoScanResults.map((scan, scanIndex) => {
-            const passed = !!scan?.trade_allowed;
+            const executionReason = executionBlockReason(signal, scan);
+            const passed = !!scan?.trade_allowed && !executionReason && scan?.execution_allowed !== false;
             const score = Number(scan?.score || 0);
             const minimum = Number(scan?.min_score || activeEntryThreshold);
+            const executionLabel = executionReason
+              ? marketTimeLabel(executionReason)
+              : "";
             const signalText =
               scan?.signal && scan.signal !== "WAIT"
                 ? scan.signal
@@ -4303,7 +4316,7 @@ function BotTab({ token, lang }) {
                     fontSize: 9,
                     marginTop: 2,
                   }}>
-                    {scan?.status || "--"} • {signalText}
+                    {executionLabel || scan?.status || "--"} • {signalText}
                   </Text>
                 </View>
 
@@ -4311,6 +4324,8 @@ function BotTab({ token, lang }) {
                   <Text style={{
                     color: passed
                       ? C.green
+                      : executionReason
+                      ? C.gold
                       : score >= minimum - 5
                       ? C.gold
                       : C.muted,
@@ -4320,12 +4335,12 @@ function BotTab({ token, lang }) {
                     {score}/{minimum}
                   </Text>
                   <Text style={{
-                    color: passed ? C.green : C.muted,
+                    color: passed ? C.green : executionReason ? C.gold : C.muted,
                     fontSize: 8,
                     fontWeight: "900",
                     marginTop: 2,
                   }}>
-                    {passed ? "QUALIFIED" : "WAIT"}
+                    {passed ? "QUALIFIED" : executionLabel || "WAIT"}
                   </Text>
                 </View>
               </View>

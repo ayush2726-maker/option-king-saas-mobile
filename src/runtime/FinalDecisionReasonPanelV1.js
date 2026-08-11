@@ -1,5 +1,10 @@
 const React = require('react');
 const { View, Text } = require('react-native');
+const {
+  marketTimeReason,
+  marketTimeLabel,
+  executionBlockReason,
+} = require('./EntryWindowStatus');
 
 const C = {
   card: '#13131f', border: '#252540', text: '#e8e8f0', muted: '#606080',
@@ -29,8 +34,10 @@ function normalizeComponent(item) {
   if (!item || typeof item !== 'object') return item;
   const fixed = { ...item };
   if (item.decision_score != null) {
-    if (item.display_score == null) fixed.display_score = item.score;
-    fixed.score = num(item.decision_score, num(item.score, 0));
+    const canonical = num(item.decision_score, num(item.score, 0));
+    fixed.visual_score = item.visual_score ?? item.display_score ?? item.score;
+    fixed.score = canonical;
+    fixed.display_score = canonical;
   }
   return fixed;
 }
@@ -40,6 +47,8 @@ function normalizeBreakdown(payload, decision) {
   const fixed = { ...payload };
   fixed.score = decision;
   fixed.decision_score = decision;
+  fixed.display_score = decision;
+  fixed.visual_strength_score = decision;
   if (Array.isArray(payload.components)) {
     fixed.components = payload.components.map(normalizeComponent);
   }
@@ -49,7 +58,13 @@ function normalizeBreakdown(payload, decision) {
 function normalizeScanForDisplay(scan) {
   if (!scan || typeof scan !== 'object') return scan;
   const decision = decisionScore(scan);
-  const fixed = { ...scan, score: decision, decision_score: decision };
+  const fixed = {
+    ...scan,
+    score: decision,
+    decision_score: decision,
+    display_score: decision,
+    visual_strength_score: decision,
+  };
 
   if (Array.isArray(scan.score_components)) {
     fixed.score_components = scan.score_components.map(normalizeComponent);
@@ -60,7 +75,13 @@ function normalizeScanForDisplay(scan) {
   }
 
   if (scan.signal_data && typeof scan.signal_data === 'object') {
-    const signalData = { ...scan.signal_data, score: decision, decision_score: decision };
+    const signalData = {
+      ...scan.signal_data,
+      score: decision,
+      decision_score: decision,
+      display_score: decision,
+      visual_strength_score: decision,
+    };
     if (Array.isArray(signalData.score_components)) {
       signalData.score_components = signalData.score_components.map(normalizeComponent);
     }
@@ -84,23 +105,6 @@ function normalizeSignalForDisplay(signal) {
   return fixed;
 }
 
-function istClock() {
-  const now = new Date(Date.now() + 330 * 60 * 1000);
-  return {
-    weekday: now.getUTCDay(),
-    minute: now.getUTCHours() * 60 + now.getUTCMinutes(),
-  };
-}
-
-function marketTimeReason() {
-  const { weekday, minute } = istClock();
-  if (weekday === 0 || weekday === 6) return 'MARKET_CLOSED_WEEKEND';
-  if (minute < 9 * 60 + 15) return 'AUTO_ENTRY_BLOCKED_BEFORE_0915_IST';
-  if (minute >= 15 * 60 + 30) return 'MARKET_CLOSED_AFTER_1530_IST';
-  if (minute >= 14 * 60 + 45) return 'AUTO_ENTRY_CUTOFF_1445_IST';
-  return '';
-}
-
 function collectReasons(signal, scan) {
   const reasons = [];
   const add = (value) => {
@@ -108,6 +112,10 @@ function collectReasons(signal, scan) {
     const text = String(value).trim();
     if (text && !reasons.includes(text)) reasons.push(text);
   };
+
+  // Put the actual market-time/execution reason first so it can never be
+  // hidden by the eight-row diagnostic limit.
+  add(executionBlockReason(signal, scan));
 
   [
     ...(scan?.safety_gate_reasons || []),
@@ -120,9 +128,6 @@ function collectReasons(signal, scan) {
   add(signal?.entry_guard?.reason);
   add(signal?.entry_attempt?.reason);
   add(signal?.entry_permission?.allowed === false ? signal?.entry_permission?.reason : null);
-
-  const timeReason = marketTimeReason();
-  if (timeReason) add(timeReason);
 
   const score = decisionScore(scan);
   const minimum = num(scan?.min_score ?? scan?.live_score_breakdown?.min_score ?? signal?.min_score, 82);
@@ -148,21 +153,24 @@ function DecisionPanel({ signal }) {
 
   const score = decisionScore(scan);
   const minimum = num(scan?.min_score ?? scan?.live_score_breakdown?.min_score ?? cleanSignal?.min_score, 82);
-  const qualified = !!scan?.trade_allowed;
-  const timeReason = marketTimeReason();
+  const qualified = !!(scan?.strategy_qualified ?? scan?.trade_allowed);
+  const timeReason = executionBlockReason(cleanSignal, scan);
   const attemptBlocked = !!(
-    timeReason || cleanSignal?.entry_block_reason || cleanSignal?.last_entry_block_reason ||
+    timeReason || scan?.execution_allowed === false ||
+    cleanSignal?.entry_block_reason || cleanSignal?.last_entry_block_reason ||
     cleanSignal?.entry_guard?.allowed === false || cleanSignal?.entry_attempt?.allowed === false ||
     cleanSignal?.entry_permission?.allowed === false
   );
   const finalAllowed = qualified && !attemptBlocked;
   const color = finalAllowed ? C.green : qualified ? C.gold : C.red;
   const reasons = collectReasons(cleanSignal, scan);
-  const visual = num(
-    scan?.display_score ?? scan?.visual_strength_score ??
-    scan?.live_score_breakdown?.display_score ?? score,
-    score
-  );
+  const finalLabel = finalAllowed
+    ? 'QUALIFIED'
+    : timeReason
+    ? marketTimeLabel(timeReason)
+    : qualified
+    ? 'EXECUTION BLOCK'
+    : 'BLOCKED';
 
   return React.createElement(
     View,
@@ -176,12 +184,9 @@ function DecisionPanel({ signal }) {
       View,
       { style: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' } },
       React.createElement(Text, { style: { color: C.text, fontSize: 15, fontWeight: '900' } }, 'Final Decision Reason'),
-      React.createElement(Text, { style: { color, fontSize: 12, fontWeight: '900' } }, finalAllowed ? 'QUALIFIED' : qualified ? 'EXECUTION BLOCK' : 'BLOCKED')
+      React.createElement(Text, { style: { color, fontSize: 12, fontWeight: '900' } }, finalLabel)
     ),
     React.createElement(Text, { style: { color: C.blue, fontSize: 12, fontWeight: '900', marginTop: 8 } }, `${scan?.underlying || 'INDEX'} • ${scan?.candidate_signal || scan?.signal || 'WAIT'} • ${score}/${minimum}`),
-    visual !== score
-      ? React.createElement(Text, { style: { color: C.muted, fontSize: 9, marginTop: 3 } }, `Visual strength ${visual}/100 • Engine decision ${score}/${minimum}`)
-      : null,
     reasons.map((reason, index) => React.createElement(
       Text,
       { key: `${reason}-${index}`, style: { color: reason.includes('OK') ? C.green : C.gold, fontSize: 11, lineHeight: 17, marginTop: 3 } },
@@ -252,4 +257,11 @@ function installFinalDecisionReasonPanelV1() {
   React.__OKAI_FINAL_DECISION_REASON_V1__ = true;
 }
 
-module.exports = { installFinalDecisionReasonPanelV1, normalizeSignalForDisplay, decisionScore };
+module.exports = {
+  installFinalDecisionReasonPanelV1,
+  normalizeSignalForDisplay,
+  decisionScore,
+  marketTimeReason,
+  marketTimeLabel,
+  executionBlockReason,
+};

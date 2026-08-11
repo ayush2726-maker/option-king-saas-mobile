@@ -165,9 +165,17 @@ function applyActiveProfileToScan(scan, profile) {
         ? Math.max(0, Math.round(asNumber(item.max_score, 0)))
         : weights[key]
       : 0;
-    const score = scaledScore(item.score, item.max_score, newMax);
     const decisionScore = scaledScore(
       item.decision_score != null ? item.decision_score : item.passed ? item.max_score : 0,
+      item.max_score,
+      newMax
+    );
+    const diagnosticVisualScore = scaledScore(
+      item.visual_score != null
+        ? item.visual_score
+        : item.display_score != null
+        ? item.display_score
+        : item.score,
       item.max_score,
       newMax
     );
@@ -176,14 +184,22 @@ function applyActiveProfileToScan(scan, profile) {
       ...item,
       enabled: isEnabled,
       max_score: newMax,
-      score,
+      score: decisionScore,
+      display_score: decisionScore,
+      visual_score: diagnosticVisualScore,
       decision_score: decisionScore,
-      partial: isEnabled && score > 0 && score < newMax,
+      partial: false,
+      visual_partial:
+        isEnabled && diagnosticVisualScore > 0 && diagnosticVisualScore < newMax,
       detail: componentDetail(item, scan, config),
     };
   });
 
   const displayScore = components.reduce((sum, item) => sum + asNumber(item && item.score, 0), 0);
+  const diagnosticVisualScore = components.reduce(
+    (sum, item) => sum + asNumber(item && item.visual_score, 0),
+    0
+  );
   const decisionComponentTotal = components.reduce(
     (sum, item) => sum + asNumber(item && item.decision_score, 0),
     0
@@ -208,12 +224,12 @@ function applyActiveProfileToScan(scan, profile) {
 
   const payload = {
     ...oldPayload,
-    // score is the value that the entry engine actually uses. Keep the
-    // proportional component total separate so AUTO Portfolio, Live Score and
-    // every other screen cannot accidentally show different numbers.
+    // Every public score uses the entry-engine value. Proportional strength is
+    // retained only in the explicitly diagnostic field below.
     score: decisionScore,
     display_score: displayScore,
-    visual_strength_score: displayScore,
+    visual_strength_score: decisionScore,
+    diagnostic_visual_strength_score: diagnosticVisualScore,
     decision_score: decisionScore,
     component_total: displayScore,
     decision_component_total: decisionComponentTotal,
@@ -222,7 +238,7 @@ function applyActiveProfileToScan(scan, profile) {
     components,
     profile_weights: weights,
     profile_enabled: enabled,
-    score_mode: "DECISION_SCORE_PRIMARY_VISUAL_STRENGTH_SECONDARY",
+    score_mode: "CANONICAL_DECISION_SCORE_PUBLIC_V2",
   };
 
   const signalData =
@@ -232,7 +248,8 @@ function applyActiveProfileToScan(scan, profile) {
           score: decisionScore,
           decision_score: decisionScore,
           display_score: displayScore,
-          visual_strength_score: displayScore,
+          visual_strength_score: decisionScore,
+          diagnostic_visual_strength_score: diagnosticVisualScore,
           min_score: minScore,
           score_components: components,
           live_score_breakdown: payload,
@@ -244,7 +261,8 @@ function applyActiveProfileToScan(scan, profile) {
     score: decisionScore,
     decision_score: decisionScore,
     display_score: displayScore,
-    visual_strength_score: displayScore,
+    visual_strength_score: decisionScore,
+    diagnostic_visual_strength_score: diagnosticVisualScore,
     min_score: minScore,
     score_components: components,
     live_score_breakdown: payload,
@@ -338,6 +356,12 @@ function patchSignalData(data, profile) {
     visual_strength_score: best
       ? asNumber(best.visual_strength_score, best.display_score)
       : data.visual_strength_score,
+    diagnostic_visual_strength_score: best
+      ? asNumber(
+          best.diagnostic_visual_strength_score,
+          best.visual_strength_score
+        )
+      : data.diagnostic_visual_strength_score,
     score_components: best ? best.score_components : data.score_components,
     live_score_breakdown: best ? best.live_score_breakdown : data.live_score_breakdown,
     active_strategy_apply_check: {
