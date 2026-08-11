@@ -11,6 +11,7 @@
     "ai:apply-ui": "node scripts/apply-ai-ui.js",
     "ai:health": "node scripts/check-shared-ai.js",
     "language:test": "node scripts/test-professional-language.js && node scripts/test-hindi-news-response-patch.js",
+    "score-consistency:test": "node scripts/test-score-consistency.js",
     "sector:test": "node scripts/test-sector-rotation-ui.js"
   },
   "dependencies": {

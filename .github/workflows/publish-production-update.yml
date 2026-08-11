@@ -110,6 +110,7 @@ jobs:
             npm run ai:test
             npm run ai:health
             npm run language:test
+            npm run score-consistency:test
             npx expo install --check
           } 2>&1 | tee /tmp/okai-ota/checks.log
 

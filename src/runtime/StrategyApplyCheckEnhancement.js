@@ -186,15 +186,24 @@ function applyActiveProfileToScan(scan, profile) {
     scan.live_score_breakdown && typeof scan.live_score_breakdown === "object"
       ? scan.live_score_breakdown
       : {};
+  const decisionScore = asNumber(
+    scan.decision_score != null
+      ? scan.decision_score
+      : scan.signal_data?.decision_score != null
+      ? scan.signal_data.decision_score
+      : oldPayload.decision_score,
+    scan.score
+  );
 
   const payload = {
     ...oldPayload,
-    score: displayScore,
+    // score is the value that the entry engine actually uses. Keep the
+    // proportional component total separate so AUTO Portfolio, Live Score and
+    // every other screen cannot accidentally show different numbers.
+    score: decisionScore,
     display_score: displayScore,
-    decision_score: asNumber(
-      scan.decision_score != null ? scan.decision_score : oldPayload.decision_score,
-      scan.score
-    ),
+    visual_strength_score: displayScore,
+    decision_score: decisionScore,
     component_total: displayScore,
     decision_component_total: decisionComponentTotal,
     enabled_weight_total: enabledWeightTotal,
@@ -202,16 +211,33 @@ function applyActiveProfileToScan(scan, profile) {
     components,
     profile_weights: weights,
     profile_enabled: enabled,
-    score_mode: "ACTIVE_PROFILE_CLIENT_DISPLAY_SYNC",
+    score_mode: "DECISION_SCORE_PRIMARY_VISUAL_STRENGTH_SECONDARY",
   };
+
+  const signalData =
+    scan.signal_data && typeof scan.signal_data === "object"
+      ? {
+          ...scan.signal_data,
+          score: decisionScore,
+          decision_score: decisionScore,
+          display_score: displayScore,
+          visual_strength_score: displayScore,
+          min_score: minScore,
+          score_components: components,
+          live_score_breakdown: payload,
+        }
+      : scan.signal_data;
 
   return {
     ...scan,
-    score: displayScore,
+    score: decisionScore,
+    decision_score: decisionScore,
     display_score: displayScore,
+    visual_strength_score: displayScore,
     min_score: minScore,
     score_components: components,
     live_score_breakdown: payload,
+    signal_data: signalData,
     component_total: displayScore,
     decision_component_total: decisionComponentTotal,
     enabled_weight_total: enabledWeightTotal,
@@ -294,7 +320,13 @@ function patchSignalData(data, profile) {
   return {
     ...data,
     score: best ? asNumber(best.score, data.score) : data.score,
+    decision_score: best
+      ? asNumber(best.decision_score, best.score)
+      : data.decision_score,
     display_score: best ? asNumber(best.display_score, best.score) : data.display_score,
+    visual_strength_score: best
+      ? asNumber(best.visual_strength_score, best.display_score)
+      : data.visual_strength_score,
     score_components: best ? best.score_components : data.score_components,
     live_score_breakdown: best ? best.live_score_breakdown : data.live_score_breakdown,
     active_strategy_apply_check: {
@@ -352,4 +384,8 @@ function installStrategyApplyCheckEnhancement() {
 
 module.exports = {
   installStrategyApplyCheckEnhancement,
+  __test: {
+    applyActiveProfileToScan,
+    patchSignalData,
+  },
 };
