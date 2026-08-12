@@ -1,20 +1,20 @@
 {
-  "release": "market-time-decision-reason-v3",
+  "release": "missed-trade-learning-ui-v2",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-06T15:42:00+05:30",
-  "reason": "Show the exact market-time execution reason when a strategy qualifies after the normal AUTO cutoff or after market close.",
+  "requested_at": "2026-08-12T12:35:00+05:30",
+  "reason": "Force-apply the missed-trade learning UI and make OTA delivery retry automatically after temporary network failures.",
   "validation": {
     "required_checks": [
-      "14:45-15:30 shows AUTO_ENTRY_CUTOFF_1445_IST",
-      "After 15:30 shows MARKET_CLOSED_AFTER_1530_IST",
-      "Weekend shows MARKET_CLOSED_WEEKEND",
-      "Market-time reason changes Final Decision from qualified to execution block",
-      "Existing score breakdown and trade rules remain unchanged",
+      "AI header visibly shows MISSED-TRADE AI V2 APPLIED",
+      "Missed setups display cost-adjusted 5/15/30-minute option outcomes",
+      "OTA check retries after temporary failures and can be retried by tapping the banner",
+      "Production and legacy default channels both point to the production branch",
+      "AI remains shadow-only and existing score/trade rules remain unchanged",
       "Android Metro export succeeds"
     ],
-    "ui_fix": "Replace generic execution block messaging with the exact current IST market-time guard reason.",
-    "logic_safety": "Diagnostics-only change. Backend entry cutoff remains 14:45 and market close remains 15:30."
+    "ui_fix": "Add an always-visible applied marker in the AI screen and a reliable OTA status/retry banner.",
+    "logic_safety": "Presentation and update-delivery change only. No strategy score, entry guard, broker, quantity or order behavior changed."
   },
   "trade_safety": "No entry, exit, SL, quantity, broker or order logic changes."
 }

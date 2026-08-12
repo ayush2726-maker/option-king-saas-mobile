@@ -16,6 +16,8 @@ const required = [
   "BLOCK_AVOIDED_LOSS",
   "Counterfactual shadow report only",
   "यह केवल शैडो तुलना है",
+  "MISSED-TRADE AI V2 • APPLIED",
+  "मिस्ड-ट्रेड AI V2 • लागू है",
   "module.exports.normalizeMissedReport",
 ];
 
@@ -29,4 +31,16 @@ if (!source.includes("Trade blocking OFF") || !source.includes("Order execution 
   throw new Error("Existing monitor-only safety copy must remain visible");
 }
 
-console.log("PASS OKAI-MISSED-TRADE-LEARNING-UI-V1");
+const appSource = fs.readFileSync(path.resolve(__dirname, "../App.js"), "utf8");
+[
+  "MISSED-TRADE-AI-V2",
+  "Retrying app update",
+  "Update check failed • TAP TO RETRY",
+  "AppState.addEventListener",
+].forEach((marker) => {
+  if (!appSource.includes(marker)) {
+    throw new Error(`Missing reliable OTA marker: ${marker}`);
+  }
+});
+
+console.log("PASS OKAI-MISSED-TRADE-LEARNING-UI-V2");

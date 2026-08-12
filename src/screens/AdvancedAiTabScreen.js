@@ -80,6 +80,8 @@ const COPY = {
     neutral: "Neutral",
     missedTitle: "Missed-trade learning",
     missedSub: "Qualified-but-skipped setups are checked with exact option prices and all costs after 5, 15, and 30 minutes.",
+    missedApplied: "MISSED-TRADE AI V2 • APPLIED",
+    missedAppliedSub: "Exact option P&L at 5/15/30m • shadow learning only",
     captured: "Captured setups",
     tracking: "Still tracking",
     wouldProfit: "Would profit (15m)",
@@ -149,6 +151,8 @@ const COPY = {
     neutral: "तटस्थ",
     missedTitle: "छूटे ट्रेड की सीख",
     missedSub: "क्वालिफ़ाई होने के बाद भी न खुले सेटअप को 5, 15 और 30 मिनट बाद वास्तविक ऑप्शन भाव व सभी खर्चों के साथ जाँचा जाता है।",
+    missedApplied: "मिस्ड-ट्रेड AI V2 • लागू है",
+    missedAppliedSub: "5/15/30मि का वास्तविक ऑप्शन P&L • केवल शैडो सीख",
     captured: "सेव किए सेटअप",
     tracking: "परिणाम लंबित",
     wouldProfit: "15मि में लाभ होता",
@@ -613,6 +617,26 @@ function AdvancedAiTabScreen() {
           View,
           { style: { borderRadius: 9, borderWidth: 1, borderColor: `${mainColor}66`, backgroundColor: `${mainColor}18`, paddingHorizontal: 9, paddingVertical: 5 } },
           React.createElement(Text, { style: { color: mainColor, fontSize: 10, fontWeight: "900" } }, statusLabel(status, copy))
+        )
+      ),
+      React.createElement(
+        View,
+        {
+          style: {
+            marginTop: 13,
+            borderRadius: 11,
+            borderWidth: 1,
+            borderColor: `${C.gold}88`,
+            backgroundColor: `${C.gold}13`,
+            paddingHorizontal: 11,
+            paddingVertical: 9,
+          },
+        },
+        React.createElement(Text, { style: { color: C.gold, fontSize: 11, fontWeight: "900" } }, copy.missedApplied),
+        React.createElement(
+          Text,
+          { style: { color: C.sub, fontSize: 9.5, lineHeight: 15, marginTop: 3 } },
+          `${copy.missedAppliedSub} • ${missed?.captured ?? 0} captured`
         )
       ),
       React.createElement(

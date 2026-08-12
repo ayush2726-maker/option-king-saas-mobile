@@ -4,7 +4,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator, StatusBar, Alert,
   Platform, KeyboardAvoidingView, RefreshControl,
-  BackHandler, Linking
+  BackHandler, Linking, AppState
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -7113,61 +7113,88 @@ function SettingsTab({ lang, navigateTo }) {
 }
 
 
+const OKAI_OTA_RELEASE = "MISSED-TRADE-AI-V2";
+
 function OtaStatusBanner() {
   const [msg, setMsg] = useState("Checking app update...");
   const [visible, setVisible] = useState(true);
+  const mountedRef = useRef(true);
+  const checkingRef = useRef(false);
 
-  useEffect(() => {
-    let alive = true;
-
-    async function checkOta() {
-      try {
-        if (__DEV__) {
-          if (alive) setVisible(false);
-          return;
-        }
-
-        if (alive) setMsg("Checking app update...");
-        const update = await Updates.checkForUpdateAsync();
-
-        if (!update.isAvailable) {
-          if (alive) {
-            setMsg("App is up to date");
-            setTimeout(() => setVisible(false), 1200);
-          }
-          return;
-        }
-
-        if (alive) setMsg("Downloading new update...");
-        await Updates.fetchUpdateAsync();
-
-        if (alive) setMsg("Update ready. Restarting app...");
-        setTimeout(() => Updates.reloadAsync(), 800);
-      } catch (e) {
-        if (alive) {
-          setMsg("Update check skipped");
-          setTimeout(() => setVisible(false), 1200);
-        }
-      }
+  async function checkOta(retryOnFailure = false) {
+    if (__DEV__ || checkingRef.current) {
+      if (__DEV__ && mountedRef.current) setVisible(false);
+      return;
     }
 
-    checkOta();
+    checkingRef.current = true;
+    const delays = retryOnFailure ? [0, 3000, 10000, 30000] : [0];
+
+    try {
+      for (let attempt = 0; attempt < delays.length && mountedRef.current; attempt += 1) {
+        if (delays[attempt]) {
+          await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+        }
+        if (!mountedRef.current) return;
+
+        try {
+          setVisible(true);
+          setMsg(attempt ? `Retrying app update (${attempt + 1}/${delays.length})...` : "Checking app update...");
+          const update = await Updates.checkForUpdateAsync();
+
+          if (!update.isAvailable) {
+            setMsg(`App is up to date • ${OKAI_OTA_RELEASE}`);
+            setTimeout(() => {
+              if (mountedRef.current) setVisible(false);
+            }, 2200);
+            return;
+          }
+
+          setMsg("Downloading missed-trade AI update...");
+          await Updates.fetchUpdateAsync();
+          if (!mountedRef.current) return;
+
+          setMsg("Update applied. Restarting app...");
+          setTimeout(() => Updates.reloadAsync(), 800);
+          return;
+        } catch (error) {
+          if (attempt === delays.length - 1 && mountedRef.current) {
+            setMsg("Update check failed • TAP TO RETRY");
+          }
+        }
+      }
+    } finally {
+      checkingRef.current = false;
+    }
+  }
+
+  useEffect(() => {
+    mountedRef.current = true;
+    checkOta(true);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") checkOta(true);
+    });
 
     return () => {
-      alive = false;
+      mountedRef.current = false;
+      subscription.remove();
     };
   }, []);
 
   if (!visible) return null;
 
   return (
-    <View style={{
+    <TouchableOpacity
+      activeOpacity={0.82}
+      onPress={() => checkOta(true)}
+      style={{
       paddingVertical: 8,
       paddingHorizontal: 12,
       backgroundColor: C.s2 || "#151522",
       borderBottomWidth: 1,
       borderBottomColor: C.border
-    }}>
+      }}
+    >
       <Text style={{
         color: C.gold || "#facc15",
         fontSize: 12,
@@ -7176,7 +7203,7 @@ function OtaStatusBanner() {
       }}>
         🔄 {msg}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 

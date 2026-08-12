@@ -111,6 +111,7 @@ jobs:
             npm run ai:health
             npm run language:test
             npm run score-consistency:test
+            node scripts/test-missed-trade-learning-ui.js
             npx expo install --check
           } 2>&1 | tee /tmp/okai-ota/checks.log
 
@@ -137,7 +138,7 @@ jobs:
             --branch production \
             --platform android \
             --clear-cache \
-            --message "OKAI Android OTA ${SHORT_SHA}: native Live Score multi-active-trade cards V8" \
+            --message "OKAI Android OTA ${SHORT_SHA}: missed-trade AI V2 and reliable updater" \
             --non-interactive 2>&1 | tee /tmp/okai-ota/publish.log
 
       - name: Point and verify production channel
