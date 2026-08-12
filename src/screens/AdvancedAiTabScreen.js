@@ -78,6 +78,21 @@ const COPY = {
     bullish: "CE / Bullish",
     bearish: "PE / Bearish",
     neutral: "Neutral",
+    missedTitle: "Missed-trade learning",
+    missedSub: "Qualified-but-skipped setups are checked with exact option prices and all costs after 5, 15, and 30 minutes.",
+    captured: "Captured setups",
+    tracking: "Still tracking",
+    wouldProfit: "Would profit (15m)",
+    avoidedLoss: "Block saved loss (15m)",
+    learningSamples: "AI learning samples",
+    noMissed: "No qualified missed setup has been captured yet.",
+    counterfactual: "Counterfactual shadow report only. It teaches the AI after the result is known, but cannot block a trade or place an order.",
+    pendingOutcome: "Outcome pending",
+    missedProfit: "MISSED PROFIT",
+    savedLoss: "GOOD BLOCK",
+    noEdge: "NO EDGE",
+    unavailableOutcome: "UNAVAILABLE",
+    perLotShort: "per lot",
   },
   hi: {
     title: "उन्नत AI विश्लेषण",
@@ -132,6 +147,21 @@ const COPY = {
     bullish: "CE / तेजी",
     bearish: "PE / मंदी",
     neutral: "तटस्थ",
+    missedTitle: "छूटे ट्रेड की सीख",
+    missedSub: "क्वालिफ़ाई होने के बाद भी न खुले सेटअप को 5, 15 और 30 मिनट बाद वास्तविक ऑप्शन भाव व सभी खर्चों के साथ जाँचा जाता है।",
+    captured: "सेव किए सेटअप",
+    tracking: "परिणाम लंबित",
+    wouldProfit: "15मि में लाभ होता",
+    avoidedLoss: "ब्लॉक से नुकसान बचा",
+    learningSamples: "AI सीख नमूने",
+    noMissed: "अभी कोई क्वालिफ़ाइड छूटा सेटअप सेव नहीं हुआ है।",
+    counterfactual: "यह केवल शैडो तुलना है। परिणाम मिलने के बाद AI इससे सीखता है, लेकिन यह ट्रेड ब्लॉक या ऑर्डर नहीं कर सकता।",
+    pendingOutcome: "परिणाम लंबित",
+    missedProfit: "लाभ वाला छूटा ट्रेड",
+    savedLoss: "सही ब्लॉक",
+    noEdge: "खर्च बाद लाभ नहीं",
+    unavailableOutcome: "उपलब्ध नहीं",
+    perLotShort: "प्रति लॉट",
   },
 };
 
@@ -171,6 +201,12 @@ function fixed(value, digits = 2) {
   if (value == null || value === "") return "--";
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed.toFixed(digits) : "--";
+}
+
+function money(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "--";
+  return `${parsed >= 0 ? "+" : "-"}₹${Math.abs(parsed).toFixed(2)}`;
 }
 
 function humanize(value) {
@@ -247,6 +283,37 @@ function normalizeNewsReport(data) {
     hitRate15m: summary.fusion_15m_hit_rate_percent,
     benefit15m: summary.estimated_net_benefit_vs_base_spot_points_15m,
     marketReaction: latest?.market_reaction || "NEWS_MARKET_REACTION_UNCLEAR",
+  };
+}
+
+function normalizeMissedReport(data) {
+  if (!data || data.success !== true) return null;
+  const summary = data.summary || {};
+  const recent = Array.isArray(data.recent_missed_setups)
+    ? data.recent_missed_setups.map((item) => ({
+        id: item?.id,
+        createdAt: item?.created_at,
+        underlying: String(item?.underlying || "INDEX").toUpperCase(),
+        side: String(item?.candidate_side || "WAIT").toUpperCase(),
+        score: asNumber(item?.strategy_score, 0),
+        minScore: asNumber(item?.min_score, 82),
+        status: String(item?.status || "PENDING_CONTRACT").toUpperCase(),
+        decisionKind: String(item?.decision_kind || "STRATEGY_BLOCKED").toUpperCase(),
+        reasons: Array.isArray(item?.block_reasons) ? item.block_reasons : [],
+        primary: item?.primary_outcome || null,
+        outcomes: Array.isArray(item?.outcomes) ? item.outcomes : [],
+        learningEligible: Boolean(item?.learning_eligible),
+      }))
+    : [];
+  return {
+    captured: asNumber(summary.captured_total, 0),
+    tracking: asNumber(summary.tracking, 0),
+    evaluated15m: asNumber(summary.evaluated_15m, 0),
+    wouldProfit15m: asNumber(summary.would_have_profited_15m, 0),
+    avoidedLoss15m: asNumber(summary.block_avoided_loss_15m, 0),
+    learningSamples15m: asNumber(summary.training_samples_added_15m, 0),
+    netPnl15m: asNumber(summary.candidate_net_pnl_rupees_per_lot_15m, 0),
+    recent,
   };
 }
 
@@ -343,6 +410,35 @@ function statusLabel(status, copy) {
   return copy.collecting;
 }
 
+function missedVerdict(item, copy) {
+  const verdict = String(item?.primary?.verdict || "").toUpperCase();
+  if (verdict === "MISSED_PROFIT") return copy.missedProfit;
+  if (verdict === "BLOCK_AVOIDED_LOSS") return copy.savedLoss;
+  if (verdict === "NO_EDGE_AFTER_COSTS") return copy.noEdge;
+  if (["CONTRACT_UNAVAILABLE", "PARTIAL_OR_UNAVAILABLE"].includes(item?.status)) {
+    return copy.unavailableOutcome;
+  }
+  return copy.pendingOutcome;
+}
+
+function missedVerdictColor(item) {
+  const verdict = String(item?.primary?.verdict || "").toUpperCase();
+  if (verdict === "MISSED_PROFIT") return C.gold;
+  if (verdict === "BLOCK_AVOIDED_LOSS") return C.green;
+  if (verdict === "NO_EDGE_AFTER_COSTS") return C.blue;
+  if (["CONTRACT_UNAVAILABLE", "PARTIAL_OR_UNAVAILABLE"].includes(item?.status)) return C.red;
+  return C.purple;
+}
+
+function missedOutcomeLine(item, copy) {
+  if (!item?.outcomes?.length) return copy.pendingOutcome;
+  return item.outcomes
+    .slice()
+    .sort((left, right) => asNumber(left?.horizon_minutes) - asNumber(right?.horizon_minutes))
+    .map((outcome) => `${asNumber(outcome?.horizon_minutes, 0)}m ${money(outcome?.candidate_net_pnl)}`)
+    .join(" • ");
+}
+
 function modelConclusion(report, lang) {
   const hi = lang === "hi";
   if (!report) return hi ? "मॉडल रिपोर्ट लोड हो रही है।" : "The model report is loading.";
@@ -416,6 +512,7 @@ function AdvancedAiTabScreen() {
   const [lang, setLang] = React.useState("en");
   const [advanced, setAdvanced] = React.useState(null);
   const [news, setNews] = React.useState(null);
+  const [missed, setMissed] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
 
@@ -448,6 +545,7 @@ function AdvancedAiTabScreen() {
     const results = await Promise.allSettled([
       fetchJson("/bot/ai-advanced-monitor?recent_limit=3"),
       fetchJson("/bot/ai-news-monitor?recent_limit=3"),
+      fetchJson("/bot/ai-missed-trades?recent_limit=8"),
     ]);
     const messages = [];
     if (results[0].status === "fulfilled") {
@@ -458,6 +556,10 @@ function AdvancedAiTabScreen() {
       const value = normalizeNewsReport(results[1].value);
       if (value) setNews(value); else messages.push("News AI response invalid");
     } else messages.push(String(results[1].reason?.message || "News AI unavailable"));
+    if (results[2].status === "fulfilled") {
+      const value = normalizeMissedReport(results[2].value);
+      if (value) setMissed(value); else messages.push("Missed-trade learning response invalid");
+    } else messages.push(String(results[2].reason?.message || "Missed-trade learning unavailable"));
     setError(messages.join(" • "));
     setLoading(false);
   }, [token]);
@@ -583,6 +685,72 @@ function AdvancedAiTabScreen() {
           color: C.purple,
         })
       )
+    ),
+
+    React.createElement(
+      Card,
+      { glow: C.gold },
+      React.createElement(SectionTitle, { title: `🎯 ${copy.missedTitle}`, subtitle: copy.missedSub }),
+      React.createElement(
+        MetricGrid,
+        null,
+        React.createElement(Metric, { label: copy.captured, value: missed?.captured ?? 0, color: C.blue }),
+        React.createElement(Metric, { label: copy.tracking, value: missed?.tracking ?? 0, color: C.purple }),
+        React.createElement(Metric, { label: copy.wouldProfit, value: `${missed?.wouldProfit15m || 0}/${missed?.evaluated15m || 0}`, color: C.gold }),
+        React.createElement(Metric, { label: copy.avoidedLoss, value: `${missed?.avoidedLoss15m || 0}/${missed?.evaluated15m || 0}`, color: C.green }),
+        React.createElement(Metric, { label: copy.learningSamples, value: missed?.learningSamples15m ?? 0, color: C.blue }),
+        React.createElement(Metric, { label: `15m P&L ${copy.perLotShort}`, value: money(missed?.netPnl15m), color: asNumber(missed?.netPnl15m, 0) >= 0 ? C.green : C.red })
+      ),
+      missed?.recent?.length
+        ? React.createElement(
+            View,
+            { style: { marginTop: 13 } },
+            missed.recent.slice(0, 5).map((item, index) => {
+              const color = missedVerdictColor(item);
+              return React.createElement(
+                View,
+                {
+                  key: item.id || `${item.underlying}-${item.createdAt}-${index}`,
+                  style: {
+                    borderTopWidth: index ? 1 : 0,
+                    borderTopColor: C.border,
+                    paddingTop: index ? 11 : 0,
+                    paddingBottom: 10,
+                  },
+                },
+                React.createElement(
+                  View,
+                  { style: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 } },
+                  React.createElement(
+                    Text,
+                    { style: { color: C.text, fontSize: 12, fontWeight: "900", flex: 1 } },
+                    `${item.underlying} • ${item.side} • ${item.score}/${item.minScore}`
+                  ),
+                  React.createElement(
+                    View,
+                    { style: { borderRadius: 8, borderWidth: 1, borderColor: `${color}66`, backgroundColor: `${color}16`, paddingHorizontal: 7, paddingVertical: 4 } },
+                    React.createElement(Text, { style: { color, fontSize: 8.5, fontWeight: "900" } }, missedVerdict(item, copy))
+                  )
+                ),
+                React.createElement(
+                  Text,
+                  { style: { color, fontSize: 10.5, fontWeight: "900", marginTop: 7 } },
+                  `${missedOutcomeLine(item, copy)}${item.primary ? ` • ${copy.perLotShort}` : ""}`
+                ),
+                React.createElement(
+                  Text,
+                  { style: { color: C.muted, fontSize: 9.5, lineHeight: 15, marginTop: 5 } },
+                  shorten(item.reasons?.[0] ? humanize(item.reasons[0]) : humanize(item.decisionKind), 145)
+                )
+              );
+            })
+          )
+        : React.createElement(
+            Text,
+            { style: { color: C.muted, fontSize: 11, lineHeight: 18, marginTop: 12 } },
+            copy.noMissed
+          ),
+      React.createElement(InfoBox, { color: C.blue }, copy.counterfactual)
     ),
 
     React.createElement(
@@ -717,3 +885,4 @@ module.exports = AdvancedAiTabScreen;
 module.exports.default = AdvancedAiTabScreen;
 module.exports.normalizeAdvancedReport = normalizeAdvancedReport;
 module.exports.normalizeNewsReport = normalizeNewsReport;
+module.exports.normalizeMissedReport = normalizeMissedReport;
