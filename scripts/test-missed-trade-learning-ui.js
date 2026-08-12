@@ -18,6 +18,22 @@ const required = [
   "यह केवल शैडो तुलना है",
   "MISSED-TRADE AI V2 • APPLIED",
   "मिस्ड-ट्रेड AI V2 • लागू है",
+  "function pnlPresentation(value, copy, net = false)",
+  "function MissedOutcomeBadges({ item, copy })",
+  "PROFIT (+)",
+  "LOSS (-)",
+  "NET PROFIT (+)",
+  "NET LOSS (-)",
+  "[5, 15, 30].map",
+  "Hypothetical trade P&L after all costs",
+  "candidate_contract",
+  "candidate_entry_price",
+  "candidate_lot_size",
+  "function missedContractTitle(item)",
+  "function formatExpiry(value)",
+  "function formatCapturedIst(value)",
+  "Entry premium",
+  "Exact option contract resolving",
   "module.exports.normalizeMissedReport",
 ];
 
@@ -43,4 +59,4 @@ const appSource = fs.readFileSync(path.resolve(__dirname, "../App.js"), "utf8");
   }
 });
 
-console.log("PASS OKAI-MISSED-TRADE-LEARNING-UI-V2");
+console.log("PASS OKAI-MISSED-TRADE-LEARNING-UI-V3");

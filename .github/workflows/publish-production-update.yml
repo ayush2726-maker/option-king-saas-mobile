@@ -138,7 +138,7 @@ jobs:
             --branch production \
             --platform android \
             --clear-cache \
-            --message "OKAI Android OTA ${SHORT_SHA}: missed-trade AI V2 and reliable updater" \
+            --message "OKAI Android OTA ${SHORT_SHA}: explicit missed-trade profit and loss V3" \
             --non-interactive 2>&1 | tee /tmp/okai-ota/publish.log
 
       - name: Point and verify production channel

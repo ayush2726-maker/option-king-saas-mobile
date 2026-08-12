@@ -95,6 +95,21 @@ const COPY = {
     noEdge: "NO EDGE",
     unavailableOutcome: "UNAVAILABLE",
     perLotShort: "per lot",
+    profitPnl: "PROFIT (+)",
+    lossPnl: "LOSS (-)",
+    flatPnl: "FLAT (0)",
+    pendingPnl: "PENDING",
+    netProfitPnl: "NET PROFIT (+)",
+    netLossPnl: "NET LOSS (-)",
+    netFlatPnl: "NET FLAT (0)",
+    pnlAfterCosts: "Hypothetical trade P&L after all costs • per lot",
+    expiryShort: "EXP",
+    entryPremium: "Entry premium",
+    quantityShort: "Qty",
+    scoreShort: "Score",
+    capturedAt: "Captured",
+    brokerSymbol: "Contract",
+    contractResolving: "Exact option contract resolving",
   },
   hi: {
     title: "उन्नत AI विश्लेषण",
@@ -166,6 +181,21 @@ const COPY = {
     noEdge: "खर्च बाद लाभ नहीं",
     unavailableOutcome: "उपलब्ध नहीं",
     perLotShort: "प्रति लॉट",
+    profitPnl: "लाभ (+)",
+    lossPnl: "नुकसान (-)",
+    flatPnl: "बराबर (0)",
+    pendingPnl: "लंबित",
+    netProfitPnl: "कुल लाभ (+)",
+    netLossPnl: "कुल नुकसान (-)",
+    netFlatPnl: "कुल बराबर (0)",
+    pnlAfterCosts: "सभी खर्चों के बाद अनुमानित ट्रेड P&L • प्रति लॉट",
+    expiryShort: "एक्सपायरी",
+    entryPremium: "एंट्री प्रीमियम",
+    quantityShort: "मात्रा",
+    scoreShort: "स्कोर",
+    capturedAt: "सेव समय",
+    brokerSymbol: "कॉन्ट्रैक्ट",
+    contractResolving: "सटीक ऑप्शन कॉन्ट्रैक्ट मिल रहा है",
   },
 };
 
@@ -208,9 +238,79 @@ function fixed(value, digits = 2) {
 }
 
 function money(value) {
+  if (value == null || value === "") return "--";
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return "--";
-  return `${parsed >= 0 ? "+" : "-"}₹${Math.abs(parsed).toFixed(2)}`;
+  const sign = parsed > 0 ? "+" : parsed < 0 ? "-" : "";
+  return `${sign}₹${Math.abs(parsed).toFixed(2)}`;
+}
+
+function pnlPresentation(value, copy, net = false) {
+  if (value == null || value === "") {
+    return { color: C.purple, label: copy.pendingPnl, value: "--", sign: "PENDING" };
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return { color: C.purple, label: copy.pendingPnl, value: "--", sign: "PENDING" };
+  }
+  if (parsed > 0) {
+    return {
+      color: C.green,
+      label: net ? copy.netProfitPnl : copy.profitPnl,
+      value: money(parsed),
+      sign: "PROFIT",
+    };
+  }
+  if (parsed < 0) {
+    return {
+      color: C.red,
+      label: net ? copy.netLossPnl : copy.lossPnl,
+      value: money(parsed),
+      sign: "LOSS",
+    };
+  }
+  return {
+    color: C.blue,
+    label: net ? copy.netFlatPnl : copy.flatPnl,
+    value: money(0),
+    sign: "FLAT",
+  };
+}
+
+function compactNumber(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "--";
+  return Number.isInteger(parsed) ? String(parsed) : parsed.toFixed(2);
+}
+
+function formatExpiry(value) {
+  const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return String(value || "--");
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${Number(match[3])} ${months[Number(match[2]) - 1] || match[2]} ${match[1]}`;
+}
+
+function formatCapturedIst(value) {
+  const parsed = new Date(value);
+  if (!value || Number.isNaN(parsed.getTime())) return "--";
+  const ist = new Date(parsed.getTime() + 330 * 60 * 1000);
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const hour24 = ist.getUTCHours();
+  const hour12 = hour24 % 12 || 12;
+  const minute = String(ist.getUTCMinutes()).padStart(2, "0");
+  const period = hour24 >= 12 ? "PM" : "AM";
+  return `${ist.getUTCDate()} ${months[ist.getUTCMonth()]} • ${hour12}:${minute} ${period} IST`;
+}
+
+function missedContractTitle(item) {
+  const contract = item?.candidateContract || {};
+  const side = String(contract.side || item?.side || "WAIT").toUpperCase();
+  const strike = Number(contract.strike);
+  if (Number.isFinite(strike) && strike > 0) {
+    return `${item?.underlying || "INDEX"} ${compactNumber(strike)} ${side}`;
+  }
+  const symbol = String(contract.symbol || "").trim();
+  return symbol || `${item?.underlying || "INDEX"} ${side}`;
 }
 
 function humanize(value) {
@@ -307,6 +407,9 @@ function normalizeMissedReport(data) {
         primary: item?.primary_outcome || null,
         outcomes: Array.isArray(item?.outcomes) ? item.outcomes : [],
         learningEligible: Boolean(item?.learning_eligible),
+        candidateContract: item?.candidate_contract || {},
+        entryPrice: item?.candidate_entry_price,
+        lotSize: asNumber(item?.candidate_lot_size, 0),
       }))
     : [];
   return {
@@ -434,13 +537,56 @@ function missedVerdictColor(item) {
   return C.purple;
 }
 
-function missedOutcomeLine(item, copy) {
-  if (!item?.outcomes?.length) return copy.pendingOutcome;
-  return item.outcomes
-    .slice()
-    .sort((left, right) => asNumber(left?.horizon_minutes) - asNumber(right?.horizon_minutes))
-    .map((outcome) => `${asNumber(outcome?.horizon_minutes, 0)}m ${money(outcome?.candidate_net_pnl)}`)
-    .join(" • ");
+function MissedOutcomeBadges({ item, copy }) {
+  const outcomes = Array.isArray(item?.outcomes) ? item.outcomes : [];
+  const byHorizon = new Map(
+    outcomes.map((outcome) => [asNumber(outcome?.horizon_minutes, 0), outcome])
+  );
+
+  return React.createElement(
+    View,
+    null,
+    React.createElement(
+      View,
+      { style: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 } },
+      [5, 15, 30].map((horizon) => {
+        const outcome = byHorizon.get(horizon);
+        const pnl = pnlPresentation(outcome?.candidate_net_pnl, copy);
+        return React.createElement(
+          View,
+          {
+            key: horizon,
+            style: {
+              flexGrow: 1,
+              flexBasis: "30%",
+              minWidth: 88,
+              borderRadius: 9,
+              borderWidth: 1,
+              borderColor: `${pnl.color}77`,
+              backgroundColor: `${pnl.color}12`,
+              paddingHorizontal: 7,
+              paddingVertical: 7,
+            },
+          },
+          React.createElement(
+            Text,
+            { style: { color: pnl.color, fontSize: 8.5, fontWeight: "900" } },
+            `${horizon}m • ${pnl.label}`
+          ),
+          React.createElement(
+            Text,
+            { style: { color: pnl.color, fontSize: 12, fontWeight: "900", marginTop: 3 } },
+            pnl.value
+          )
+        );
+      })
+    ),
+    React.createElement(
+      Text,
+      { style: { color: C.muted, fontSize: 8.5, lineHeight: 14, marginTop: 5 } },
+      copy.pnlAfterCosts
+    )
+  );
 }
 
 function modelConclusion(report, lang) {
@@ -597,6 +743,11 @@ function AdvancedAiTabScreen() {
         ? (lang === "hi" ? "लंबित" : "Pending")
         : (lang === "hi" ? "अभी सिद्ध नहीं" : "Not proven");
   const group = advanced?.groupImportance || {};
+  const aggregate15m = pnlPresentation(
+    missed?.evaluated15m > 0 ? missed?.netPnl15m : null,
+    copy,
+    true
+  );
 
   return React.createElement(
     View,
@@ -723,7 +874,11 @@ function AdvancedAiTabScreen() {
         React.createElement(Metric, { label: copy.wouldProfit, value: `${missed?.wouldProfit15m || 0}/${missed?.evaluated15m || 0}`, color: C.gold }),
         React.createElement(Metric, { label: copy.avoidedLoss, value: `${missed?.avoidedLoss15m || 0}/${missed?.evaluated15m || 0}`, color: C.green }),
         React.createElement(Metric, { label: copy.learningSamples, value: missed?.learningSamples15m ?? 0, color: C.blue }),
-        React.createElement(Metric, { label: `15m P&L ${copy.perLotShort}`, value: money(missed?.netPnl15m), color: asNumber(missed?.netPnl15m, 0) >= 0 ? C.green : C.red })
+        React.createElement(Metric, {
+          label: `15m ${aggregate15m.label} • ${copy.perLotShort}`,
+          value: aggregate15m.value,
+          color: aggregate15m.color,
+        })
       ),
       missed?.recent?.length
         ? React.createElement(
@@ -731,6 +886,17 @@ function AdvancedAiTabScreen() {
             { style: { marginTop: 13 } },
             missed.recent.slice(0, 5).map((item, index) => {
               const color = missedVerdictColor(item);
+              const contract = item.candidateContract || {};
+              const contractDetails = [
+                contract.expiry
+                  ? `${copy.expiryShort} ${formatExpiry(contract.expiry)}`
+                  : copy.contractResolving,
+                asNumber(item.entryPrice, 0) > 0
+                  ? `${copy.entryPremium} ₹${Number(item.entryPrice).toFixed(2)}`
+                  : null,
+                item.lotSize > 0 ? `${copy.quantityShort} ${item.lotSize}` : null,
+                `${copy.scoreShort} ${item.score}/${item.minScore}`,
+              ].filter(Boolean);
               return React.createElement(
                 View,
                 {
@@ -748,7 +914,7 @@ function AdvancedAiTabScreen() {
                   React.createElement(
                     Text,
                     { style: { color: C.text, fontSize: 12, fontWeight: "900", flex: 1 } },
-                    `${item.underlying} • ${item.side} • ${item.score}/${item.minScore}`
+                    missedContractTitle(item)
                   ),
                   React.createElement(
                     View,
@@ -758,9 +924,22 @@ function AdvancedAiTabScreen() {
                 ),
                 React.createElement(
                   Text,
-                  { style: { color, fontSize: 10.5, fontWeight: "900", marginTop: 7 } },
-                  `${missedOutcomeLine(item, copy)}${item.primary ? ` • ${copy.perLotShort}` : ""}`
+                  { style: { color: C.blue, fontSize: 9.5, fontWeight: "800", lineHeight: 15, marginTop: 6 } },
+                  contractDetails.join(" • ")
                 ),
+                contract.symbol
+                  ? React.createElement(
+                      Text,
+                      { style: { color: C.sub, fontSize: 8.5, lineHeight: 14, marginTop: 2 } },
+                      `${copy.brokerSymbol}: ${contract.symbol}`
+                    )
+                  : null,
+                React.createElement(
+                  Text,
+                  { style: { color: C.muted, fontSize: 8.5, lineHeight: 14, marginTop: 2 } },
+                  `${copy.capturedAt}: ${formatCapturedIst(item.createdAt)}`
+                ),
+                React.createElement(MissedOutcomeBadges, { item, copy }),
                 React.createElement(
                   Text,
                   { style: { color: C.muted, fontSize: 9.5, lineHeight: 15, marginTop: 5 } },
