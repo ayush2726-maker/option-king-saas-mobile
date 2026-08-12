@@ -45,6 +45,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Remove missed-trade five-row UI cap
+        id: missed_trade_rows
+        shell: bash
+        run: |
+          python3 scripts/patch_missed_trade_unlimited_list_v5.py
+          grep -q "missed.recent.map((item, index) =>" src/screens/AdvancedAiTabScreen.js
+          if grep -q "missed.recent.slice(0, 5).map" src/screens/AdvancedAiTabScreen.js; then
+            echo "Missed-trade five-row cap is still present"
+            exit 1
+          fi
+          git diff --check
+
       - name: Apply multi-active-trade source patch
         id: trade_patch
         shell: bash
@@ -102,7 +114,10 @@ jobs:
             grep -q "OKAI-LIVE-SCORE-MULTI-TRADE-V8" src/runtime/LiveScoreTradeTabEnhancement.js
             grep -q "mergeOpenPositionsV8" src/runtime/LiveScoreTradeTabEnhancement.js
             grep -q "__okaiMultiTradeBypass" src/runtime/LiveScoreTradeTabEnhancement.js
+            grep -q "missed.recent.map((item, index) =>" src/screens/AdvancedAiTabScreen.js
+            if grep -q "missed.recent.slice(0, 5).map" src/screens/AdvancedAiTabScreen.js; then exit 1; fi
             node --check src/runtime/LiveScoreTradeTabEnhancement.js
+            node --check src/screens/AdvancedAiTabScreen.js
             node --check src/components/SectorRotationCard.js
             node --check src/runtime/SectorRotationEnhancement.js
             node --check src/runtime/DirectHomeSectorRotationV4.js
@@ -138,7 +153,7 @@ jobs:
             --branch production \
             --platform android \
             --clear-cache \
-            --message "OKAI Android OTA ${SHORT_SHA}: retired entry blocks V4" \
+            --message "OKAI Android OTA ${SHORT_SHA}: missed trade all rows V5" \
             --non-interactive 2>&1 | tee /tmp/okai-ota/publish.log
 
       - name: Point and verify production channel
