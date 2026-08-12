@@ -108,6 +108,9 @@ const COPY = {
     quantityShort: "Qty",
     scoreShort: "Score",
     capturedAt: "Captured",
+    retiredRule: "OLD RULE REMOVED",
+    retiredEmaRule: "Fixed EMA-distance rule no longer blocks new trades",
+    retiredTriggerRule: "ORB/momentum is no longer mandatory for new trades",
     brokerSymbol: "Contract",
     contractResolving: "Exact option contract resolving",
   },
@@ -193,6 +196,9 @@ const COPY = {
     entryPremium: "एंट्री प्रीमियम",
     quantityShort: "मात्रा",
     scoreShort: "स्कोर",
+    retiredRule: "पुराना नियम हटाया गया",
+    retiredEmaRule: "फिक्स्ड EMA दूरी अब नए ट्रेड को ब्लॉक नहीं करती",
+    retiredTriggerRule: "नए ट्रेड के लिए ORB/मोमेंटम अब अनिवार्य नहीं है",
     capturedAt: "सेव समय",
     brokerSymbol: "कॉन्ट्रैक्ट",
     contractResolving: "सटीक ऑप्शन कॉन्ट्रैक्ट मिल रहा है",
@@ -315,6 +321,17 @@ function missedContractTitle(item) {
 
 function humanize(value) {
   return String(value || "--").replace(/_/g, " ").trim();
+}
+
+function missedReasonText(value, copy) {
+  const reason = String(value || "").trim().toUpperCase();
+  if (reason === "EMA_EXTENSION_OVER_0.95_ATR") {
+    return `${copy.retiredRule} • ${copy.retiredEmaRule}`;
+  }
+  if (reason === "ORB_OR_MOMENTUM_TRIGGER_REQUIRED") {
+    return `${copy.retiredRule} • ${copy.retiredTriggerRule}`;
+  }
+  return humanize(value);
 }
 
 function shorten(value, max = 125) {
@@ -943,7 +960,7 @@ function AdvancedAiTabScreen() {
                 React.createElement(
                   Text,
                   { style: { color: C.muted, fontSize: 9.5, lineHeight: 15, marginTop: 5 } },
-                  shorten(item.reasons?.[0] ? humanize(item.reasons[0]) : humanize(item.decisionKind), 145)
+                  shorten(missedReasonText(item.reasons?.[0] || item.decisionKind, copy), 145)
                 )
               );
             })

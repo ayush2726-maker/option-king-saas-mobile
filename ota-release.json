@@ -1,22 +1,22 @@
 {
-  "release": "missed-trade-explicit-contract-pnl-v3",
+  "release": "retired-entry-blocks-v4",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-12T13:42:00+05:30",
-  "reason": "Show the exact missed option contract and make profit/loss unmistakable for every evaluation horizon.",
+  "requested_at": "2026-08-12T20:43:27+05:30",
+  "reason": "Publish the retired EMA 0.95 ATR and mandatory ORB/momentum entry rules, and label historical audit rows so they cannot be mistaken for active blockers.",
   "validation": {
     "required_checks": [
-      "Each 5/15/30-minute outcome explicitly shows PROFIT (+), LOSS (-), FLAT (0), or PENDING",
-      "Positive P&L is green and negative P&L is red independently of the GOOD BLOCK verdict color",
-      "15-minute aggregate explicitly shows NET PROFIT or NET LOSS",
-      "Every row shows underlying, strike, CE/PE, expiry, entry premium, quantity, score and captured time",
+      "Historical EMA_EXTENSION_OVER_0.95_ATR rows are labelled as an old removed rule",
+      "Historical ORB_OR_MOMENTUM_TRIGGER_REQUIRED rows are labelled as an old removed rule",
+      "Raw historical reasons are not presented as active blockers",
+      "Exact missed option contract and 5/15/30-minute profit/loss remain visible",
       "OTA check retries after temporary failures and can be retried by tapping the banner",
       "Production and legacy default channels both point to the production branch",
       "AI remains shadow-only and existing score/trade rules remain unchanged",
       "Android Metro export succeeds"
     ],
-    "ui_fix": "Add an always-visible applied marker in the AI screen and a reliable OTA status/retry banner.",
-    "logic_safety": "Presentation and update-delivery change only. No strategy score, entry guard, broker, quantity or order behavior changed."
+    "ui_fix": "Replace the two retired raw block reasons with a clear old-rule-removed label in missed-trade history.",
+    "logic_safety": "App presentation change only. Backend separately retires the two exact hard blocks while retaining score 82 and all unrelated safety guards."
   },
   "trade_safety": "No entry, exit, SL, quantity, broker or order logic changes."
 }
