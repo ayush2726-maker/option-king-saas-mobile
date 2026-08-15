@@ -4097,6 +4097,21 @@ function BotTab({ token, lang }) {
       maximumFractionDigits: 2,
     })}`;
   };
+  const hasServerCurrentCapital =
+    signal?.current_capital !== null &&
+    signal?.current_capital !== undefined &&
+    Number.isFinite(Number(signal.current_capital));
+  const fallbackStartingCapital = Number(
+    signal?.starting_capital ??
+      signal?.paper_capital ??
+      settings?.paper_capital ??
+      0
+  );
+  const currentCapital = hasServerCurrentCapital
+    ? Number(signal.current_capital)
+    : mode === "paper"
+    ? fallbackStartingCapital + Number(signal?.total_pnl || 0)
+    : null;
 
   return (
     <ScrollView style={{ flex: 1 }}
@@ -4175,6 +4190,7 @@ function BotTab({ token, lang }) {
 
         {[
           [hi ? "Mode" : "Mode", mode.toUpperCase()],
+          [hi ? "Current Capital" : "Current Capital", currentCapital == null ? "--" : todayMoney(currentCapital)],
           [hi ? "Active Strategy" : "Active Strategy", activeStrategyName],
           [hi ? "Signal" : "Signal", signal?.signal === "NO_DATA" ? (hi ? "Live data nahi hai" : "No live data") : (signal?.signal || "--")],
           [hi ? "Score" : "Score", `${signal?.score ?? "--"} / ${signal?.min_score ?? "--"}`],
@@ -6747,7 +6763,7 @@ function HomeTab({ user, subStatus, token, onSubscribe, setActiveTab, lang, onPa
   const isRunning = !!signal?.running;
   const mode = signal?.trading_mode || "paper";
   const todayPnl = signal?.total_pnl;
-  const paperEquity = signal?.paper_capital;
+  const paperEquity = signal?.current_capital ?? signal?.paper_capital;
 
   return (
     <ScrollView style={{ flex: 1 }}
