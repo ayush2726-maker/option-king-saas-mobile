@@ -720,12 +720,17 @@ function LiveScoreTradeTab({ token }) {
         const refreshHistory =
           Date.now() - historyLoadedAtRef.current >= HISTORY_POLL_MS;
         if (refreshHistory) historyLoadedAtRef.current = Date.now();
-        const [sig, hist] = await Promise.all([
+        const [sig, live, hist] = await Promise.all([
           apiGet("/bot/signal", token),
+          apiGet("/bot/trade-live", token).catch(() => null),
           refreshHistory ? loadHistory(token).catch(() => null) : null,
         ]);
         if (aliveRef.current) {
           setSignal(sig || {});
+          if (live && typeof live === "object") {
+            setLivePayload(live);
+            updateTradeLiveSnapshot(live);
+          }
           const rows = Array.isArray(hist?.paper_trades)
             ? hist.paper_trades
             : Array.isArray(hist?.trades)
@@ -948,9 +953,9 @@ function LiveScoreTradeTab({ token }) {
                 value: `${price(trade?.entry_price)} • ${timeLabel(trade?.entry_time || trade?.created_at)} IST`,
               }),
               React.createElement(ValueRow, {
-                label: "Live Price",
+                label: trade?.quote_stale ? "Live Price • STALE" : "Live Price",
                 value: price(livePriceValue(trade)),
-                color: C.green,
+                color: trade?.quote_stale ? C.gold : C.green,
               }),
               React.createElement(ValueRow, {
                 label: "Live SL",
