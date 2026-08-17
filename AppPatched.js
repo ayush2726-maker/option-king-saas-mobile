@@ -335,7 +335,6 @@ export default function AppPatched() {
       <View style={{ flex: 1 }}>
         <App key={`okai-session-${sessionEpoch}`} />
       </View>
-      <ManualExitOverlay />
     </View>
   );
 }
