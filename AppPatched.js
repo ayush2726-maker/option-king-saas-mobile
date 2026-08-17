@@ -121,15 +121,22 @@ const TRADE_POLL_MS = 5000;
 
 function tradeSnapshotKey(data, openTrade) {
   if (!openTrade) return "CLOSED";
-  return [
-    openTrade.id,
-    openTrade.status,
-    openTrade.live_price ?? openTrade.current_price ?? openTrade.entry_price,
-    openTrade.sl_price,
-    openTrade.target_price,
-    openTrade.unrealized_pnl ?? openTrade.pnl,
-    data?.open,
-  ].join("|");
+  const openRows = Array.isArray(data?.trades) && data.trades.length
+    ? data.trades
+    : [openTrade];
+
+  return openRows
+    .map((trade) => [
+      trade?.id,
+      trade?.status,
+      trade?.live_price ?? trade?.current_price ?? trade?.last_ltp ?? trade?.entry_price,
+      trade?.sl_price,
+      trade?.target_price,
+      trade?.unrealized_pnl ?? trade?.net_pnl ?? trade?.pnl,
+      trade?.quote_updated_at,
+      trade?.quote_stale,
+    ].join("|"))
+    .join("::");
 }
 
 function ManualExitOverlay() {
