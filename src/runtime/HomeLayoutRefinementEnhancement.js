@@ -4,6 +4,7 @@ const {
   TouchableOpacity,
   View,
 } = require("react-native");
+const { scoreMaximum } = require("./ScoreDisplayScale");
 
 const LIVE_SCORE_DROPDOWN_V2 = true;
 
@@ -58,6 +59,7 @@ function scoreSummary(signal) {
   return {
     score: Number.isFinite(score) ? score : 0,
     minimum: Number.isFinite(minimum) ? minimum : 82,
+    maximum: scoreMaximum(selected || signal),
   };
 }
 
@@ -138,7 +140,7 @@ function LiveStrategyScoreDropdown({ originalType, originalProps }) {
               fontWeight: "900",
             },
           },
-          `${summary.score}/${summary.minimum}`
+          `${summary.score}/${summary.maximum}`
         ),
         React.createElement(
           Text,

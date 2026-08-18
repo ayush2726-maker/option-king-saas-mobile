@@ -5,6 +5,7 @@ const {
   marketTimeLabel,
   executionBlockReason,
 } = require('./EntryWindowStatus');
+const { scoreMaximum } = require('./ScoreDisplayScale');
 
 const C = {
   card: '#13131f', border: '#252540', text: '#e8e8f0', muted: '#606080',
@@ -153,6 +154,7 @@ function DecisionPanel({ signal }) {
 
   const score = decisionScore(scan);
   const minimum = num(scan?.min_score ?? scan?.live_score_breakdown?.min_score ?? cleanSignal?.min_score, 82);
+  const maximum = scoreMaximum(scan);
   const qualified = !!(scan?.strategy_qualified ?? scan?.trade_allowed);
   const timeReason = executionBlockReason(cleanSignal, scan);
   const attemptBlocked = !!(
@@ -186,7 +188,7 @@ function DecisionPanel({ signal }) {
       React.createElement(Text, { style: { color: C.text, fontSize: 15, fontWeight: '900' } }, 'Final Decision Reason'),
       React.createElement(Text, { style: { color, fontSize: 12, fontWeight: '900' } }, finalLabel)
     ),
-    React.createElement(Text, { style: { color: C.blue, fontSize: 12, fontWeight: '900', marginTop: 8 } }, `${scan?.underlying || 'INDEX'} • ${scan?.candidate_signal || scan?.signal || 'WAIT'} • ${score}/${minimum}`),
+    React.createElement(Text, { style: { color: C.blue, fontSize: 12, fontWeight: '900', marginTop: 8 } }, `${scan?.underlying || 'INDEX'} • ${scan?.candidate_signal || scan?.signal || 'WAIT'} • ${score}/${maximum} • ENTRY ${minimum}`),
     reasons.map((reason, index) => React.createElement(
       Text,
       { key: `${reason}-${index}`, style: { color: reason.includes('OK') ? C.green : C.gold, fontSize: 11, lineHeight: 17, marginTop: 3 } },

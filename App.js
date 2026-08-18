@@ -4193,7 +4193,7 @@ function BotTab({ token, lang }) {
           [hi ? "Current Capital" : "Current Capital", currentCapital == null ? "--" : todayMoney(currentCapital)],
           [hi ? "Active Strategy" : "Active Strategy", activeStrategyName],
           [hi ? "Signal" : "Signal", signal?.signal === "NO_DATA" ? (hi ? "Live data nahi hai" : "No live data") : (signal?.signal || "--")],
-          [hi ? "Score" : "Score", `${signal?.score ?? "--"} / ${signal?.min_score ?? "--"}`],
+          [hi ? "Score" : "Score", `${signal?.score ?? "--"} / 100`],
           [hi ? "Open Positions" : "Open Positions", `${signal?.open_trade_count ?? activePortfolioTrades.length} / ${capitalPlan.max_open_positions || 2}`],
           [hi ? "Total Trades" : "Total Trades", signal?.total_trades ?? "--"],
           [hi ? "Total P&L" : "Total P&L", signal?.total_pnl != null ? `₹${signal.total_pnl}` : "--"],
@@ -4348,7 +4348,7 @@ function BotTab({ token, lang }) {
                     fontSize: 13,
                     fontWeight: "900",
                   }}>
-                    {score}/{minimum}
+                    {score}/100
                   </Text>
                   <Text style={{
                     color: passed ? C.green : executionReason ? C.gold : C.muted,
