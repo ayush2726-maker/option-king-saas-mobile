@@ -16,6 +16,7 @@ const LocalGatewayScreen = require("./src/screens/LocalGatewayScreen").default;
 const TelegramConnectCard = require("./src/components/TelegramConnectCard").default;
 const ThemePickerCard = require("./src/components/ThemePickerCard").default;
 const AccountAdminDashboardCard = require("./src/components/AccountAdminDashboardCard").default;
+const AdminUserPnlCard = require("./src/components/AdminUserPnlCard").default;
 const {
   executionBlockReason,
   marketTimeLabel,
@@ -1906,6 +1907,8 @@ function AdminTab({ token, user, lang }) {
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 100 }}
       refreshControl={<RefreshControl refreshing={refreshing}
         onRefresh={() => load(true)} tintColor={C.purple} />}>
+
+      <AdminUserPnlCard token={token} />
 
 
       <Card glow={C.green}>
@@ -7013,6 +7016,8 @@ function AccountTab({ user, subStatus, onLogout, onRefresh, lang, token }) {
       <TelegramConnectCard token={token} lang={lang} />
 
       <ThemePickerCard lang={lang} />
+
+      {isAdmin && <AdminUserPnlCard token={token} />}
 
       <AccountAdminDashboardCard token={token} />
 
