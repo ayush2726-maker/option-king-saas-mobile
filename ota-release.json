@@ -1,22 +1,22 @@
 {
-  "release": "retired-entry-blocks-v4",
+  "release": "admin-user-pnl-native-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-12T20:43:27+05:30",
-  "reason": "Publish the retired EMA 0.95 ATR and mandatory ORB/momentum entry rules, and label historical audit rows so they cannot be mistaken for active blockers.",
+  "requested_at": "2026-08-18T10:20:00+05:30",
+  "reason": "Show the secure all-user Paper/Live P&L report directly inside the native Admin and Account screens.",
   "validation": {
     "required_checks": [
-      "Historical EMA_EXTENSION_OVER_0.95_ATR rows are labelled as an old removed rule",
-      "Historical ORB_OR_MOMENTUM_TRIGGER_REQUIRED rows are labelled as an old removed rule",
-      "Raw historical reasons are not presented as active blockers",
-      "Exact missed option contract and 5/15/30-minute profit/loss remain visible",
-      "OTA check retries after temporary failures and can be retried by tapping the banner",
+      "Admin-only endpoint /admin/users/pnl is used with the signed-in bearer token",
+      "Today, current open, all-time, Paper and Live net P&L remain separate",
+      "Every registered user is shown with user-wise totals",
+      "Unpriced open gateway positions are labelled as awaiting quote",
+      "P&L card renders in both Admin and Account screens",
       "Production and legacy default channels both point to the production branch",
-      "AI remains shadow-only and existing score/trade rules remain unchanged",
+      "Non-admin users cannot see or load the admin P&L card",
       "Android Metro export succeeds"
     ],
-    "ui_fix": "Replace the two retired raw block reasons with a clear old-rule-removed label in missed-trade history.",
-    "logic_safety": "App presentation change only. Backend separately retires the two exact hard blocks while retaining score 82 and all unrelated safety guards."
+    "ui_fix": "Add a native All Users P&L card so the admin no longer needs the browser panel.",
+    "logic_safety": "Read-only admin presentation change. Entry, exit, SL, quantity, broker, AI and order logic are unchanged."
   },
   "trade_safety": "No entry, exit, SL, quantity, broker or order logic changes."
 }
