@@ -17,6 +17,11 @@ const {
   executionBlockReason,
   marketTimeLabel,
 } = require("./EntryWindowStatus");
+const {
+  directionalMaximum,
+  scoreMaximum,
+  visibleWarnings,
+} = require("./ScoreDisplayScale");
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
 const SIGNAL_POLL_MS = 10000;
@@ -278,11 +283,19 @@ function scanColor(scan, signal) {
 
 function fallbackComponents(scan) {
   const breakdown = scan?.score_breakdown || scan?.live_score_breakdown || {};
+  const adxScore = number(scan?.adx_score ?? breakdown.adx, 0);
+  const volumeScore = number(scan?.volume_score ?? breakdown.volume, 0);
+  const mtfScore = number(scan?.mtf_score ?? breakdown.mtf, 0);
+  const directionalMax = directionalMaximum(scan);
+  const explicitDirectional = breakdown.directional ?? scan?.base_score;
+  const directionalScore = explicitDirectional == null
+    ? Math.max(0, Math.min(directionalMax, scanScore(scan) - adxScore - volumeScore - mtfScore))
+    : number(explicitDirectional, 0);
   return [
-    { key: "directional", label: "Directional Score", score: breakdown.directional ?? scan?.base_score ?? 0, max_score: 71, passed: number(breakdown.directional ?? scan?.base_score, 0) > 0, detail: `Candidate ${scan?.candidate_signal || scan?.signal || "WAIT"}` },
-    { key: "adx", label: "ADX Strength", score: scan?.adx_score ?? breakdown.adx ?? 0, max_score: scan?.profile_weights?.adx ?? 14, passed: number(scan?.adx_score ?? breakdown.adx, 0) > 0, detail: `ADX ${number(scan?.adx, 0).toFixed(1)}` },
-    { key: "volume", label: "Volume Confirmation", score: scan?.volume_score ?? breakdown.volume ?? 0, max_score: scan?.profile_weights?.volume ?? 5, passed: number(scan?.volume_score ?? breakdown.volume, 0) > 0, detail: `Volume ${number(scan?.volume_ratio, 0).toFixed(2)}x` },
-    { key: "mtf", label: "Trend / MTF Confirmation", score: scan?.mtf_score ?? breakdown.mtf ?? 0, max_score: scan?.profile_weights?.mtf ?? 10, passed: number(scan?.mtf_score ?? breakdown.mtf, 0) > 0, detail: scan?.mtf_status || scan?.mtf || "MTF" },
+    { key: "directional", label: "Directional Score", score: directionalScore, max_score: directionalMax, passed: directionalScore > 0, detail: `Candidate ${scan?.candidate_signal || scan?.signal || "WAIT"}` },
+    { key: "adx", label: "ADX Strength", score: adxScore, max_score: scan?.profile_weights?.adx ?? 20, passed: adxScore > 0, detail: `ADX ${number(scan?.adx, 0).toFixed(1)}` },
+    { key: "volume", label: "Volume Confirmation", score: volumeScore, max_score: scan?.profile_weights?.volume ?? 15, passed: volumeScore > 0, detail: `Volume ${number(scan?.volume_ratio, 0).toFixed(2)}x` },
+    { key: "mtf", label: "Trend / MTF Confirmation", score: mtfScore, max_score: scan?.profile_weights?.mtf ?? 10, passed: mtfScore > 0, detail: scan?.mtf_status || scan?.mtf || "MTF" },
   ];
 }
 
@@ -331,6 +344,7 @@ function MiniScanRow({ scan, signal, selected }) {
   const color = scanColor(scan, signal);
   const score = scanScore(scan);
   const minScore = scanMinScore(scan, signal);
+  const maxScore = scoreMaximum(scan);
   const side = scan?.candidate_signal || scan?.signal || "WAIT";
   const executionReason = executionBlockReason(signal, scan);
   const status = executionReason
@@ -354,12 +368,12 @@ function MiniScanRow({ scan, signal, selected }) {
       Row,
       { style: { justifyContent: "space-between" } },
       React.createElement(Text, { style: { color: C.text, fontWeight: "900", fontSize: 13 } }, scan?.underlying || "INDEX"),
-      React.createElement(Text, { style: { color, fontWeight: "900", fontSize: 13 } }, `${score}/${minScore}`)
+      React.createElement(Text, { style: { color, fontWeight: "900", fontSize: 13 } }, `${score}/${maxScore}`)
     ),
     React.createElement(
       Text,
       { style: { color: C.muted, fontSize: 10, marginTop: 4 } },
-      `${side} • ${status} • ADX ${number(scan?.adx, 0).toFixed(1)} • Vol ${number(scan?.volume_ratio, 0).toFixed(2)}x`
+      `${side} • ${status} • Entry ${minScore} • ADX ${number(scan?.adx, 0).toFixed(1)} • Vol ${number(scan?.volume_ratio, 0).toFixed(2)}x`
     )
   );
 }
@@ -370,7 +384,8 @@ function LiveStrategyScoreCard({ signal }) {
   const selected = bestScan(signal);
   const color = selected ? scanColor(selected, signal) : C.blue;
   const score = selected ? scanScore(selected) : number(signal?.score, 0);
-  const minScore = selected ? scanMinScore(selected, signal) : number(signal?.min_score, 82);
+  const maxScore = selected ? scoreMaximum(selected) : scoreMaximum(signal);
+  const warnings = selected ? visibleWarnings(selected?.warnings) : [];
   const updated = timeLabel(signal?.updated_at);
   const selectedExecutionReason = selected
     ? executionBlockReason(signal, selected)
@@ -436,11 +451,11 @@ function LiveStrategyScoreCard({ signal }) {
                   item,
                 })
               ),
-              Array.isArray(selected?.warnings) && selected.warnings.length
+              warnings.length
                 ? React.createElement(
                     Text,
                     { style: { color: C.gold, fontSize: 10, marginTop: 8, lineHeight: 15 } },
-                    selected.warnings.slice(0, 3).join(" • ")
+                    warnings.slice(0, 3).join(" • ")
                   )
                 : null
             )
@@ -491,7 +506,7 @@ function LiveStrategyScoreCard({ signal }) {
           React.createElement(
             Text,
             { style: { color: C.muted, fontSize: 10, fontWeight: "800" } },
-            `/ ${minScore}`
+            `/ ${maxScore}`
           ),
           React.createElement(
             Text,

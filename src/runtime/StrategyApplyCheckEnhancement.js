@@ -80,10 +80,6 @@ function enabledOf(profile) {
   return enabled;
 }
 
-function formatWeights(weights) {
-  return ORDER.map(([key, label]) => `${label} ${Math.round(asNumber(weights[key], 0))}`).join(" | ");
-}
-
 function componentList(scan) {
   const direct = scan && scan.score_components;
   if (Array.isArray(direct) && direct.length) return direct;
@@ -279,39 +275,6 @@ function applyActiveProfileToScan(scan, profile) {
   };
 }
 
-function componentMatch(scan, weights) {
-  const components = componentList(scan);
-  if (!components.length) return "UNKNOWN";
-
-  const byKey = {};
-  components.forEach((item) => {
-    if (!item || !item.key) return;
-    byKey[String(item.key)] = Math.round(asNumber(item.max_score, 0));
-  });
-
-  for (const [key] of ORDER) {
-    if (byKey[key] == null) continue;
-    if (Math.round(asNumber(byKey[key], 0)) !== Math.round(asNumber(weights[key], 0))) {
-      return "MISMATCH";
-    }
-  }
-  return "OK";
-}
-
-function markerRows(profile, scan) {
-  const config = (profile && profile.config) || {};
-  const weights = weightsOf(profile);
-  const name = String((profile && profile.name) || "Active strategy");
-  const entry = Math.round(asNumber(config.entry_threshold, 82));
-  const adx = asNumber(config.adx_threshold, 0).toFixed(1);
-  const volume = asNumber(config.volume_threshold, 0).toFixed(2);
-  return [
-    `LIVE_USING_STRATEGY: ${name}`,
-    `APPLIED_WEIGHTS: ${formatWeights(weights)}`,
-    `CONFIG_MATCH: ${componentMatch(scan, weights)} | ENTRY ${entry} | ADX_T ${adx} | VOL_T ${volume}x`,
-  ];
-}
-
 function cleanWarnings(warnings) {
   return (Array.isArray(warnings) ? warnings : [])
     .map((item) => String(item))
@@ -330,12 +293,13 @@ function patchSignalData(data, profile) {
   const scanResults = data.scan_results.map((scan) => {
     if (!scan || typeof scan !== "object") return scan;
     const synced = applyActiveProfileToScan(scan, profile);
-    const markers = markerRows(profile, synced);
     return {
       ...synced,
       live_strategy_name: profile.name,
       live_applied_weights: weightsOf(profile),
-      warnings: [...markers, ...cleanWarnings(synced.warnings)].slice(0, 8),
+      // Keep apply-check diagnostics in structured fields. Technical marker
+      // strings do not belong in the customer-facing score breakdown.
+      warnings: cleanWarnings(synced.warnings).slice(0, 8),
     };
   });
 

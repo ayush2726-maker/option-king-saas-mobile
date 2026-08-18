@@ -157,6 +157,11 @@ const normalizedScan = {
     availability_normalized: true,
     components: normalizedComponents,
   },
+  warnings: [
+    "LIVE_USING_STRATEGY: stale marker",
+    "CONFIG_MATCH: UNKNOWN",
+    "REAL_BLOCK_REASON",
+  ],
 };
 
 const normalizedPatched = patchSignalData(
@@ -180,6 +185,11 @@ assert.strictEqual(
 assert.strictEqual(
   normalizedPatched.scan_results[0].live_score_breakdown.decision_component_total,
   83
+);
+assert.deepStrictEqual(
+  normalizedPatched.scan_results[0].warnings,
+  ["REAL_BLOCK_REASON"],
+  "technical strategy markers must not leak into the score card"
 );
 
 // Explicit UTC timestamps map to the stated IST entry-window boundaries.
