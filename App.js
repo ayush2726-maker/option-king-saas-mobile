@@ -3587,6 +3587,8 @@ function BotTab({ token, lang }) {
   const [settings, setSettings] = useState(null);
   const [history, setHistory] = useState([]);
   const [paperTrades, setPaperTrades] = useState([]);
+  const [serverTodayLedger, setServerTodayLedger] = useState(null);
+  const [serverLedger, setServerLedger] = useState(null);
   const [chartCandles, setChartCandles] = useState([]);
   const [chartMeta, setChartMeta] = useState(null);
   const [chartInstrument, setChartInstrument] = useState("NIFTY");
@@ -3648,6 +3650,8 @@ function BotTab({ token, lang }) {
     try {
       const sig = await apiGet("/bot/signal", token);
       setSignal(sig);
+      if (sig?.today) setServerTodayLedger(sig.today);
+      if (sig?.ledger) setServerLedger(sig.ledger);
 
       // Settings change only through explicit user actions; do not download
       // them on every 15-second live-score tick.
@@ -3679,13 +3683,15 @@ function BotTab({ token, lang }) {
             `/bot/signal-history?limit=${historyLimit}&days=${chartRangeRef.current}&instrument=${encodeURIComponent(chartInstrumentRef.current)}`,
             token
           ),
-          apiGet("/history/paper", token),
+          apiGet("/bot/trade-history", token),
           loadChart(chartInstrumentRef.current, true),
         ]);
         if (hist && hist.points) {
           setHistory(hist.points);
         }
         if (trades && trades.paper_trades) setPaperTrades(trades.paper_trades);
+        if (trades?.today) setServerTodayLedger(trades.today);
+        if (trades?.ledger) setServerLedger(trades.ledger);
       }
     } catch (e) {
       setError(hi ? "Status load nahi ho paya. Refresh try karein." : "Could not load status. Please try refreshing.");
@@ -4078,16 +4084,26 @@ function BotTab({ token, lang }) {
     max_open_positions: 2,
   };
 
-  const todayClosedPnl = todayPaperTrades.reduce(
+  const localTodayClosedPnl = todayPaperTrades.reduce(
     (sum, trade) => sum + Number(trade?.net_pnl ?? trade?.pnl ?? 0),
     0
   );
-  const todayOpenPnl = activePortfolioTrades.reduce(
+  const localTodayOpenPnl = activePortfolioTrades.reduce(
     (sum, trade) => sum + Number(trade?.unrealized_pnl ?? trade?.pnl ?? 0),
     0
   );
+  const authoritativeLedger = signal?.ledger || serverLedger;
+  const authoritativeToday = signal?.today || authoritativeLedger?.today || serverTodayLedger;
+  const todayClosedPnl = Number.isFinite(Number(authoritativeToday?.closed_pnl))
+    ? Number(authoritativeToday.closed_pnl)
+    : localTodayClosedPnl;
+  const todayOpenPnl = Number.isFinite(Number(authoritativeToday?.open_pnl))
+    ? Number(authoritativeToday.open_pnl)
+    : localTodayOpenPnl;
   const todayNetPnl = todayClosedPnl + todayOpenPnl;
-  const todayTradeCount = todayPaperTrades.length + activePortfolioTrades.length;
+  const todayTradeCount = Number.isFinite(Number(authoritativeToday?.trades))
+    ? Number(authoritativeToday.trades)
+    : todayPaperTrades.length + activePortfolioTrades.length;
   const todayNetPnlColor = todayNetPnl >= 0 ? C.green : C.red;
   const todayMoney = (value, signed = false) => {
     const n = Number(value || 0);
@@ -4097,10 +4113,11 @@ function BotTab({ token, lang }) {
       maximumFractionDigits: 2,
     })}`;
   };
+  const ledgerCurrentCapital = authoritativeLedger?.current_capital ?? signal?.current_capital;
   const hasServerCurrentCapital =
-    signal?.current_capital !== null &&
-    signal?.current_capital !== undefined &&
-    Number.isFinite(Number(signal.current_capital));
+    ledgerCurrentCapital !== null &&
+    ledgerCurrentCapital !== undefined &&
+    Number.isFinite(Number(ledgerCurrentCapital));
   const fallbackStartingCapital = Number(
     signal?.starting_capital ??
       signal?.paper_capital ??
@@ -4108,7 +4125,7 @@ function BotTab({ token, lang }) {
       0
   );
   const currentCapital = hasServerCurrentCapital
-    ? Number(signal.current_capital)
+    ? Number(ledgerCurrentCapital)
     : mode === "paper"
     ? fallbackStartingCapital + Number(signal?.total_pnl || 0)
     : null;
@@ -4195,8 +4212,8 @@ function BotTab({ token, lang }) {
           [hi ? "Signal" : "Signal", signal?.signal === "NO_DATA" ? (hi ? "Live data nahi hai" : "No live data") : (signal?.signal || "--")],
           [hi ? "Score" : "Score", `${signal?.score ?? "--"} / 100`],
           [hi ? "Open Positions" : "Open Positions", `${signal?.open_trade_count ?? activePortfolioTrades.length} / ${capitalPlan.max_open_positions || 2}`],
-          [hi ? "Total Trades" : "Total Trades", signal?.total_trades ?? "--"],
-          [hi ? "Total P&L" : "Total P&L", signal?.total_pnl != null ? `₹${signal.total_pnl}` : "--"],
+          [hi ? "Total Trades" : "Total Trades", authoritativeLedger?.total_trades ?? signal?.total_trades ?? "--"],
+          [hi ? "Total P&L" : "Total P&L", authoritativeLedger?.realized_pnl != null ? todayMoney(authoritativeLedger.realized_pnl, true) : signal?.total_pnl != null ? todayMoney(signal.total_pnl, true) : "--"],
         ].map(([l, v]) => (
           <Row key={l} style={{ justifyContent: "space-between", paddingVertical: 8,
             borderBottomWidth: 1, borderBottomColor: C.border }}>

@@ -12,7 +12,8 @@
     "ai:health": "node scripts/check-shared-ai.js",
     "language:test": "node scripts/test-professional-language.js && node scripts/test-hindi-news-response-patch.js",
     "score-consistency:test": "node scripts/test-score-consistency.js && node scripts/test-score-display-scale.js",
-    "sector:test": "node scripts/test-sector-rotation-ui.js"
+    "sector:test": "node scripts/test-sector-rotation-ui.js",
+    "ledger-sync:test": "node scripts/test-authoritative-ledger-sync.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
