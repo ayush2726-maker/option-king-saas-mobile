@@ -43,3 +43,5 @@ jobs:
           git add App.js
           git commit -m "Add daily expandable trade history with execution costs"
           git push origin HEAD:main
+
+# retrigger: 2026-08-20 daily-history-fix
