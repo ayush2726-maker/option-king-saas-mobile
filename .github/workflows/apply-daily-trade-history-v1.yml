@@ -1,0 +1,45 @@
+name: Apply Daily Trade History V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/patch_daily_trade_history_v1.py"
+      - ".github/workflows/apply-daily-trade-history-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-daily-trade-history-v1
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply daily trade history patch
+        run: |
+          python3 scripts/patch_daily_trade_history_v1.py
+          grep -q "OKAI-DAILY-TRADE-HISTORY-V1" App.js
+          grep -q "EXECUTION COST" App.js
+          grep -q "Daily Trade History" App.js
+          git diff --check
+
+      - name: Commit patched App.js
+        run: |
+          if git diff --quiet -- App.js; then
+            echo "App.js already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "Add daily expandable trade history with execution costs"
+          git push origin HEAD:main
