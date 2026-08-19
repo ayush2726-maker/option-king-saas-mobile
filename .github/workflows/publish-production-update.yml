@@ -68,6 +68,17 @@ jobs:
           grep -q "Promise.allSettled" App.js
           git diff --check
 
+      - name: Apply daily trade history and execution cost UI
+        id: daily_trade_history
+        shell: bash
+        run: |
+          python3 scripts/patch_daily_trade_history_v1.py
+          grep -q "OKAI-DAILY-TRADE-HISTORY-V1" App.js
+          grep -q "Daily Trade History" App.js
+          grep -q "EXECUTION COST" App.js
+          grep -q "executionCostValue" App.js
+          git diff --check
+
       - name: Patch actual Live Score Trade tab
         id: live_score_trade_patch
         shell: bash
@@ -111,6 +122,9 @@ jobs:
             grep -q "OKAI-MULTI-ACTIVE-TRADE-TAB-V7" App.js
             grep -q "Active Paper Trades" App.js
             grep -q "EXIT THIS TRADE" App.js
+            grep -q "OKAI-DAILY-TRADE-HISTORY-V1" App.js
+            grep -q "Daily Trade History" App.js
+            grep -q "EXECUTION COST" App.js
             grep -q "OKAI-LIVE-SCORE-MULTI-TRADE-V8" src/runtime/LiveScoreTradeTabEnhancement.js
             grep -q "mergeOpenPositionsV8" src/runtime/LiveScoreTradeTabEnhancement.js
             grep -q "__okaiMultiTradeBypass" src/runtime/LiveScoreTradeTabEnhancement.js
@@ -153,7 +167,7 @@ jobs:
             --branch production \
             --platform android \
             --clear-cache \
-            --message "OKAI Android OTA ${SHORT_SHA}: missed trade all rows V5" \
+            --message "OKAI Android OTA ${SHORT_SHA}: daily trade history + execution costs" \
             --non-interactive 2>&1 | tee /tmp/okai-ota/publish.log
 
       - name: Point and verify production channel
@@ -243,6 +257,7 @@ jobs:
               'runtime_version': '1.0.1',
               'commit': os.getenv('GITHUB_SHA'),
               'run_id': os.getenv('GITHUB_RUN_ID'),
+              'daily_trade_history': os.getenv('DAILY_HISTORY_OUTCOME') or 'included-in-source-checks',
               'checked_at_utc': datetime.now(timezone.utc).isoformat(),
               'steps': outcomes,
               'logs_tail': logs,
