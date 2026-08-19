@@ -1,0 +1,89 @@
+name: Publish Live Score Daily History V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/patch_live_score_daily_history_v1.py"
+      - ".github/workflows/publish-live-score-daily-history-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live-score-daily-history-v1
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check Expo token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          test -n "$EXPO_TOKEN" || (echo "Missing EXPO_TOKEN" && exit 1)
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply existing live score trade enhancement
+        run: |
+          python3 scripts/patch_live_score_multi_trades_v8.py
+
+      - name: Patch actual rendered daily trade history
+        run: |
+          python3 scripts/patch_live_score_daily_history_v1.py
+          grep -q "OKAI-LIVE-SCORE-DAILY-HISTORY-V1" src/runtime/LiveScoreTradeTabEnhancement.js
+          grep -q "Daily Trade History" src/runtime/LiveScoreTradeTabEnhancement.js
+          grep -q "EXECUTION COST" src/runtime/LiveScoreTradeTabEnhancement.js
+          grep -q "groupHistoryByDay" src/runtime/LiveScoreTradeTabEnhancement.js
+          node --check src/runtime/LiveScoreTradeTabEnhancement.js
+          git diff --check
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate Android export
+        env:
+          CI: "1"
+        run: |
+          rm -rf /tmp/okai-live-history-export
+          npx expo export --platform android --clear --output-dir /tmp/okai-live-history-export
+          test -f /tmp/okai-live-history-export/metadata.json
+
+      - name: Publish production OTA
+        env:
+          CI: "1"
+        run: |
+          eas update --branch production --platform android --clear-cache --message "OKAI actual Live Score daily history + execution costs ${GITHUB_SHA::7}" --non-interactive
+          eas channel:edit production --branch production --non-interactive
+          eas channel:create default --non-interactive || true
+          eas channel:edit default --branch production --non-interactive
+
+      - name: Persist patched rendered source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- src/runtime/LiveScoreTradeTabEnhancement.js; then
+            echo "Rendered source already persisted"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/runtime/LiveScoreTradeTabEnhancement.js
+          git commit -m "Persist date-wise Live Score trade history UI"
+          git push origin HEAD:main
