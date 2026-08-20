@@ -6203,7 +6203,13 @@ function BacktestTab({ token, lang }) {
             Trade List
           </Text>
 
-          {result.trades.map((trade, index) => (
+          {result.trades.length > 100 && (
+            <Text style={{ color: C.gold, fontSize: 10, marginBottom: 8 }}>
+              Showing first 100 detailed trades. Summary and day-wise totals include all trades.
+            </Text>
+          )}
+
+          {result.trades.slice(0, 100).map((trade, index) => (
             <View
               key={`${trade.date || ""}-${index}`}
               style={{
@@ -7596,8 +7602,10 @@ function OtaStatusBanner() {
           await Updates.fetchUpdateAsync();
           if (!mountedRef.current) return;
 
-          setMsg("Update applied. Restarting app...");
-          setTimeout(() => Updates.reloadAsync(), 800);
+          setMsg("Update downloaded • restart app when convenient");
+          setTimeout(() => {
+            if (mountedRef.current) setVisible(false);
+          }, 2500);
           return;
         } catch (error) {
           if (attempt === delays.length - 1 && mountedRef.current) {
