@@ -1,22 +1,19 @@
 {
-  "release": "daily-trade-history-live-score-v2",
+  "release": "backtest-stability-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-20T00:45:00+05:30",
-  "reason": "Force a fresh OTA from the persisted LiveScoreTradeTabEnhancement source that contains date-wise trade history and execution costs.",
+  "requested_at": "2026-08-21T09:12:00+05:30",
+  "reason": "Force Publish Production OTA from current main so the persisted Backtest stability fix is bundled and delivered.",
   "validation": {
     "required_checks": [
-      "src/runtime/LiveScoreTradeTabEnhancement.js contains OKAI-LIVE-SCORE-DAILY-HISTORY-V1",
-      "Trade History title is Daily Trade History",
-      "History is grouped by IST date",
-      "Each day shows net P&L, execution cost, wins and losses",
-      "Tapping a day expands all trades for that date",
-      "Each trade shows individual execution cost and net P&L",
-      "Production and legacy default channels both point to production",
-      "Android Metro export succeeds"
+      "App.js contains the Backtest stability fix",
+      "OTA banner must not auto-reload the app in the background",
+      "Large backtest trade lists are capped for rendering while summary totals remain complete",
+      "Android Metro export succeeds",
+      "Production and default channels both point to production"
     ],
-    "ui_fix": "Publish the already-persisted actual Live Score Trade tab history UI instead of relying on a temporary workflow patch.",
-    "logic_safety": "Presentation-only trade history change. Entry, exit, SL, quantity, broker, AI and order logic are unchanged."
+    "ui_fix": "Backtest should remain in-app instead of being disrupted by an automatic OTA reload or excessive result rendering.",
+    "logic_safety": "No trade entry, exit, SL, quantity, broker, AI, or order logic changes in this mobile OTA trigger."
   },
-  "trade_safety": "No entry, exit, SL, quantity, broker or order logic changes."
+  "trade_safety": "No trading logic changes."
 }
