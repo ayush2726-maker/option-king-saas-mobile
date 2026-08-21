@@ -5391,6 +5391,33 @@ function BacktestTab({ token, lang }) {
     );
   }
 
+  // OKAI-DAILY-BACKTEST-ASYNC-V3
+  async function pollDailyJob(jobId) {
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const status = await apiGet(
+        `/backtest/daily/status/${jobId}`,
+        token,
+      );
+
+      if (status?.status === "COMPLETED") {
+        return status.result;
+      }
+
+      if (
+        status?.status === "FAILED" ||
+        status?.status === "NOT_FOUND" ||
+        status?.status === "FORBIDDEN"
+      ) {
+        throw new Error(
+          status?.error || status?.message || "Daily backtest failed",
+        );
+      }
+    }
+
+    throw new Error("Daily backtest timeout. Please try again.");
+  }
+
   async function runBacktest() {
     setLoading(true);
     setResult(null);
@@ -5448,11 +5475,23 @@ function BacktestTab({ token, lang }) {
       } else {
         body.date = date;
 
-        const dailyResult = await apiPostAuth(
-          "/backtest/run",
+        const started = await apiPostAuth(
+          "/backtest/daily/start",
           body,
           token,
         );
+
+        if (!started?.success) {
+          throw new Error(
+            started?.message || started?.error || "Daily job start failed",
+          );
+        }
+
+        if (!started?.job_id) {
+          throw new Error("Daily job id missing");
+        }
+
+        const dailyResult = await pollDailyJob(started.job_id);
         setResult(dailyResult ? {
           ...dailyResult,
           trades: Array.isArray(dailyResult?.trades) ? dailyResult.trades.slice(0, 100) : dailyResult?.trades,
