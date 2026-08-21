@@ -5257,6 +5257,7 @@ function BotTab({ token, lang }) {
 
 
 
+// OKAI-BACKTEST-CRASH-CONTAINMENT-V2
 // ── Backtest Tab ────────────────────────────────────────
 
 function BacktestTab({ token, lang }) {
@@ -5435,7 +5436,11 @@ function BacktestTab({ token, lang }) {
           const finalResult = await pollMonthlyJob(
             started.job_id,
           );
-          setResult(finalResult);
+          setResult(finalResult ? {
+            ...finalResult,
+            trades: Array.isArray(finalResult?.trades) ? finalResult.trades.slice(0, 100) : finalResult?.trades,
+            days: Array.isArray(finalResult?.days) ? finalResult.days.slice(0, 40) : finalResult?.days,
+          } : finalResult);
         } else {
           // Backward compatibility with the old synchronous route.
           setResult(started);
@@ -5448,7 +5453,10 @@ function BacktestTab({ token, lang }) {
           body,
           token,
         );
-        setResult(dailyResult);
+        setResult(dailyResult ? {
+          ...dailyResult,
+          trades: Array.isArray(dailyResult?.trades) ? dailyResult.trades.slice(0, 100) : dailyResult?.trades,
+        } : dailyResult);
       }
     } catch (error) {
       setResult({
@@ -7887,7 +7895,11 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
         {activeTab === "tools" && <SettingsTab lang={lang} navigateTo={navigateTo} />}
         {activeTab === "more" && <MoreTab token={token} user={displayUser} lang={lang} setLang={setLang} isAdmin={isAdmin} navigateTo={navigateTo} />}
         {activeTab === "localgateway" && <LocalGatewayScreen token={token} lang={lang} />}
-        {activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}
+        {activeTab === "backtest" && (
+          <TabErrorBoundary>
+            <BacktestTab token={token} lang={lang} />
+          </TabErrorBoundary>
+        )}
         {activeTab === "bot" && <BotTab token={token} lang={lang} />}
         {activeTab === "broker" && <BrokerTab token={token} lang={lang} />}
         {activeTab === "telegram" && <TelegramConnectCard token={token} lang={lang} />}
