@@ -2,8 +2,8 @@
   "success": true,
   "status": "PUBLISHED",
   "purpose": "BACKTEST_STABILITY",
-  "commit": "1dbc0e018c699a3f6a9cec2618fe52e1ad2d3af1",
-  "run_id": "32447390716",
+  "commit": "da426fd92953295678c0c17a79d988ab3c7d39a0",
+  "run_id": "32453323839",
   "runtime_version": "1.0.1",
   "channels": [
     "production",
@@ -14,5 +14,5 @@
     "trade_rows_capped_for_rendering": 100,
     "source": "persisted App.js"
   },
-  "checked_at_utc": "2026-08-21T04:35:43.690568+00:00"
+  "checked_at_utc": "2026-08-21T06:12:10.836518+00:00"
 }
