@@ -1,0 +1,95 @@
+name: Backtest OTA Emergency
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backtest-ota-emergency
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify persisted Backtest stability fix
+        shell: bash
+        run: |
+          grep -Fq 'result.trades.slice(0, 100).map' App.js
+          grep -Fq 'Update downloaded • restart app when convenient' App.js
+          if grep -Fq 'setTimeout(() => Updates.reloadAsync(), 800)' App.js; then
+            echo 'Old forced OTA reload is still present'
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate Android export
+        env:
+          CI: '1'
+        run: |
+          rm -rf /tmp/backtest-ota-export
+          npx expo export --platform android --clear --output-dir /tmp/backtest-ota-export
+          test -f /tmp/backtest-ota-export/metadata.json
+
+      - name: Publish Backtest stability OTA
+        env:
+          CI: '1'
+        run: |
+          eas update --branch production --platform android --clear-cache --message "Backtest stability OTA ${GITHUB_SHA::7}" --non-interactive
+          eas channel:edit production --branch production --non-interactive
+          eas channel:create default --non-interactive || true
+          eas channel:edit default --branch production --non-interactive
+
+      - name: Record Backtest OTA status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          payload = {
+            'success': True,
+            'status': 'PUBLISHED',
+            'purpose': 'BACKTEST_STABILITY',
+            'commit': os.environ.get('GITHUB_SHA'),
+            'run_id': os.environ.get('GITHUB_RUN_ID'),
+            'runtime_version': '1.0.1',
+            'channels': ['production','default'],
+            'backtest_fix': {
+              'forced_ota_reload_removed': True,
+              'trade_rows_capped_for_rendering': 100,
+              'source': 'persisted App.js'
+            },
+            'checked_at_utc': datetime.now(timezone.utc).isoformat()
+          }
+          open('/tmp/backtest-ota-status.json','w').write(json.dumps(payload, indent=2)+'\n')
+          PY
+          CONTENT=$(base64 -w0 /tmp/backtest-ota-status.json)
+          STATUS_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/contents/.backtest-ota-status.json" --jq '.sha' 2>/dev/null || true)
+          if [ -n "$STATUS_SHA" ]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/.backtest-ota-status.json" -f message="Record Backtest OTA ${GITHUB_SHA::7}" -f content="$CONTENT" -f sha="$STATUS_SHA" >/dev/null
+          else
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/.backtest-ota-status.json" -f message="Record Backtest OTA ${GITHUB_SHA::7}" -f content="$CONTENT" >/dev/null
+          fi
