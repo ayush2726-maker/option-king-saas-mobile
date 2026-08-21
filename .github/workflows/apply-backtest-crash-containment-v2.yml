@@ -1,0 +1,70 @@
+name: Apply Backtest Crash Containment V2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/backtest-crash-v2.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch Backtest containment
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('App.js')
+          s = p.read_text()
+
+          old = '{activeTab === "backtest" && <BacktestTab token={token} lang={lang} />}'
+          new = '{activeTab === "backtest" && (\n          <TabErrorBoundary>\n            <BacktestTab token={token} lang={lang} />\n          </TabErrorBoundary>\n        )}'
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          # Keep mobile memory bounded even if backend returns a very large monthly payload.
+          old2 = 'setResult(finalResult);'
+          new2 = '''setResult(finalResult ? {\n            ...finalResult,\n            trades: Array.isArray(finalResult?.trades) ? finalResult.trades.slice(0, 100) : finalResult?.trades,\n            days: Array.isArray(finalResult?.days) ? finalResult.days.slice(0, 40) : finalResult?.days,\n          } : finalResult);'''
+          if old2 in s and 'finalResult.trades.slice(0, 100)' not in s:
+              s = s.replace(old2, new2, 1)
+
+          old3 = 'setResult(dailyResult);'
+          new3 = '''setResult(dailyResult ? {\n          ...dailyResult,\n          trades: Array.isArray(dailyResult?.trades) ? dailyResult.trades.slice(0, 100) : dailyResult?.trades,\n        } : dailyResult);'''
+          if old3 in s and 'dailyResult.trades.slice(0, 100)' not in s:
+              s = s.replace(old3, new3, 1)
+
+          marker = '// OKAI-BACKTEST-CRASH-CONTAINMENT-V2\n'
+          if marker not in s:
+              anchor = '// ── Backtest Tab ────────────────────────────────────────\n'
+              if anchor in s:
+                  s = s.replace(anchor, marker + anchor, 1)
+
+          p.write_text(s)
+          PY
+
+          grep -q "OKAI-BACKTEST-CRASH-CONTAINMENT-V2" App.js
+          grep -q "<TabErrorBoundary>" App.js
+          grep -q "finalResult.trades.slice(0, 100)" App.js
+          git diff --check
+
+      - name: Commit persisted fix
+        shell: bash
+        run: |
+          if git diff --quiet -- App.js; then
+            echo "Backtest crash containment already applied"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "Contain Backtest crashes and large payload rendering"
+          git push origin HEAD:main
