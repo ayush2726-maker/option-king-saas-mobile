@@ -1,0 +1,108 @@
+name: Apply Daily Backtest Async Mobile
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/triggers/daily-backtest-async-mobile.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Patch daily Backtest to start and poll
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('App.js')
+          s = p.read_text()
+          old = '''      } else {
+        body.date = date;
+
+        const dailyResult = await apiPostAuth(
+          "/backtest/run",
+          body,
+          token,
+        );
+        setResult(dailyResult ? {
+          ...dailyResult,
+          trades: Array.isArray(dailyResult?.trades) ? dailyResult.trades.slice(0, 100) : dailyResult?.trades,
+        } : dailyResult);
+      }
+'''
+          new = '''      } else {
+        body.date = date;
+        setMonthlyProgress("Daily backtest job start ho raha hai...");
+
+        const started = await apiPostAuth(
+          "/backtest/daily/start",
+          body,
+          token,
+        );
+        if (!started?.success || !started?.job_id) {
+          throw new Error(
+            started?.message || started?.error || "Daily job start failed",
+          );
+        }
+
+        setMonthlyProgress("Daily backtest background me chal raha hai...");
+        let dailyResult = null;
+        for (let attempt = 0; attempt < 300; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const status = await apiGet(
+            `/backtest/daily/status/${started.job_id}`,
+            token,
+          );
+          if (status?.status === "COMPLETED") {
+            dailyResult = status.result;
+            break;
+          }
+          if (
+            status?.status === "FAILED" ||
+            status?.status === "NOT_FOUND" ||
+            status?.status === "FORBIDDEN"
+          ) {
+            throw new Error(status?.error || status?.message || "Daily backtest failed");
+          }
+          setMonthlyProgress(
+            `Daily backtest: ${status?.phase || status?.status || "RUNNING"}`,
+          );
+        }
+        if (!dailyResult) {
+          throw new Error("Daily backtest timeout. Dobara try karein.");
+        }
+        setMonthlyProgress("✅ Daily backtest complete");
+        setResult(dailyResult ? {
+          ...dailyResult,
+          trades: Array.isArray(dailyResult?.trades) ? dailyResult.trades.slice(0, 100) : dailyResult?.trades,
+        } : dailyResult);
+      }
+'''
+          if '"/backtest/daily/start"' in s:
+              print('daily async mobile patch already present')
+          else:
+              if old not in s:
+                  raise SystemExit('daily sync block anchor missing')
+              s = s.replace(old, new, 1)
+              p.write_text(s)
+          PY
+      - name: Validate bundle syntax
+        run: |
+          npm ci --no-audit --no-fund
+          npx expo export --platform android --output-dir /tmp/okai-daily-backtest-export
+      - name: Commit App.js
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add App.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'Use background job for daily backtest'
+          git push
