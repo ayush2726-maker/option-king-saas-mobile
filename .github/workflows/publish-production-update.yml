@@ -114,10 +114,10 @@ jobs:
           node-version: 20
 
       - name: Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+        shell: bash
+        run: |
+          npm install --global eas-cli@latest --no-audit --no-fund
+          eas --version
 
       - name: Install dependencies
         id: install
