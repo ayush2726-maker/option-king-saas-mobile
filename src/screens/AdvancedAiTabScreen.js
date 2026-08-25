@@ -40,6 +40,24 @@ const COPY = {
     maxPain: "Max Pain",
     model: "Model",
     result15m: "15-minute result",
+    freeTitle: "Free AI indicators",
+    freeSub: "Live Squeeze Momentum and Choppiness from completed broker candles.",
+    freeBadge: "FREE • BROKER CANDLES",
+    choppiness: "Choppiness Index",
+    regime: "Market regime",
+    squeeze: "Squeeze status",
+    momentum: "Squeeze momentum",
+    candles: "Completed candles",
+    trend: "Trending",
+    transition: "Transition",
+    sideways: "Sideways / choppy",
+    squeezeOn: "SQUEEZE ON",
+    squeezeReleased: "SQUEEZE RELEASED",
+    squeezeOff: "SQUEEZE OFF",
+    rising: "Rising",
+    falling: "Falling",
+    waitingCandles: "Waiting for candles",
+    freeSafety: "AI training display only • Baseline strategy unchanged • Trade blocking OFF",
     performance: "Model performance",
     performanceSub: "The model is accepted only after chronological validation beats the base strategy.",
     validation: "Validation accuracy",
@@ -129,6 +147,24 @@ const COPY = {
     maxPain: "मैक्स पेन",
     model: "मॉडल",
     result15m: "15-मिनट परिणाम",
+    freeTitle: "मुफ़्त AI इंडिकेटर",
+    freeSub: "ब्रोकर की पूरी हो चुकी कैंडल से लाइव स्क्वीज़ मोमेंटम और चॉपिनेस।",
+    freeBadge: "मुफ़्त • ब्रोकर कैंडल",
+    choppiness: "चॉपिनेस इंडेक्स",
+    regime: "बाज़ार स्थिति",
+    squeeze: "स्क्वीज़ स्थिति",
+    momentum: "स्क्वीज़ मोमेंटम",
+    candles: "पूरी कैंडल",
+    trend: "ट्रेंडिंग",
+    transition: "बदलाव का क्षेत्र",
+    sideways: "साइडवेज़ / चॉपी",
+    squeezeOn: "स्क्वीज़ चालू",
+    squeezeReleased: "स्क्वीज़ रिलीज़",
+    squeezeOff: "स्क्वीज़ बंद",
+    rising: "बढ़ रहा है",
+    falling: "घट रहा है",
+    waitingCandles: "कैंडल का इंतज़ार",
+    freeSafety: "केवल AI ट्रेनिंग डिस्प्ले • बेसलाइन रणनीति में बदलाव नहीं • ट्रेड ब्लॉक बंद",
     performance: "मॉडल प्रदर्शन",
     performanceSub: "मॉडल तभी स्वीकार होगा जब समयानुसार वैलिडेशन में बेस रणनीति से बेहतर परिणाम दे।",
     validation: "वैलिडेशन सटीकता",
@@ -230,6 +266,16 @@ const FEATURE_LABELS = {
   rsi: ["RSI", "RSI"],
   atr_percent: ["ATR volatility", "ATR अस्थिरता"],
   volume_ratio: ["Volume ratio", "वॉल्यूम अनुपात"],
+  free_indicator_available: ["Free indicators available", "मुफ़्त इंडिकेटर उपलब्ध"],
+  choppiness_index: ["Choppiness Index", "चॉपिनेस इंडेक्स"],
+  choppiness_trending: ["Trending regime", "ट्रेंडिंग स्थिति"],
+  choppiness_sideways: ["Sideways regime", "साइडवेज़ स्थिति"],
+  squeeze_on: ["Squeeze active", "स्क्वीज़ चालू"],
+  squeeze_release: ["Squeeze release", "स्क्वीज़ रिलीज़"],
+  squeeze_momentum: ["Squeeze momentum", "स्क्वीज़ मोमेंटम"],
+  squeeze_direction_ce: ["Squeeze CE direction", "स्क्वीज़ CE दिशा"],
+  squeeze_direction_pe: ["Squeeze PE direction", "स्क्वीज़ PE दिशा"],
+  squeeze_momentum_rising: ["Squeeze momentum rising", "स्क्वीज़ मोमेंटम बढ़ रहा"],
 };
 
 function asNumber(value, fallback = 0) {
@@ -404,6 +450,27 @@ function normalizeNewsReport(data) {
     hitRate15m: summary.fusion_15m_hit_rate_percent,
     benefit15m: summary.estimated_net_benefit_vs_base_spot_points_15m,
     marketReaction: latest?.market_reaction || "NEWS_MARKET_REACTION_UNCLEAR",
+  };
+}
+
+function normalizeFreeIndicatorReport(data) {
+  if (!data || data.success !== true) return null;
+  const features = data.features || {};
+  return {
+    symbol: String(data.symbol || "NIFTY").toUpperCase(),
+    available: asNumber(features.free_indicator_available, 0) >= 0.5,
+    completedCandles: asNumber(data.completed_candle_count, 0),
+    requiredCandles: asNumber(data.minimum_candles_required, 40),
+    choppiness: asNumber(features.choppiness_index, 0) * 100,
+    trending: asNumber(features.choppiness_trending, 0),
+    sideways: asNumber(features.choppiness_sideways, 0),
+    squeezeOn: asNumber(features.squeeze_on, 0) >= 0.5,
+    squeezeRelease: asNumber(features.squeeze_release, 0) >= 0.5,
+    momentum: asNumber(features.squeeze_momentum, 0),
+    directionCe: asNumber(features.squeeze_direction_ce, 0) >= 0.5,
+    directionPe: asNumber(features.squeeze_direction_pe, 0) >= 0.5,
+    momentumRising: asNumber(features.squeeze_momentum_rising, 0) >= 0.5,
+    engineUpdatedAt: data.engine_updated_at || null,
   };
 }
 
@@ -680,6 +747,7 @@ function AdvancedAiTabScreen() {
   const [advanced, setAdvanced] = React.useState(null);
   const [news, setNews] = React.useState(null);
   const [missed, setMissed] = React.useState(null);
+  const [freeIndicators, setFreeIndicators] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
 
@@ -713,6 +781,7 @@ function AdvancedAiTabScreen() {
       fetchJson("/bot/ai-advanced-monitor?recent_limit=3"),
       fetchJson("/bot/ai-news-monitor?recent_limit=3"),
       fetchJson("/bot/ai-missed-trades?recent_limit=8"),
+      fetchJson("/bot/ai-free-indicators"),
     ]);
     const messages = [];
     if (results[0].status === "fulfilled") {
@@ -727,6 +796,10 @@ function AdvancedAiTabScreen() {
       const value = normalizeMissedReport(results[2].value);
       if (value) setMissed(value); else messages.push("Missed-trade learning response invalid");
     } else messages.push(String(results[2].reason?.message || "Missed-trade learning unavailable"));
+    if (results[3].status === "fulfilled") {
+      const value = normalizeFreeIndicatorReport(results[3].value);
+      if (value) setFreeIndicators(value); else messages.push("Free-indicator response invalid");
+    } else messages.push(String(results[3].reason?.message || "Free indicators unavailable"));
     setError(messages.join(" • "));
     setLoading(false);
   }, [token]);
@@ -760,6 +833,53 @@ function AdvancedAiTabScreen() {
         ? (lang === "hi" ? "लंबित" : "Pending")
         : (lang === "hi" ? "अभी सिद्ध नहीं" : "Not proven");
   const group = advanced?.groupImportance || {};
+  const freeAvailable = Boolean(freeIndicators?.available);
+  const chopValue = freeAvailable ? fixed(freeIndicators?.choppiness, 2) : "--";
+  const regimeLabel = !freeAvailable
+    ? copy.waitingCandles
+    : freeIndicators.choppiness < 38.2
+      ? copy.trend
+      : freeIndicators.choppiness > 61.8
+        ? copy.sideways
+        : copy.transition;
+  const regimeColor = !freeAvailable
+    ? C.purple
+    : freeIndicators.choppiness < 38.2
+      ? C.green
+      : freeIndicators.choppiness > 61.8
+        ? C.red
+        : C.gold;
+  const squeezeLabel = !freeAvailable
+    ? copy.waitingCandles
+    : freeIndicators.squeezeRelease
+      ? copy.squeezeReleased
+      : freeIndicators.squeezeOn
+        ? copy.squeezeOn
+        : copy.squeezeOff;
+  const squeezeColor = !freeAvailable
+    ? C.purple
+    : freeIndicators.squeezeRelease
+      ? C.green
+      : freeIndicators.squeezeOn
+        ? C.gold
+        : C.blue;
+  const momentumDirection = !freeAvailable
+    ? copy.waitingCandles
+    : freeIndicators.directionCe
+      ? copy.bullish
+      : freeIndicators.directionPe
+        ? copy.bearish
+        : copy.neutral;
+  const momentumColor = !freeAvailable
+    ? C.purple
+    : freeIndicators.directionCe
+      ? C.green
+      : freeIndicators.directionPe
+        ? C.red
+        : C.gold;
+  const momentumValue = freeAvailable
+    ? `${momentumDirection} • ${freeIndicators.momentum >= 0 ? "+" : ""}${fixed(freeIndicators.momentum, 2)} • ${freeIndicators.momentumRising ? copy.rising : copy.falling}`
+    : copy.waitingCandles;
   const aggregate15m = pnlPresentation(
     missed?.evaluated15m > 0 ? missed?.netPnl15m : null,
     copy,
@@ -877,6 +997,40 @@ function AdvancedAiTabScreen() {
           color: C.purple,
         })
       )
+    ),
+
+    React.createElement(
+      Card,
+      { glow: freeAvailable ? regimeColor : C.purple },
+      React.createElement(
+        View,
+        { style: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 } },
+        React.createElement(
+          View,
+          { style: { flex: 1 } },
+          React.createElement(SectionTitle, { title: `📊 ${copy.freeTitle}`, subtitle: copy.freeSub })
+        ),
+        React.createElement(
+          View,
+          { style: { borderRadius: 8, borderWidth: 1, borderColor: `${C.green}66`, backgroundColor: `${C.green}14`, paddingHorizontal: 7, paddingVertical: 4 } },
+          React.createElement(Text, { style: { color: C.green, fontSize: 8, fontWeight: "900" } }, copy.freeBadge)
+        )
+      ),
+      React.createElement(
+        MetricGrid,
+        null,
+        React.createElement(Metric, { label: copy.choppiness, value: freeAvailable ? `${chopValue}/100` : "--", color: regimeColor }),
+        React.createElement(Metric, { label: copy.regime, value: regimeLabel, color: regimeColor }),
+        React.createElement(Metric, { label: copy.squeeze, value: squeezeLabel, color: squeezeColor }),
+        React.createElement(Metric, { label: copy.momentum, value: momentumValue, color: momentumColor }),
+        React.createElement(Metric, {
+          label: copy.candles,
+          value: `${freeIndicators?.completedCandles || 0}/${freeIndicators?.requiredCandles || 40}`,
+          color: freeAvailable ? C.green : C.purple,
+        }),
+        React.createElement(Metric, { label: copy.brokerSymbol, value: freeIndicators?.symbol || "NIFTY", color: C.blue })
+      ),
+      React.createElement(InfoBox, { color: C.blue }, copy.freeSafety)
     ),
 
     React.createElement(
@@ -1106,3 +1260,4 @@ module.exports.default = AdvancedAiTabScreen;
 module.exports.normalizeAdvancedReport = normalizeAdvancedReport;
 module.exports.normalizeNewsReport = normalizeNewsReport;
 module.exports.normalizeMissedReport = normalizeMissedReport;
+module.exports.normalizeFreeIndicatorReport = normalizeFreeIndicatorReport;
