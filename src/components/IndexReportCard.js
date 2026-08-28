@@ -6,8 +6,67 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
+const LANGUAGE_KEY = "okai_lang";
+
+const COPY = {
+  en: {
+    title: "🏆 All-Time Index Report Card",
+    subtitle: "Realized net P&L after brokerage and execution costs",
+    refresh: "REFRESH",
+    best: "BEST",
+    noData: "NO DATA YET",
+    closedComparison: "Comparison will be available after closed trades are recorded.",
+    loadingComparison: "Comparison is loading...",
+    bestPositive: "is currently the best-performing index",
+    bestNegative: "currently has the lowest loss",
+    total: "Total",
+    trades: "trades",
+    closed: "closed",
+    net: "Net",
+    confidence: "Confidence",
+    metricTrades: "TRADES",
+    metricClosed: "CLOSED",
+    winRate: "WIN RATE",
+    avgPnl: "AVG P&L",
+    profit: "Profit",
+    loss: "Loss",
+    breakeven: "Breakeven",
+    open: "Open",
+    empty: "The report is not available yet. Please refresh.",
+    bankNote: "New BANKNIFTY entries are OFF. Previously closed BANKNIFTY trades will remain visible for comparison.",
+    reportLoadFailed: "Unable to load the report",
+  },
+  hi: {
+    title: "🏆 अब तक का इंडेक्स रिपोर्ट कार्ड",
+    subtitle: "ब्रोकरेज और एग्जीक्यूशन लागत के बाद वास्तविक नेट P&L",
+    refresh: "रिफ्रेश",
+    best: "सर्वश्रेष्ठ",
+    noData: "अभी डेटा उपलब्ध नहीं",
+    closedComparison: "क्लोज़्ड ट्रेड दर्ज होने के बाद तुलना दिखाई जाएगी।",
+    loadingComparison: "तुलना लोड हो रही है...",
+    bestPositive: "फिलहाल सबसे बेहतर प्रदर्शन करने वाला इंडेक्स है",
+    bestNegative: "फिलहाल सबसे कम नुकसान वाला इंडेक्स है",
+    total: "कुल",
+    trades: "ट्रेड",
+    closed: "क्लोज़्ड",
+    net: "नेट",
+    confidence: "विश्वसनीयता",
+    metricTrades: "ट्रेड",
+    metricClosed: "क्लोज़्ड",
+    winRate: "विन रेट",
+    avgPnl: "औसत P&L",
+    profit: "प्रॉफिट",
+    loss: "लॉस",
+    breakeven: "ब्रेक-ईवन",
+    open: "ओपन",
+    empty: "रिपोर्ट अभी उपलब्ध नहीं है। कृपया रिफ्रेश करें।",
+    bankNote: "BANKNIFTY की नई एंट्री बंद है। पहले से क्लोज़्ड BANKNIFTY ट्रेड तुलना में दिखाई देते रहेंगे।",
+    reportLoadFailed: "रिपोर्ट लोड नहीं हो सकी",
+  },
+};
 
 const COLORS = {
   card: "#13131f",
@@ -37,27 +96,35 @@ function percent(value) {
   return Number.isFinite(number) ? `${number.toFixed(1)}%` : "--";
 }
 
-function comparisonText(report) {
-  if (!report?.best_index) return "Closed trades ke baad comparison dikhega.";
+function comparisonText(report, t) {
+  if (!report?.best_index) return t.closedComparison;
   const best = (report.indices || []).find(
     (item) => item.instrument === report.best_index
   );
-  if (!best) return "Comparison loading...";
-  const label = Number(best.realized_pnl) >= 0 ? "sabse better" : "sabse kam loss";
-  return `${best.instrument} abhi ${label} hai: ${money(
-    best.realized_pnl
-  )} net P&L.`;
+  if (!best) return t.loadingComparison;
+  const label = Number(best.realized_pnl) >= 0 ? t.bestPositive : t.bestNegative;
+  return `${best.instrument} ${label}: ${money(best.realized_pnl)} net P&L.`;
 }
 
 export default function IndexReportCard({ token }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [language, setLanguage] = useState("en");
+  const t = COPY[language] || COPY.en;
+
+  const syncLanguage = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem(LANGUAGE_KEY);
+      setLanguage(saved === "hi" ? "hi" : "en");
+    } catch {}
+  }, []);
 
   const load = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
+      await syncLanguage();
       const response = await fetch(
         SAAS_URL + "/bot/index-report-card?mode=all",
         {
@@ -66,24 +133,26 @@ export default function IndexReportCard({ token }) {
       );
       const payload = await response.json();
       if (!response.ok || payload?.success === false) {
-        throw new Error(
-          payload?.message || payload?.detail || "Report load failed"
-        );
+        throw new Error(payload?.message || payload?.detail || t.reportLoadFailed);
       }
       setReport(payload);
       setMessage("");
     } catch (error) {
-      setMessage(String(error?.message || error || "Report load failed"));
+      setMessage(String(error?.message || error || t.reportLoadFailed));
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, syncLanguage, t.reportLoadFailed]);
 
   useEffect(() => {
+    syncLanguage();
     load();
-    const timer = setInterval(load, 30000);
+    const timer = setInterval(() => {
+      syncLanguage();
+      load();
+    }, 30000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, syncLanguage]);
 
   const rows = Array.isArray(report?.indices) ? report.indices : [];
   const bestIndex = report?.best_index || null;
@@ -92,10 +161,8 @@ export default function IndexReportCard({ token }) {
     <View style={styles.card} __okaiIndexReportCardV1={true}>
       <View style={styles.header}>
         <View style={styles.headerText}>
-          <Text style={styles.title}>🏆 Aaj Tak Index Report Card</Text>
-          <Text style={styles.subtitle}>
-            Realized net P&L • brokerage aur execution costs ke baad
-          </Text>
+          <Text style={styles.title}>{t.title}</Text>
+          <Text style={styles.subtitle}>{t.subtitle}</Text>
         </View>
         <TouchableOpacity
           onPress={load}
@@ -105,7 +172,7 @@ export default function IndexReportCard({ token }) {
           {loading ? (
             <ActivityIndicator size="small" color={COLORS.blue} />
           ) : (
-            <Text style={styles.refreshText}>REFRESH</Text>
+            <Text style={styles.refreshText}>{t.refresh}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -122,13 +189,13 @@ export default function IndexReportCard({ token }) {
             },
           ]}>
           <Text style={styles.verdictTitle}>
-            {bestIndex ? `BEST: ${bestIndex}` : "ABHI DATA NAHI"}
+            {bestIndex ? `${t.best}: ${bestIndex}` : t.noData}
           </Text>
-          <Text style={styles.verdictText}>{comparisonText(report)}</Text>
+          <Text style={styles.verdictText}>{comparisonText(report, t)}</Text>
           <Text style={styles.verdictMeta}>
-            Total {report.total_trades || 0} trades •{" "}
-            {report.closed_trades || 0} closed • Net{" "}
-            {money(report.total_realized_pnl)} • Confidence{" "}
+            {t.total} {report.total_trades || 0} {t.trades} •{" "}
+            {report.closed_trades || 0} {t.closed} • {t.net}{" "}
+            {money(report.total_realized_pnl)} • {t.confidence}{" "}
             {report.comparison_confidence || "--"}
           </Text>
         </View>
@@ -153,7 +220,7 @@ export default function IndexReportCard({ token }) {
             <View style={styles.indexTop}>
               <View style={styles.indexNameWrap}>
                 <Text style={styles.indexName}>{item.instrument}</Text>
-                {isBest && <Text style={styles.bestBadge}>BEST</Text>}
+                {isBest && <Text style={styles.bestBadge}>{t.best}</Text>}
               </View>
               <Text
                 style={[
@@ -166,21 +233,19 @@ export default function IndexReportCard({ token }) {
 
             <View style={styles.metrics}>
               <View style={styles.metric}>
-                <Text style={styles.metricLabel}>TRADES</Text>
+                <Text style={styles.metricLabel}>{t.metricTrades}</Text>
                 <Text style={styles.metricValue}>{item.total_trades || 0}</Text>
               </View>
               <View style={styles.metric}>
-                <Text style={styles.metricLabel}>CLOSED</Text>
+                <Text style={styles.metricLabel}>{t.metricClosed}</Text>
                 <Text style={styles.metricValue}>{item.closed_trades || 0}</Text>
               </View>
               <View style={styles.metric}>
-                <Text style={styles.metricLabel}>WIN RATE</Text>
-                <Text style={styles.metricValue}>
-                  {percent(item.win_rate)}
-                </Text>
+                <Text style={styles.metricLabel}>{t.winRate}</Text>
+                <Text style={styles.metricValue}>{percent(item.win_rate)}</Text>
               </View>
               <View style={styles.metric}>
-                <Text style={styles.metricLabel}>AVG P&L</Text>
+                <Text style={styles.metricLabel}>{t.avgPnl}</Text>
                 <Text
                   style={[
                     styles.metricValue,
@@ -197,9 +262,9 @@ export default function IndexReportCard({ token }) {
             </View>
 
             <Text style={styles.breakdown}>
-              Profit {item.profit_trades || 0} • Loss{" "}
-              {item.loss_trades || 0} • Breakeven{" "}
-              {item.breakeven_trades || 0} • Open{" "}
+              {t.profit} {item.profit_trades || 0} • {t.loss}{" "}
+              {item.loss_trades || 0} • {t.breakeven}{" "}
+              {item.breakeven_trades || 0} • {t.open}{" "}
               {item.open_trades || 0}
             </Text>
           </View>
@@ -207,16 +272,11 @@ export default function IndexReportCard({ token }) {
       })}
 
       {!loading && rows.length === 0 && (
-        <Text style={styles.empty}>
-          Report abhi available nahi hai. Refresh karein.
-        </Text>
+        <Text style={styles.empty}>{t.empty}</Text>
       )}
       {!!message && <Text style={styles.error}>{message}</Text>}
 
-      <Text style={styles.note}>
-        BANKNIFTY ki new entries OFF hain; uski purani closed trades comparison
-        me dikhengi.
-      </Text>
+      <Text style={styles.note}>{t.bankNote}</Text>
     </View>
   );
 }
