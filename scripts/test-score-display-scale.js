@@ -2,6 +2,7 @@ const assert = require("assert");
 const {
   directionalMaximum,
   scoreMaximum,
+  simpleReasonText,
   visibleWarnings,
 } = require("../src/runtime/ScoreDisplayScale");
 
@@ -29,9 +30,24 @@ assert.deepStrictEqual(
     "LIVE_USING_STRATEGY: OKAI Default 82",
     "APPLIED_WEIGHTS: VWAP 11",
     "CONFIG_MATCH: UNKNOWN | ENTRY 82",
-    "REAL_BLOCK_REASON",
+    "AUDIT: INTERNAL CHECK",
+    "VOLUME_UNAVAILABLE_NEUTRAL",
+    "VOLUME_AVAILABILITY_NORMALIZED:81/92->88/100",
+    "VWAP_FALLBACK_ACTIVE:VWAP_CHASE_DISABLED",
   ]),
-  ["REAL_BLOCK_REASON"]
+  [
+    "Volume data available nahi hai; neutral score use hua.",
+    "Volume data nahi mila, isliye score 81/92 se 88/100 par adjust hua.",
+    "VWAP ka backup method active hai; price-chase rule trade ko block nahi karega.",
+  ]
+);
+assert.strictEqual(
+  simpleReasonText("POST_ATR_SL_SAME_SIDE_COOLDOWN_15M"),
+  "Loss ya SL ke baad isi index aur side me 15 minute ka wait hai."
+);
+assert.strictEqual(
+  simpleReasonText("REAL_BLOCK_REASON"),
+  "Real block reason"
 );
 
-console.log("PASS score maximum is 100 and technical warnings stay hidden");
+console.log("PASS score maximum is 100 and reasons use simple language");
