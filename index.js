@@ -7,6 +7,11 @@ const SessionAwareManualExitOverlayV10 = require(
   './src/components/SessionAwareManualExitOverlayV10'
 );
 
+const { installProfessionalLanguagePatch } = require(
+  './src/runtime/ProfessionalLanguagePatch'
+);
+installProfessionalLanguagePatch();
+
 const { installHindiNewsResponsePatch } = require(
   './src/runtime/HindiNewsResponsePatch'
 );
