@@ -22,12 +22,6 @@ const { installDisableLegacyManualExitOverlayV9 } = require(
 );
 installDisableLegacyManualExitOverlayV9();
 
-// Install before App and Trade-tab modules capture React/JSX runtime functions.
-const { installFinalDecisionReasonPanelV1 } = require(
-  './src/runtime/FinalDecisionReasonPanelV1'
-);
-installFinalDecisionReasonPanelV1();
-
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
 
