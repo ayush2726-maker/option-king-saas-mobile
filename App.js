@@ -17,6 +17,7 @@ const TelegramConnectCard = require("./src/components/TelegramConnectCard").defa
 const ThemePickerCard = require("./src/components/ThemePickerCard").default;
 const AccountAdminDashboardCard = require("./src/components/AccountAdminDashboardCard").default;
 const AdminUserPnlCard = require("./src/components/AdminUserPnlCard").default;
+const IndexReportCard = require("./src/components/IndexReportCard").default;
 const {
   executionBlockReason,
   marketTimeLabel,
@@ -1758,6 +1759,8 @@ function TradeTab({ token }) {
           <Text style={{ color: C.red, marginTop: 10, fontWeight: "900" }}>{msg}</Text>
         )}
       </Card>
+
+      <IndexReportCard token={token} />
 
       <Card __okaiDailyTradeHistoryV1={true}>
         <Text style={{ color: C.text, fontSize: 18, fontWeight: "900", marginBottom: 4 }}>
