@@ -22,6 +22,8 @@ const {
   scoreMaximum,
   visibleWarnings,
 } = require("./ScoreDisplayScale");
+const IndexReportCardModule = require("../components/IndexReportCard");
+const IndexReportCard = IndexReportCardModule.default || IndexReportCardModule;
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
 const SIGNAL_POLL_MS = 10000;
@@ -1126,6 +1128,7 @@ function LiveScoreTradeTab({ token }) {
         : null
     ),
     React.createElement(LiveStrategyScoreCard, { signal: signal || {} }),
+    React.createElement(IndexReportCard, { token }),
     React.createElement(TradeHistoryCard, { history })
   );
 }

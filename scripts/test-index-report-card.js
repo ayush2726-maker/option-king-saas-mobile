@@ -5,6 +5,10 @@ const runtimeTrade = fs.readFileSync(
   "src/runtime/TradeStatusEnhancement.js",
   "utf8"
 );
+const finalTrade = fs.readFileSync(
+  "src/runtime/LiveScoreTradeTabEnhancement.js",
+  "utf8"
+);
 const entry = fs.readFileSync("index.js", "utf8");
 const card = fs.readFileSync("src/components/IndexReportCard.js", "utf8");
 
@@ -23,6 +27,16 @@ if (
 }
 if (!runtimeTrade.includes("React.createElement(IndexReportCard, { token })")) {
   throw new Error("IndexReportCard is not mounted in the visible enhanced TradeTab");
+}
+if (
+  !finalTrade.includes(
+    'const IndexReportCardModule = require("../components/IndexReportCard");'
+  )
+) {
+  throw new Error("Final live-score Trade screen IndexReportCard import missing");
+}
+if (!finalTrade.includes("React.createElement(IndexReportCard, { token })")) {
+  throw new Error("IndexReportCard is not mounted in the final visible Trade screen");
 }
 if (
   entry.includes("installFinalDecisionReasonPanelV1") ||
