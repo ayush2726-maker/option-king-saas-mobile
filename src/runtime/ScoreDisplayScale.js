@@ -88,19 +88,79 @@ function isTechnicalStrategyWarning(value) {
   return (
     warning.startsWith("LIVE_USING_STRATEGY:") ||
     warning.startsWith("APPLIED_WEIGHTS:") ||
-    warning.startsWith("CONFIG_MATCH:")
+    warning.startsWith("CONFIG_MATCH:") ||
+    warning.startsWith("AUDIT:") ||
+    warning.startsWith("ENTRY_READY_AUDIT:")
   );
+}
+
+function simpleReasonText(value) {
+  const reason = String(value || "").trim();
+  if (!reason) return "";
+
+  if (reason === "VOLUME_UNAVAILABLE_NEUTRAL") {
+    return "Volume data available nahi hai; neutral score use hua.";
+  }
+
+  const normalized = reason.match(
+    /^VOLUME_AVAILABILITY_NORMALIZED:(.+?)->(.+)$/
+  );
+  if (normalized) {
+    return `Volume data nahi mila, isliye score ${normalized[1]} se ${normalized[2]} par adjust hua.`;
+  }
+
+  if (reason.startsWith("VWAP_FALLBACK_ACTIVE")) {
+    return "VWAP ka backup method active hai; price-chase rule trade ko block nahi karega.";
+  }
+  if (reason.startsWith("EMA_ANTI_CHASE_OBSERVATION_ONLY")) {
+    return "EMA distance sirf observation ke liye hai; trade block nahi hoga.";
+  }
+  if (reason.startsWith("MARKET_CLOSED")) {
+    return "Market band hai; ab nayi trade nahi li jayegi.";
+  }
+  if (reason === "POST_ATR_SL_SAME_SIDE_COOLDOWN_15M") {
+    return "Loss ya SL ke baad isi index aur side me 15 minute ka wait hai.";
+  }
+  if (reason === "CORRELATED_SAME_DIRECTION_POSITION_OPEN") {
+    return "Same direction ki correlated trade pehle se open hai.";
+  }
+  if (reason === "OPPOSITE_HEDGE_REQUIRES_EXISTING_LOSS") {
+    return "Opposite hedge tabhi li jayegi jab pehli trade loss me ho.";
+  }
+  if (reason === "OPPOSITE_HEDGE_REQUIRES_DIFFERENT_INDEX") {
+    return "Same index me opposite hedge allowed nahi hai.";
+  }
+  if (reason === "STRATEGY_NOT_QUALIFIED") {
+    return "Strategy ke sabhi entry rules pass nahi hue.";
+  }
+  if (reason.startsWith("SCORE_BELOW_")) {
+    return `Entry ke liye score ${reason.slice("SCORE_BELOW_".length)} se kam hai.`;
+  }
+  if (reason === "REPLAY_FIRST_LIVE_SCAN") {
+    return "Live market ka pehla scan complete hua.";
+  }
+
+  const readable = reason
+    .replace(/_/g, " ")
+    .replace(/\s*->\s*/g, " se ")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  return readable.charAt(0).toUpperCase() + readable.slice(1);
 }
 
 function visibleWarnings(warnings) {
   return (Array.isArray(warnings) ? warnings : [])
     .map((item) => String(item))
-    .filter((item) => item && !isTechnicalStrategyWarning(item));
+    .filter((item) => item && !isTechnicalStrategyWarning(item))
+    .map(simpleReasonText)
+    .filter(Boolean)
+    .filter((item, index, items) => items.indexOf(item) === index);
 }
 
 module.exports = {
   SCORE_MAX,
   directionalMaximum,
   scoreMaximum,
+  simpleReasonText,
   visibleWarnings,
 };
