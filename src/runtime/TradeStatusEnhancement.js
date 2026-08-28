@@ -11,6 +11,8 @@ const {
   updateTradeLiveSnapshot,
   useTradeLiveSnapshot,
 } = require("./TradeLivePriceEnhancement");
+const IndexReportCardModule = require("../components/IndexReportCard");
+const IndexReportCard = IndexReportCardModule.default || IndexReportCardModule;
 
 const SAAS_URL = "https://option-king-saas-production.up.railway.app";
 
@@ -419,6 +421,7 @@ function EnhancedTradeTab({ token }) {
         ? React.createElement(Text, { style: { color: C.red, marginTop: 10, fontWeight: "900" } }, msg)
         : null
     ),
+    React.createElement(IndexReportCard, { token }),
     React.createElement(
       Card,
       null,
