@@ -204,13 +204,15 @@ function Tag({ label, color }) {
     </View>
   );
 }
-function Btn({ label, icon, color, onPress, loading, style }) {
+function Btn({ label, icon, color, onPress, loading, disabled, style }) {
+  const inactive = Boolean(loading || disabled);
   return (
-    <TouchableOpacity onPress={onPress} disabled={loading}
+    <TouchableOpacity onPress={onPress} disabled={inactive}
       style={[{ backgroundColor: (color||C.accent)+"22", borderRadius: 12,
         paddingVertical: 13, paddingHorizontal: 20, borderWidth: 1,
         borderColor: (color||C.accent)+"66", alignItems: "center",
-        flexDirection: "row", justifyContent: "center", gap: 8 }, style]}>
+        flexDirection: "row", justifyContent: "center", gap: 8,
+        opacity: inactive ? 0.6 : 1 }, style]}>
       {loading
         ? <ActivityIndicator color={color||C.accent} size="small" />
         : <>
@@ -953,6 +955,16 @@ function BrokerTab({ token, lang }) {
   const [success, setSuccess] = useState("");
   const [testResult, setTestResult] = useState(null);
   const [testing, setTesting] = useState(false);
+  const [testCooldown, setTestCooldown] = useState(0);
+  const testInFlight = useRef(false);
+
+  useEffect(() => {
+    if (testCooldown <= 0) return undefined;
+    const timer = setInterval(() => {
+      setTestCooldown(value => Math.max(0, value - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [testCooldown > 0]);
 
   const brokerList = ["angelone", "zerodha", "upstox"];
   const brokerFields = {
@@ -989,15 +1001,23 @@ function BrokerTab({ token, lang }) {
   };
 
   async function testBroker() {
+    if (testInFlight.current || testing || testCooldown > 0) return;
+    testInFlight.current = true;
     setTestResult(null);
     setTesting(true);
     try {
       const d = await apiGet(`/broker/test/${broker}`, token);
       setTestResult(d);
+      if (d?.rate_limited || d?.status === "rate_limited") {
+        const seconds = Math.max(1, Number(d?.retry_after_seconds) || 45);
+        setTestCooldown(seconds);
+      }
     } catch (e) {
       setTestResult({ success: false, message: hi ? "Broker settings endpoint missing" : "Broker settings endpoint missing" });
+    } finally {
+      testInFlight.current = false;
+      setTesting(false);
     }
-    setTesting(false);
   }
 
   async function saveBroker() {
@@ -1012,9 +1032,17 @@ function BrokerTab({ token, lang }) {
         api_secret: broker === "angelone" ? (apiSecret.trim() || mpin.trim()) : apiSecret.trim(),
         totp_secret: broker === "angelone" ? totpKey.trim() : ""
       }, token);
-      if (d.success || d.message) {
+      if (d.success) {
         setSuccess(hi ? "✅ Broker credentials save ho gaye!" : "✅ Broker credentials saved!");
-      } else setError(d.detail || (hi ? "Save nahi ho paya" : "Save failed"));
+      } else {
+        const detail = typeof d.detail === "string"
+          ? d.detail
+          : d.detail?.message || d.message;
+        setError(detail || (hi ? "Save nahi ho paya" : "Save failed"));
+        if (broker === "upstox" && /request limit|too many request/i.test(detail || "")) {
+          setTestCooldown(45);
+        }
+      }
     } catch { setError(hi ? "Server error" : "Server error"); }
     setLoading(false);
   }
@@ -1072,8 +1100,11 @@ function BrokerTab({ token, lang }) {
           color={C.blue} onPress={saveBroker} loading={loading}
           style={{ marginTop: 8 }} />
 
-        <Btn label={hi ? "Test Broker Connection" : "Test Broker Connection"} icon="🧪"
-          color={C.gold} onPress={testBroker} loading={testing}
+        <Btn label={testCooldown > 0
+            ? `Retry in ${testCooldown}s`
+            : (hi ? "Test Broker Connection" : "Test Broker Connection")}
+          icon="🧪" color={C.gold} onPress={testBroker} loading={testing}
+          disabled={testCooldown > 0}
           style={{ marginTop: 10 }} />
 
         {testResult && (
@@ -1084,7 +1115,9 @@ function BrokerTab({ token, lang }) {
               fontSize: 13, fontWeight: "800" }}>
               {testResult.success
                 ? (hi ? `✅ ${broker} connected. Status: ${testResult.status || "connected"}` : `✅ ${broker} connected. Status: ${testResult.status || "connected"}`)
-                : (broker === "zerodha" && testResult.status === "auth_failed"
+                : (testResult.rate_limited || testResult.status === "rate_limited"
+                    ? `⏳ Upstox request limit reached. ${testResult.retry_after_seconds || 45} seconds wait karein; button automatic enable hoga.`
+                    : broker === "zerodha" && testResult.status === "auth_failed"
                     ? (hi ? "Zerodha token missing ya expire ho gaya hai. Naya access token generate karein." : "Zerodha token missing or expired. Please generate a new access token.")
                     : `❌ ${testResult.message || (hi ? "Connection test fail ho gaya" : "Connection test failed")}`)}
             </Text>

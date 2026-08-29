@@ -14,7 +14,8 @@
     "score-consistency:test": "node scripts/test-score-consistency.js && node scripts/test-score-display-scale.js",
     "sector:test": "node scripts/test-sector-rotation-ui.js",
     "ledger-sync:test": "node scripts/test-authoritative-ledger-sync.js",
-    "admin-pnl:test": "node scripts/test-admin-user-pnl.js"
+    "admin-pnl:test": "node scripts/test-admin-user-pnl.js",
+    "broker-rate-limit:test": "node scripts/test-broker-rate-limit.js"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
