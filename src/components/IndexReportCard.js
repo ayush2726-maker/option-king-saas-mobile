@@ -106,7 +106,10 @@ function comparisonText(report, t) {
   return `${best.instrument} ${label}: ${money(best.realized_pnl)} net P&L.`;
 }
 
-export default function IndexReportCard({ token }) {
+export default function IndexReportCard({ token, mode = "all" }) {
+  const reportMode = ["live", "paper"].includes(String(mode).toLowerCase())
+    ? String(mode).toLowerCase()
+    : "all";
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -126,7 +129,7 @@ export default function IndexReportCard({ token }) {
     try {
       await syncLanguage();
       const response = await fetch(
-        SAAS_URL + "/bot/index-report-card?mode=all",
+        SAAS_URL + `/bot/index-report-card?mode=${reportMode}`,
         {
           headers: { Authorization: "Bearer " + token },
         }
@@ -142,7 +145,7 @@ export default function IndexReportCard({ token }) {
     } finally {
       setLoading(false);
     }
-  }, [token, syncLanguage, t.reportLoadFailed]);
+  }, [token, reportMode, syncLanguage, t.reportLoadFailed]);
 
   useEffect(() => {
     syncLanguage();
@@ -161,7 +164,17 @@ export default function IndexReportCard({ token }) {
     <View style={styles.card} __okaiIndexReportCardV1={true}>
       <View style={styles.header}>
         <View style={styles.headerText}>
-          <Text style={styles.title}>{t.title}</Text>
+          <Text style={styles.title}>
+            {reportMode === "live"
+              ? language === "hi"
+                ? "🏆 लाइव इंडेक्स रिपोर्ट कार्ड"
+                : "🏆 Live Index Report Card"
+              : reportMode === "paper"
+              ? language === "hi"
+                ? "🏆 पेपर इंडेक्स रिपोर्ट कार्ड"
+                : "🏆 Paper Index Report Card"
+              : t.title}
+          </Text>
           <Text style={styles.subtitle}>{t.subtitle}</Text>
         </View>
         <TouchableOpacity

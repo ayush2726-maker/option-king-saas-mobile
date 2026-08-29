@@ -598,9 +598,9 @@ const TradeHistoryCard = React.memo(function TradeHistoryCard({ history }) {
       React.createElement(Text, { style: { color: C.text, fontSize: 18, fontWeight: '900' } }, '📜 Daily Trade History'),
       React.createElement(Text, { style: { color: C.muted, fontSize: 10 } }, `${history.length} trades`)
     ),
-    React.createElement(Text, { style: { color: C.muted, fontSize: 10, marginBottom: 8 } }, 'Date par tap karke us din ki poori trades dekho'),
+    React.createElement(Text, { style: { color: C.muted, fontSize: 10, marginBottom: 8 } }, 'Tap a date to view all trades for that day.'),
     history.length === 0
-      ? React.createElement(Text, { style: { color: C.muted } }, 'History load nahi hui. Pull-down refresh karein.')
+      ? React.createElement(Text, { style: { color: C.muted } }, 'No trades are recorded in this mode yet. Pull down to refresh.')
       : days.map((day) => {
           const expanded = expandedDate === day.dateKey;
           return React.createElement(
@@ -992,8 +992,8 @@ function LiveScoreTradeTab({ token }) {
             Text,
             { style: { color: C.muted, fontSize: 9, marginTop: 4 } },
             openTrades.length
-              ? `Har open trade alag card me • Updated ${lastUpdate} IST`
-              : "Closed trade ko active position nahi dikhaya jayega."
+              ? `Each open trade appears separately • Updated ${lastUpdate} IST`
+              : "Only open positions are shown here. Closed trades remain in Trade History."
           )
         ),
         React.createElement(
@@ -1012,7 +1012,7 @@ function LiveScoreTradeTab({ token }) {
         ? React.createElement(
             Text,
             { style: { color: C.muted, fontSize: 13, lineHeight: 19 } },
-            "Abhi koi active trade nahi hai. Sirf fully qualified signal par nayi trade create hogi."
+            `No active ${isLiveMode ? "live" : "paper"} trades. A new trade will appear when a signal fully qualifies.`
           )
         : openTrades.map((trade, index) => {
             const pnl = tradePnl(trade);
@@ -1128,7 +1128,7 @@ function LiveScoreTradeTab({ token }) {
         : null
     ),
     React.createElement(LiveStrategyScoreCard, { signal: signal || {} }),
-    React.createElement(IndexReportCard, { token }),
+    React.createElement(IndexReportCard, { token, mode: isLiveMode ? "live" : "paper" }),
     React.createElement(TradeHistoryCard, { history })
   );
 }
