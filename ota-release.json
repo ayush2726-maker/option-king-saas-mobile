@@ -1,20 +1,20 @@
 {
-  "release": "daily-backtest-async-v3-force-publish",
+  "release": "mode-aware-live-paper-ui-force-publish",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-21T11:20:00+05:30",
-  "reason": "Force publish the current main App.js that now contains OKAI-DAILY-BACKTEST-ASYNC-V3. The previous OTA was published from the script commit before App.js itself was patched.",
+  "requested_at": "2026-08-29T19:24:00+05:30",
+  "reason": "Force-publish the current main branch because the mode-aware report card and professional trade/history copy were committed by GitHub Actions, and GitHub does not trigger downstream push workflows from commits created with GITHUB_TOKEN.",
   "validation": {
     "required_checks": [
-      "App.js contains OKAI-DAILY-BACKTEST-ASYNC-V3",
-      "Daily uses /backtest/daily/start instead of /backtest/run",
-      "Daily polls /backtest/daily/status/{job_id}",
-      "Monthly flow remains unchanged",
+      "LiveScoreTradeTabEnhancement uses professional English copy",
+      "IndexReportCard accepts live/paper mode",
+      "LIVE report requests mode=live",
+      "PAPER report requests mode=paper",
       "Android Metro export succeeds",
-      "Production and default channels both publish successfully"
+      "Production and default channels publish successfully"
     ],
-    "ui_fix": "Daily Backtest must run through background job polling and stay in-app.",
+    "ui_fix": "Mode-aware Live/Paper report card and professional Active Trades / Daily Trade History language.",
     "logic_safety": "No live trade entry, exit, SL, quantity, broker, AI, or order logic changes."
   },
-  "trade_safety": "No trading logic changes."
+  "trade_safety": "UI and report filtering only; no execution logic changes."
 }
