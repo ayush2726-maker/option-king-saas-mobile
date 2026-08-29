@@ -1,0 +1,79 @@
+name: Fix mode-aware trade UI copy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch mobile trade UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          trade = Path('src/runtime/LiveScoreTradeTabEnhancement.js')
+          s = trade.read_text()
+
+          replacements = {
+            '"Closed trade ko active position nahi dikhaya jayega."': '"Only open positions are shown here. Closed trades remain in Trade History."',
+            '"Abhi koi active trade nahi hai. Sirf fully qualified signal par nayi trade create hogi."': '`No active ${isLiveMode ? "live" : "paper"} trades. A new trade will appear when a signal fully qualifies.`',
+            '`Har open trade alag card me • Updated ${lastUpdate} IST`': '`Each open trade appears separately • Updated ${lastUpdate} IST`',
+            "'Date par tap karke us din ki poori trades dekho'": "'Tap a date to view all trades for that day.'",
+            "'History load nahi hui. Pull-down refresh karein.'": "'No trades are recorded in this mode yet. Pull down to refresh.'",
+            'React.createElement(IndexReportCard, { token })': 'React.createElement(IndexReportCard, { token, mode: isLiveMode ? "live" : "paper" })',
+          }
+          for old, new in replacements.items():
+              if old not in s:
+                  raise SystemExit(f'Missing expected TradeTab text: {old}')
+              s = s.replace(old, new)
+          trade.write_text(s)
+
+          report = Path('src/components/IndexReportCard.js')
+          r = report.read_text()
+          old = 'export default function IndexReportCard({ token }) {'
+          new = '''export default function IndexReportCard({ token, mode = "all" }) {\n  const reportMode = ["live", "paper"].includes(String(mode).toLowerCase())\n    ? String(mode).toLowerCase()\n    : "all";'''
+          if old not in r:
+              raise SystemExit('IndexReportCard signature not found')
+          r = r.replace(old, new, 1)
+
+          old = 'SAAS_URL + "/bot/index-report-card?mode=all",'
+          new = 'SAAS_URL + `/bot/index-report-card?mode=${reportMode}`,'
+          if old not in r:
+              raise SystemExit('Index report URL not found')
+          r = r.replace(old, new, 1)
+
+          old = '}, [token, syncLanguage, t.reportLoadFailed]);'
+          new = '}, [token, reportMode, syncLanguage, t.reportLoadFailed]);'
+          if old not in r:
+              raise SystemExit('Index report dependency block not found')
+          r = r.replace(old, new, 1)
+
+          old = '<Text style={styles.title}>{t.title}</Text>'
+          new = '''<Text style={styles.title}>\n            {reportMode === "live"\n              ? language === "hi"\n                ? "🏆 लाइव इंडेक्स रिपोर्ट कार्ड"\n                : "🏆 Live Index Report Card"\n              : reportMode === "paper"\n              ? language === "hi"\n                ? "🏆 पेपर इंडेक्स रिपोर्ट कार्ड"\n                : "🏆 Paper Index Report Card"\n              : t.title}\n          </Text>'''
+          if old not in r:
+              raise SystemExit('Index report title not found')
+          r = r.replace(old, new, 1)
+          report.write_text(r)
+          PY
+
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/runtime/LiveScoreTradeTabEnhancement.js src/components/IndexReportCard.js
+          git commit -m "Fix live paper trade UI copy and report mode"
+          git push
