@@ -4198,7 +4198,9 @@ function BotTab({ token, lang }) {
     if (mode === "live") {
       Alert.alert(
         hi ? "Live Mode" : "Live Mode",
-        hi ? "Live mode asli broker order laga sakta hai. Continue karein?" : "Live mode can place real broker orders. Continue?",
+        hi
+          ? "Live Mode Angel One में वास्तविक ऑर्डर लगा सकता है। Quantity Paper Mode के समान capital/risk sizing से तय होगी; fixed 1 lot नहीं होगा। आगे बढ़ें?"
+          : "Live Mode can place real Angel One orders. Quantity follows the same capital and risk sizing as Paper Mode; it is not fixed at one lot. Continue?",
         [
           { text: hi ? "Cancel" : "Cancel", style: "cancel" },
           { text: hi ? "Continue" : "Continue", style: "destructive", onPress: () => saveSettings({ trading_mode: "live" }) }

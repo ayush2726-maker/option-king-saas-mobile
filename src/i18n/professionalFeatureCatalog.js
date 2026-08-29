@@ -143,7 +143,7 @@ const EXACT = {
   "Open Positions": { hi: "खुली पोज़िशन", en: "Open Positions" },
   "नई LIVE Entries Disarm करें": { hi: "नई लाइव एंट्री डिसआर्म करें", en: "Disarm New LIVE Entries" },
   "Disarm New LIVE Entries": { hi: "नई लाइव एंट्री डिसआर्म करें", en: "Disarm New LIVE Entries" },
-  "App से LIVE arm नहीं होगा। Arm केवल gateway device पर exact phrase “ARM LIVE 1 LOT” से होगा।": { hi: "ऐप से लाइव ऑर्डर आर्म नहीं होंगे। आर्मिंग केवल गेटवे डिवाइस पर सटीक वाक्य “ARM LIVE 1 LOT” से होगी।", en: "The app cannot arm LIVE orders. Arming is only available on the gateway device with the exact phrase “ARM LIVE 1 LOT”." },
+  "App से LIVE arm नहीं होगा। Gateway device पर exact phrase “ARM LIVE RISK SIZING” लिखें।": { hi: "ऐप से लाइव ऑर्डर आर्म नहीं होंगे। गेटवे डिवाइस पर सटीक वाक्य “ARM LIVE RISK SIZING” लिखें।", en: "The app cannot arm LIVE orders. On the gateway device, enter the exact phrase “ARM LIVE RISK SIZING”." },
   "Setup Guide (Advanced)": { hi: "सेटअप मार्गदर्शिका (उन्नत)", en: "Setup Guide (Advanced)" },
   "सिर्फ gateway उपयोग करने वाले user के लिए": { hi: "केवल गेटवे उपयोग करने वाले उपयोगकर्ताओं के लिए", en: "Only for users who need a local gateway" },
   "Credentials Safety": { hi: "क्रेडेंशियल सुरक्षा", en: "Credential Safety" },

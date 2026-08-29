@@ -405,8 +405,8 @@ export default function LocalGatewayScreen({ token, lang = "en" }) {
 
         <Text style={styles.safetyLine}>
           {hi
-            ? "App से LIVE arm नहीं होगा। Arm केवल gateway device पर exact phrase से होगा।"
-            : "The app cannot arm LIVE orders. Arming is only available on the gateway device with the exact phrase."}
+            ? "App से LIVE arm नहीं होगा। Gateway device पर exact phrase “ARM LIVE RISK SIZING” लिखें।"
+            : "The app cannot arm LIVE orders. On the gateway device, enter the exact phrase “ARM LIVE RISK SIZING”."}
         </Text>
       </View>
 
