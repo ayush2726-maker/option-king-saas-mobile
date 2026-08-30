@@ -1,20 +1,19 @@
 {
-  "release": "mode-aware-live-paper-ui-force-publish",
+  "release": "banknifty-off-real-combined-v7",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-29T19:24:00+05:30",
-  "reason": "Force-publish the current main branch because the mode-aware report card and professional trade/history copy were committed by GitHub Actions, and GitHub does not trigger downstream push workflows from commits created with GITHUB_TOKEN.",
+  "requested_at": "2026-08-31T00:30:00+05:30",
+  "reason": "Remove BANKNIFTY from every backtest and enabled-market selector after backend entry disable, and publish the Combined real-premium compatibility update.",
   "validation": {
     "required_checks": [
-      "LiveScoreTradeTabEnhancement uses professional English copy",
-      "IndexReportCard accepts live/paper mode",
-      "LIVE report requests mode=live",
-      "PAPER report requests mode=paper",
+      "Backtest selectors contain only AUTO, NIFTY, SENSEX",
+      "AUTO copy contains only NIFTY and SENSEX",
+      "Combined mode uses backend real-premium support",
       "Android Metro export succeeds",
       "Production and default channels publish successfully"
     ],
-    "ui_fix": "Mode-aware Live/Paper report card and professional Active Trades / Daily Trade History language.",
-    "logic_safety": "No live trade entry, exit, SL, quantity, broker, AI, or order logic changes."
+    "ui_fix": "BANKNIFTY removed from daily, monthly, and range backtest controls plus enabled-market controls.",
+    "logic_safety": "No live order entry, exit, SL, quantity, broker, AI, or order-routing logic changes."
   },
-  "trade_safety": "UI and report filtering only; no execution logic changes."
+  "trade_safety": "BANKNIFTY cannot be selected for new entries; NIFTY and SENSEX behavior is unchanged."
 }

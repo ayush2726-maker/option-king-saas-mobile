@@ -1255,7 +1255,7 @@ function MarketsTab({ token, lang }) {
             : "Select markets for bot, strategy, and backtest."}
         </Text>
 
-        {["NIFTY", "BANKNIFTY", "SENSEX"].map(ins => {
+        {["NIFTY", "SENSEX"].map(ins => {
           const isOn = enabled.includes(ins);
           return (
             <TouchableOpacity key={ins}
@@ -1285,7 +1285,7 @@ function MarketsTab({ token, lang }) {
         </Text>
 
         <Row style={{ gap: 8, marginBottom: 12 }}>
-          {["NIFTY", "BANKNIFTY", "SENSEX"].map(ins => (
+          {["NIFTY", "SENSEX"].map(ins => (
             <TouchableOpacity key={ins}
               onPress={() => setPrimary(ins)}
               style={{
@@ -1334,8 +1334,8 @@ function MarketsTab({ token, lang }) {
         </Text>
         <Text style={{ color: C.muted, fontSize: 12, lineHeight: 19 }}>
           {hi
-            ? "Backtest aur paper mode me NIFTY, BANKNIFTY, SENSEX ready hai. Live orders ke liye broker symbol/token mapping bhi properly connected honi chahiye."
-            : "NIFTY, BANKNIFTY, and SENSEX are ready for backtest and paper mode. Live orders also need proper broker symbol/token mapping."}
+            ? "NIFTY aur SENSEX backtest, paper aur live mode ke liye enabled hain. BANKNIFTY new entries disabled hain."
+            : "NIFTY and SENSEX are enabled for backtest, paper, and live mode. New BANKNIFTY entries are disabled."}
         </Text>
       </Card>
     </ScrollView>
@@ -4691,7 +4691,7 @@ function BotTab({ token, lang }) {
               lineHeight: 16,
               marginTop: 4,
             }}>
-              NIFTY, BANKNIFTY aur SENSEX me best score select hota hai.
+              NIFTY aur SENSEX me best score select hota hai.
               Second trade sirf alag index me liya jayega.
             </Text>
           </View>
@@ -5227,7 +5227,7 @@ function BotTab({ token, lang }) {
         <Text style={{ color: C.muted, fontSize: 9, lineHeight: 14, marginBottom: 10 }}>
           ON kiye gaye sabhi indices har cycle scan honge. CHART sirf graph display select karta hai.
         </Text>
-        {["NIFTY", "BANKNIFTY", "SENSEX"].map(sym => {
+        {["NIFTY", "SENSEX"].map(sym => {
           const enabled = (settings?.enabled_instruments || []).includes(sym);
           const isPrimary = chartInstrument === sym;
           return (
@@ -5581,7 +5581,7 @@ function BacktestTab({ token, lang }) {
 
   const autoIndexBreakdown = (() => {
     if (instrument !== "AUTO") return [];
-    const symbols = ["NIFTY", "BANKNIFTY", "SENSEX"];
+    const symbols = ["NIFTY", "SENSEX"];
     const rows = Object.fromEntries(symbols.map((symbol) => [symbol, {
       instrument: symbol,
       tested_days: 0,
@@ -5820,10 +5820,9 @@ function BacktestTab({ token, lang }) {
               fontSize: 10,
               lineHeight: 16,
             }}>
-              NIFTY: Every Tuesday{"\n"}
-              BANKNIFTY: Last Tuesday • SENSEX: Thursday{"\n"}
+              NIFTY: Every Tuesday • SENSEX: Thursday{"\n"}
               14:30–15:00 Entry • 15:25 Force Exit{"\n"}
-              Score 82 • Premium ₹0.50–₹10 • Max ₹2,000
+              Score 82 • Real Option OHLC • Max ₹2,000
             </Text>
           </View>
         )}
@@ -5842,7 +5841,7 @@ function BacktestTab({ token, lang }) {
             fontWeight: "900",
             marginBottom: 3,
           }}>
-            AUTO = NIFTY + BANKNIFTY + SENSEX
+            AUTO = NIFTY + SENSEX
           </Text>
           <Text style={{
             color: C.muted,
@@ -5862,7 +5861,6 @@ function BacktestTab({ token, lang }) {
           {[
             "AUTO",
             "NIFTY",
-            "BANKNIFTY",
             "SENSEX",
           ].map((value) => (
             <TouchableOpacity
@@ -6947,7 +6945,7 @@ function GuideTab({ lang, setLang }) {
     ["3. पेपर मोड", "डिफ़ॉल्ट मोड पेपर है। इसमें वास्तविक ऑर्डर नहीं लगता। अभ्यास और परीक्षण के लिए यह सुरक्षित है।"],
     ["4. पेपर कैपिटल", "बैकटेस्ट टैब में पेपर कैपिटल अपडेट करें। यही राशि पेपर ट्रेडिंग और बैकटेस्ट दोनों में उपयोग होगी।"],
     ["5. स्कोर सेटिंग", "स्कोर टैब में Safe / Default / Aggressive / Custom रणनीति चुनें। एंट्री स्कोर, हानि सीमा, लक्ष्य और अधिकतम ट्रेड बदल सकते हैं।"],
-    ["6. बैकटेस्ट", "बैकटेस्ट टैब में NIFTY / BANKNIFTY / SENSEX चुनकर रणनीति का परिणाम देखें।"],
+    ["6. बैकटेस्ट", "बैकटेस्ट टैब में NIFTY / SENSEX चुनकर रणनीति का परिणाम देखें।"],
     ["7. टेलीग्राम", "टेलीग्राम टैब में Bot Token और Chat ID सेव करें। बॉट अलर्ट, रणनीति अपडेट और बैकटेस्ट परिणाम टेलीग्राम पर मिलेंगे।"],
     ["8. वास्तविक मोड", "वास्तविक मोड केवल तब चालू करें जब ब्रोकर कनेक्ट हो और रणनीति पेपर मोड में परीक्षण हो चुकी हो। वास्तविक मोड में असली ऑर्डर लग सकता है।"]
   ];
@@ -6958,7 +6956,7 @@ function GuideTab({ lang, setLang }) {
     ["3. Paper Mode", "Paper mode is the default safe mode. It does not place real orders."],
     ["4. Paper Capital", "Update Paper Capital in the Backtest tab. The same capital is used for paper trading and backtesting."],
     ["5. Score Customize", "Use the Score tab to choose Safe / Default / Aggressive / Custom strategy. You can change entry score, SL, target, and max trades."],
-    ["6. Backtest", "Use the Backtest tab to test strategy results for NIFTY / BANKNIFTY / SENSEX."],
+    ["6. Backtest", "Use the Backtest tab to test strategy results for NIFTY / SENSEX."],
     ["7. Telegram", "Save Bot Token and Chat ID in the Telegram tab. Bot alerts, strategy updates, and backtest results will be sent to Telegram."],
     ["8. Live Mode", "Enable Live mode only after broker connection and paper testing. Live mode can place real orders."]
   ];

@@ -384,7 +384,7 @@ function RangeModal({ visible, onClose }) {
         React.createElement(
           View,
           { style: { flexDirection: "row", flexWrap: "wrap", gap: 8 } },
-          ["AUTO", "NIFTY", "BANKNIFTY", "SENSEX"].map((value) =>
+          ["AUTO", "NIFTY", "SENSEX"].map((value) =>
             React.createElement(Button, {
               key: value,
               label: value,

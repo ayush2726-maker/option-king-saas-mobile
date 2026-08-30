@@ -488,13 +488,13 @@ function RangeBacktestModal({ visible, onClose, lang }) {
           React.createElement(
             View,
             { style: { flexDirection: "row", flexWrap: "wrap", gap: 7 } },
-            ["AUTO", "NIFTY", "BANKNIFTY", "SENSEX"].map((value) =>
+            ["AUTO", "NIFTY", "SENSEX"].map((value) =>
               React.createElement(Choice, {
                 key: value,
                 label: value,
                 active: instrument === value,
                 onPress: () => setInstrument(value),
-                flex: value === "BANKNIFTY" ? 1.3 : 1,
+                flex: 1,
               })
             )
           ),

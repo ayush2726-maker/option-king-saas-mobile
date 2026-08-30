@@ -479,7 +479,7 @@ function UnlimitedRangeModal({ visible, onClose }) {
         React.createElement(
           View,
           { style: { flexDirection: "row", flexWrap: "wrap", gap: 7 } },
-          ["AUTO", "NIFTY", "BANKNIFTY", "SENSEX"].map((value) =>
+          ["AUTO", "NIFTY", "SENSEX"].map((value) =>
             React.createElement(Choice, {
               key: value,
               label: value,
