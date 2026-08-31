@@ -7719,16 +7719,19 @@ function OtaStatusBanner() {
     }
   }
 
+  // OKAI-OTA-SINGLE-CHECK-V1
+  // Check OTA only once per JS launch. Re-checking every time Android reports
+  // AppState=active can create repeated download/apply/relaunch behaviour on
+  // some devices and also makes the dashboard appear to restart.
   useEffect(() => {
     mountedRef.current = true;
-    checkOta(true);
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") checkOta(true);
-    });
+    const timer = setTimeout(() => {
+      if (mountedRef.current) checkOta(false);
+    }, 1500);
 
     return () => {
       mountedRef.current = false;
-      subscription.remove();
+      clearTimeout(timer);
     };
   }, []);
 
