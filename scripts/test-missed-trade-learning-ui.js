@@ -53,15 +53,38 @@ if (!source.includes("Trade blocking OFF") || !source.includes("Order execution 
 }
 
 const appSource = fs.readFileSync(path.resolve(__dirname, "../App.js"), "utf8");
+
+// Runtime OTA polling is intentionally disabled. CI/EAS still publishes OTA,
+// but App.js must not poll/download/reload updates while the user is active.
 [
   "MISSED-TRADE-AI-V2",
-  "Retrying app update",
-  "Update check failed • TAP TO RETRY",
-  "AppState.addEventListener",
+  "OKAI-INAPP-OTA-DISABLED-V2",
+  "function OtaStatusBanner()",
 ].forEach((marker) => {
   if (!appSource.includes(marker)) {
-    throw new Error(`Missing reliable OTA marker: ${marker}`);
+    throw new Error(`Missing disabled OTA marker: ${marker}`);
   }
 });
+
+const otaStart = appSource.indexOf("function OtaStatusBanner()");
+const otaEnd = appSource.indexOf("// ── Main App", otaStart);
+if (otaStart < 0 || otaEnd < 0) {
+  throw new Error("OTA banner block not found");
+}
+const otaBlock = appSource.slice(otaStart, otaEnd);
+[
+  "checkForUpdateAsync",
+  "fetchUpdateAsync",
+  "reloadAsync",
+  "AppState.addEventListener",
+  "checkOta(",
+].forEach((forbidden) => {
+  if (otaBlock.includes(forbidden)) {
+    throw new Error(`In-app OTA polling must stay disabled: ${forbidden}`);
+  }
+});
+if (!otaBlock.includes("return null;")) {
+  throw new Error("OTA banner must remain inert");
+}
 
 console.log("PASS OKAI-MISSED-TRADE-LEARNING-UI-V3");
