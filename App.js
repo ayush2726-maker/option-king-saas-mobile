@@ -272,7 +272,7 @@ function LoginScreen({ onLogin, onRegister, onRecovery, lang, setLang }) {
     setError(""); setLoading(true);
     try {
       const d = await apiPost("/auth/login", { email, password });
-      if (d.token) { onLogin(d.token, d.user); }
+      if (d.token) { await onLogin(d.token, d.user); }
       else setError(d.detail || (hi ? "Login fail ho gaya" : "Login failed"));
     } catch { setError(hi ? "Server se connect nahi ho paya" : "Could not connect to server"); }
     setLoading(false);
@@ -464,7 +464,7 @@ function RegisterScreen({ onLogin, onBack, lang }) {
         privacy_accepted: privacyAccepted,
         whatsapp_trade_alert_opt_in: whatsappOptIn,
       });
-      if (d.token) { onLogin(d.token, d.user); }
+      if (d.token) { await onLogin(d.token, d.user); }
       else setError(d.detail || (hi ? "Registration fail ho gaya" : "Registration failed"));
     } catch { setError(hi ? "Server se connect nahi ho paya" : "Could not connect to server"); }
     setLoading(false);
@@ -8032,6 +8032,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
 }
 
 // ── Main App ──────────────────────────────────────────────
+// OKAI-PERSISTENT-AUTH-SESSION-V1
 function InnerApp() {
   const [screen, setScreen] = useState("loading");
   const [token, setToken]   = useState(null);
@@ -8039,25 +8040,86 @@ function InnerApp() {
   const [lang, setLang]     = useState("en");
   const [recoveryMode, setRecoveryMode] = useState("menu");
 
+  const AUTH_SESSION_KEY = "okai_auth_session_v2";
+
+  async function persistSession(nextToken, nextUser) {
+    const safeToken = String(nextToken || "").trim();
+    if (!safeToken) throw new Error("Missing auth token");
+
+    const safeUser = nextUser && typeof nextUser === "object" ? nextUser : null;
+    const writes = [
+      ["saas_token", safeToken],
+      [AUTH_SESSION_KEY, JSON.stringify({ token: safeToken, user: safeUser })],
+    ];
+    if (safeUser) writes.push(["saas_user", JSON.stringify(safeUser)]);
+    await AsyncStorage.multiSet(writes);
+  }
+
   useEffect(() => {
+    let active = true;
     (async () => {
       try {
-        const [[, savedToken], [, savedUser], [, savedLang]] =
-          await AsyncStorage.multiGet(["saas_token", "saas_user", "okai_lang"]);
+        const [[, savedSession], [, savedToken], [, savedUser], [, savedLang]] =
+          await AsyncStorage.multiGet([
+            AUTH_SESSION_KEY,
+            "saas_token",
+            "saas_user",
+            "okai_lang",
+          ]);
+
+        if (!active) return;
         if (savedLang === "hi" || savedLang === "en") setLang(savedLang);
-        if (savedToken && savedUser) {
-          setToken(savedToken);
-          setUser(JSON.parse(savedUser));
-          setScreen("dashboard");
+
+        let session = null;
+        try {
+          session = savedSession ? JSON.parse(savedSession) : null;
+        } catch {}
+
+        const restoredToken = String(session?.token || savedToken || "").trim();
+        let restoredUser = session?.user && typeof session.user === "object"
+          ? session.user
+          : null;
+
+        if (!restoredUser && savedUser) {
           try {
-            const fresh = await apiGet("/auth/me", savedToken);
-            setUser(fresh.user);
-            await AsyncStorage.setItem("saas_user",
-              JSON.stringify(fresh.user));
+            const parsed = JSON.parse(savedUser);
+            if (parsed && typeof parsed === "object") restoredUser = parsed;
           } catch {}
-        } else { setScreen("login"); }
-      } catch { setScreen("login"); }
+        }
+
+        // A valid saved token is enough to restore the session. Do not throw
+        // the user back to Login just because the cached user JSON is absent.
+        if (!restoredToken) {
+          setScreen("login");
+          return;
+        }
+
+        setToken(restoredToken);
+        if (restoredUser) setUser(restoredUser);
+        setScreen("dashboard");
+
+        // Refresh the profile in the background. Network/server failures must
+        // never destroy an otherwise persisted login session.
+        try {
+          const fresh = await apiGet("/auth/me", restoredToken);
+          if (!active) return;
+          if (fresh?.user) {
+            setUser(fresh.user);
+            await persistSession(restoredToken, fresh.user);
+          } else if (restoredUser) {
+            await persistSession(restoredToken, restoredUser);
+          }
+        } catch {
+          if (restoredUser) {
+            try { await persistSession(restoredToken, restoredUser); } catch {}
+          }
+        }
+      } catch {
+        if (active) setScreen("login");
+      }
     })();
+
+    return () => { active = false; };
   }, []);
 
   async function changeLang(next) {
@@ -8065,14 +8127,24 @@ function InnerApp() {
     try { await AsyncStorage.setItem("okai_lang", next); } catch {}
   }
 
-  function handleLogin(t, u) {
-    setToken(t); setUser(u); setScreen("dashboard");
-    AsyncStorage.multiSet([["saas_token", t],
-      ["saas_user", JSON.stringify(u)]]);
+  async function handleLogin(t, u) {
+    try {
+      // Persist first so an immediate Android/OTA/app restart cannot lose the
+      // session between successful login and the AsyncStorage write.
+      await persistSession(t, u);
+      setToken(t);
+      setUser(u);
+      setScreen("dashboard");
+    } catch (error) {
+      Alert.alert(
+        "Login session error",
+        "Login successful tha, lekin session phone me save nahi hua. Please login once more."
+      );
+    }
   }
 
   async function handleLogout() {
-    await AsyncStorage.multiRemove(["saas_token", "saas_user"]);
+    await AsyncStorage.multiRemove([AUTH_SESSION_KEY, "saas_token", "saas_user"]);
     setToken(null); setUser(null); setScreen("login");
   }
 
