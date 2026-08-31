@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
+import * as Updates from "expo-updates";
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator, StatusBar, Alert,
   Platform, KeyboardAvoidingView, RefreshControl,
-  BackHandler, Linking, DeviceEventEmitter
+  BackHandler, Linking, AppState, DeviceEventEmitter
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,30 +24,21 @@ const {
 } = require("./src/runtime/EntryWindowStatus");
 
 
-// OKAI-RUNTIME-RESTART-GUARD-V1
-// Production JS errors must not delegate to React Native's default fatal
-// handler, because that handler can terminate/relaunch the Android process and
-// make the app look like it is continuously restarting. ErrorBoundary remains
-// responsible for render errors; async/global JS errors are logged here.
+// ── Global crash catcher (temporary debug tool) ──────────────
 if (typeof ErrorUtils !== "undefined" && ErrorUtils.setGlobalHandler) {
   const __defaultHandler = ErrorUtils.getGlobalHandler ? ErrorUtils.getGlobalHandler() : null;
   ErrorUtils.setGlobalHandler((error, isFatal) => {
     try {
-      console.log("OKAI_GLOBAL_RUNTIME_ERROR", {
-        fatal: !!isFatal,
-        message: String(error && error.message ? error.message : error),
-        stack: String(error && error.stack ? error.stack : "").slice(0, 1200),
-      });
-    } catch (_) {}
-
-    // In development keep the normal RN redbox/debug behaviour. In production
-    // do not call the default JS fatal handler; it may kill/relaunch the app.
-    if (__DEV__ && __defaultHandler) {
-      __defaultHandler(error, isFatal);
-    }
+      Alert.alert(
+        isFatal ? "Fatal Crash Caught" : "Error Caught",
+        String(error && error.message ? error.message : error) +
+          "\n\n" +
+          String(error && error.stack ? error.stack : "").slice(0, 600)
+      );
+    } catch (e) {}
+    if (__defaultHandler) __defaultHandler(error, isFatal);
   });
 }
-
 // ── Colors ──────────────────────────────────────────────
 
 
@@ -7672,15 +7664,98 @@ function SettingsTab({ lang, navigateTo }) {
 
 const OKAI_OTA_RELEASE = "MISSED-TRADE-AI-V2";
 
-// OKAI-INAPP-OTA-DISABLED-V2
-// In-app Expo update polling is intentionally disabled. Production OTA is
-// published by CI; the installed Expo runtime may apply it on a normal cold
-// start without this component polling/downloading while the app is running.
-// OKAI-INAPP-OTA-DISABLED-V3
-// In-app Expo update polling is intentionally disabled. Keep DashboardScreen
-// and all following application code intact; replace only OtaStatusBanner.
 function OtaStatusBanner() {
-  return null;
+  const [msg, setMsg] = useState("Checking app update...");
+  const [visible, setVisible] = useState(true);
+  const mountedRef = useRef(true);
+  const checkingRef = useRef(false);
+
+  async function checkOta(retryOnFailure = false) {
+    if (__DEV__ || checkingRef.current) {
+      if (__DEV__ && mountedRef.current) setVisible(false);
+      return;
+    }
+
+    checkingRef.current = true;
+    const delays = retryOnFailure ? [0, 3000, 10000, 30000] : [0];
+
+    try {
+      for (let attempt = 0; attempt < delays.length && mountedRef.current; attempt += 1) {
+        if (delays[attempt]) {
+          await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+        }
+        if (!mountedRef.current) return;
+
+        try {
+          setVisible(true);
+          setMsg(attempt ? `Retrying app update (${attempt + 1}/${delays.length})...` : "Checking app update...");
+          const update = await Updates.checkForUpdateAsync();
+
+          if (!update.isAvailable) {
+            setMsg(`App is up to date • ${OKAI_OTA_RELEASE}`);
+            setTimeout(() => {
+              if (mountedRef.current) setVisible(false);
+            }, 2200);
+            return;
+          }
+
+          setMsg("Downloading missed-trade AI update...");
+          await Updates.fetchUpdateAsync();
+          if (!mountedRef.current) return;
+
+          setMsg("Update downloaded • restart app when convenient");
+          setTimeout(() => {
+            if (mountedRef.current) setVisible(false);
+          }, 2500);
+          return;
+        } catch (error) {
+          if (attempt === delays.length - 1 && mountedRef.current) {
+            setMsg("Update check failed • TAP TO RETRY");
+          }
+        }
+      }
+    } finally {
+      checkingRef.current = false;
+    }
+  }
+
+  useEffect(() => {
+    mountedRef.current = true;
+    checkOta(true);
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") checkOta(true);
+    });
+
+    return () => {
+      mountedRef.current = false;
+      subscription.remove();
+    };
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.82}
+      onPress={() => checkOta(true)}
+      style={{
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: C.s2 || "#151522",
+      borderBottomWidth: 1,
+      borderBottomColor: C.border
+      }}
+    >
+      <Text style={{
+        color: C.gold || "#facc15",
+        fontSize: 12,
+        fontWeight: "900",
+        textAlign: "center"
+      }}>
+        🔄 {msg}
+      </Text>
+    </TouchableOpacity>
+  );
 }
 
 
