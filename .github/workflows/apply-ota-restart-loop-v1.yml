@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "scripts/patch_ota_restart_loop_v1.py"
+      - "scripts/patch_disable_in_app_ota_checker_v2.py"
       - ".github/workflows/apply-ota-restart-loop-v1.yml"
   workflow_dispatch:
 
@@ -20,14 +21,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply restart-loop guard
+      - name: Disable in-app OTA polling completely
         run: |
-          python3 scripts/patch_ota_restart_loop_v1.py
-          grep -q "OKAI-OTA-SINGLE-CHECK-V1" App.js
-          if grep -q 'AppState.addEventListener("change"' App.js; then
-            echo "OTA AppState re-check listener still present"
-            exit 1
-          fi
+          python3 scripts/patch_disable_in_app_ota_checker_v2.py
+          grep -q "OKAI-INAPP-OTA-DISABLED-V2" App.js
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('App.js').read_text()
+          start = text.index('function OtaStatusBanner() {')
+          end = text.index('// ── Main App', start)
+          block = text[start:end]
+          forbidden = ['checkForUpdateAsync', 'fetchUpdateAsync', 'AppState.addEventListener', 'checkOta(']
+          bad = [x for x in forbidden if x in block]
+          if bad:
+              raise SystemExit('OTA runtime calls still present: ' + ', '.join(bad))
+          PY
           git diff --check
 
       - name: Persist patched App.js
@@ -39,5 +47,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add App.js
-          git commit -m "stop repeated OTA checks from restarting app"
+          git commit -m "disable in-app OTA polling to stop restart loop"
           git push origin HEAD:main
