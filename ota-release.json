@@ -1,19 +1,19 @@
 {
-  "release": "banknifty-off-real-combined-v7",
+  "release": "entry-cutoff-1515-ota-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-31T00:30:00+05:30",
-  "reason": "Remove BANKNIFTY from every backtest and enabled-market selector after backend entry disable, and publish the Combined real-premium compatibility update.",
+  "requested_at": "2026-08-31T15:27:00+05:30",
+  "reason": "Publish the corrected fresh-entry cutoff so the app does not show ENTRY CUTOFF before 15:15 IST.",
   "validation": {
     "required_checks": [
-      "Backtest selectors contain only AUTO, NIFTY, SENSEX",
-      "AUTO copy contains only NIFTY and SENSEX",
-      "Combined mode uses backend real-premium support",
+      "Fresh entries remain allowed before 15:15 IST when no other block reason applies",
+      "ENTRY CUTOFF appears from 15:15 IST onward",
+      "Market close handling remains 15:30 IST",
       "Android Metro export succeeds",
       "Production and default channels publish successfully"
     ],
-    "ui_fix": "BANKNIFTY removed from daily, monthly, and range backtest controls plus enabled-market controls.",
-    "logic_safety": "No live order entry, exit, SL, quantity, broker, AI, or order-routing logic changes."
+    "ui_fix": "EntryWindowStatus uses AUTO_ENTRY_CUTOFF_1515_IST and no longer applies an earlier mobile cutoff.",
+    "logic_safety": "No broker order routing, quantity, SL, exit, AI scoring, or position-management logic changes."
   },
-  "trade_safety": "BANKNIFTY cannot be selected for new entries; NIFTY and SENSEX behavior is unchanged."
+  "trade_safety": "Only the mobile entry-window status release is being republished; existing backend trading rules remain unchanged."
 }
