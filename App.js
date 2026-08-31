@@ -7668,8 +7668,284 @@ const OKAI_OTA_RELEASE = "MISSED-TRADE-AI-V2";
 // In-app Expo update polling is intentionally disabled. Production OTA is
 // published by CI; the installed Expo runtime may apply it on a normal cold
 // start without this component polling/downloading while the app is running.
+// OKAI-INAPP-OTA-DISABLED-V3
+// In-app Expo update polling is intentionally disabled. Keep DashboardScreen
+// and all following application code intact; replace only OtaStatusBanner.
 function OtaStatusBanner() {
   return null;
+}
+
+
+// ── Dashboard Screen ──────────────────────────────────────
+function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
+  const [activeTab, setActiveTab] = useState("home");
+  const navigationHistoryRef = useRef(["home"]);
+  const [navigationDepth, setNavigationDepth] = useState(1);
+  const lang = initialLang || "en";
+  const setLang = onLangChange || (() => {});
+  const [subStatus, setSubStatus] = useState(null);
+  const [userFresh, setUserFresh] = useState(user);
+
+  useEffect(() => { refreshUser(); }, []);
+
+  function navigateTo(tab, options = {}) {
+    const nextTab = String(tab || "home");
+
+    if (nextTab === activeTab) {
+      return;
+    }
+
+    const replaceCurrent = !!options.replace;
+    let history = [
+      ...navigationHistoryRef.current
+    ];
+
+    if (replaceCurrent && history.length) {
+      history[history.length - 1] = nextTab;
+    } else {
+      history.push(nextTab);
+    }
+
+    if (history.length > 30) {
+      history = history.slice(-30);
+    }
+
+    navigationHistoryRef.current = history;
+    setNavigationDepth(history.length);
+    setActiveTab(nextTab);
+  }
+
+  function goBackInApp() {
+    let history = [
+      ...navigationHistoryRef.current
+    ];
+
+    if (history.length > 1) {
+      history.pop();
+
+      const previousTab =
+        history[history.length - 1]
+        || "home";
+
+      navigationHistoryRef.current =
+        history;
+      setNavigationDepth(
+        history.length
+      );
+      setActiveTab(previousTab);
+
+      return true;
+    }
+
+    if (activeTab !== "home") {
+      navigationHistoryRef.current = [
+        "home"
+      ];
+      setNavigationDepth(1);
+      setActiveTab("home");
+
+      return true;
+    }
+
+    return false;
+  }
+
+  useEffect(() => {
+    if (Platform.OS !== "android") {
+      return undefined;
+    }
+
+    const subscription =
+      BackHandler.addEventListener(
+        "hardwareBackPress",
+        goBackInApp,
+      );
+
+    return () => {
+      subscription.remove();
+    };
+  }, [activeTab]);
+
+  async function refreshUser() {
+    try {
+      const data = await apiGet("/auth/me", token);
+      setUserFresh(data.user);
+      const sub = await apiGet("/subscription/status", token);
+      setSubStatus(sub);
+    } catch {}
+  }
+
+  const isAdmin = userFresh?.role==="admin" || !!userFresh?.is_admin;
+  const serverSubscriptionStatus = subStatus?.subscription_status
+    || userFresh?.subscription_status
+    || "trial";
+  const subscriptionDaysRemaining = Number(subStatus?.days_remaining ?? 0);
+  const effectiveSubscriptionStatus = isAdmin ? "active" : serverSubscriptionStatus;
+  const subscriptionExpired = !isAdmin && (
+    effectiveSubscriptionStatus === "expired"
+    || (effectiveSubscriptionStatus === "trial" && subscriptionDaysRemaining <= 0)
+  );
+  const trialEndingSoon = !isAdmin
+    && effectiveSubscriptionStatus === "trial"
+    && subscriptionDaysRemaining > 0
+    && subscriptionDaysRemaining <= 2;
+  const displayUser = {
+    ...(userFresh || user || {}),
+    subscription_status: effectiveSubscriptionStatus,
+    is_admin: !!isAdmin,
+  };
+  const displaySubStatus = isAdmin
+    ? {
+        ...(subStatus || {}),
+        subscription_status: "active",
+        days_remaining: null,
+        unlimited: true,
+      }
+    : subStatus;
+
+  const tabs = [
+    { id: "home", icon: "🏠", label: lang === "hi" ? "होम" : "Home" },
+    { id: "trade", icon: "🧾", label: lang === "hi" ? "ट्रेड" : "Trade" },
+    { id: "bot", icon: "🤖", label: lang === "hi" ? "बॉट" : "Bot" },
+    { id: "tools", icon: "🧰", label: lang === "hi" ? "टूल्स" : "Tools" },
+    { id: "guide", icon: "❓", label: lang === "hi" ? "मदद" : "Help" },
+    { id: "account", icon: "👤", label: lang === "hi" ? "खाता" : "Account" },
+  ];
+
+  return (
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <StatusBar style="light" />
+
+      {/* Header */}
+      <View style={{ backgroundColor: C.s1, paddingTop: 50,
+        paddingBottom: 14, paddingHorizontal: 16,
+        borderBottomWidth: 1, borderBottomColor: C.border }}>
+        <Row style={{ justifyContent: "space-between" }}>
+          <Row style={{ gap: 10 }}>
+            {navigationDepth > 1 && (
+              <TouchableOpacity
+                onPress={goBackInApp}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: C.s3,
+                  borderWidth: 1,
+                  borderColor: C.border2,
+                }}
+              >
+                <Text style={{
+                  color: C.text,
+                  fontSize: 21,
+                  fontWeight: "900",
+                }}>
+                  ‹
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={{ width: 38, height: 38, borderRadius: 10,
+              backgroundColor: C.accentLo, borderWidth: 1,
+              borderColor: C.accent+"55", alignItems: "center",
+              justifyContent: "center" }}>
+              <Text style={{ fontSize: 18 }}></Text>
+            </View>
+            <View>
+              <Text style={{ color: C.text, fontSize: 15,
+                fontWeight: "900" }}>Option King AI</Text>
+              <Text style={{ color: C.muted, fontSize: 10,
+                fontWeight: "700" }}>
+                {userFresh?.name || user?.name || "User"}
+              </Text>
+            </View>
+          </Row>
+          <Tag label={isAdmin ? "ADMIN" : effectiveSubscriptionStatus.toUpperCase()}
+            color={isAdmin || effectiveSubscriptionStatus==="active" ? C.green : C.accent} />
+        </Row>
+      </View>
+
+      {/* Subscription warning */}
+      {subscriptionExpired && (
+        <TouchableOpacity
+          onPress={() => navigateTo("more")}
+          style={{ backgroundColor: C.redLo, borderRadius: 12,
+            padding: 14, margin: 16, marginBottom: 0,
+            borderWidth: 1, borderColor: C.red+"55" }}>
+          <Text style={{ color: C.red, fontWeight: "900",
+            fontSize: 13 }}> Trial khatam — Subscribe karo → ₹1,999/month</Text>
+        </TouchableOpacity>
+      )}
+      {trialEndingSoon && (
+        <TouchableOpacity
+          onPress={() => navigateTo("more")}
+          style={{ backgroundColor: C.goldLo, borderRadius: 12,
+            padding: 14, margin: 16, marginBottom: 0,
+            borderWidth: 1, borderColor: C.gold+"55" }}>
+          <Text style={{ color: C.gold, fontWeight: "900",
+            fontSize: 13 }}>⏳ Trial {subscriptionDaysRemaining} din me khatam hoga — ₹1,999/month</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Content */}
+      <ScrollView style={{ flex: 1 }}
+        contentContainerStyle={{ flexGrow: 1 }}>
+        <OtaStatusBanner />
+
+        {activeTab === "home" && (
+          <HomeTab user={displayUser} subStatus={displaySubStatus} token={token}
+            setActiveTab={navigateTo} onSubscribe={() => navigateTo("more")}
+            onPageRefresh={refreshUser} lang={lang} />
+        )}
+        {activeTab === "score" && <ScoreTab token={token} />}
+        {activeTab === "markets" && <MarketsTab token={token} lang={lang} />}
+        {activeTab === "trade" && <TradeTab token={token} />}
+        {activeTab === "guide" && <GuideTab lang={lang} setLang={setLang} />}
+        {activeTab === "tools" && <SettingsTab lang={lang} navigateTo={navigateTo} />}
+        {activeTab === "more" && <MoreTab token={token} user={displayUser} lang={lang} setLang={setLang} isAdmin={isAdmin} navigateTo={navigateTo} />}
+        {activeTab === "localgateway" && <LocalGatewayScreen token={token} lang={lang} />}
+        {activeTab === "backtest" && (
+          <TabErrorBoundary>
+            <BacktestTab token={token} lang={lang} />
+          </TabErrorBoundary>
+        )}
+        {activeTab === "bot" && <BotTab token={token} lang={lang} />}
+        {activeTab === "broker" && <BrokerTab token={token} lang={lang} />}
+        {activeTab === "telegram" && <TelegramConnectCard token={token} lang={lang} />}
+        {activeTab === "strategybuilder" && <StrategyBuilderTab token={token} />}
+        {activeTab === "livefeed" && <LiveFeedTab token={token} />}
+        {activeTab === "servertest" && <ServerTestTab token={token} />}
+        {activeTab === "herozero" && <HeroZeroTab token={token} />}
+        {activeTab === "plans" && (
+          <PlansTab token={token} user={displayUser}
+            onSuccess={refreshUser} />
+        )}
+        {activeTab === "admin" && isAdmin && (
+          <AdminTab token={token} user={userFresh} lang={lang} />
+        )}
+        {activeTab === "account" && (
+          <TabErrorBoundary><AccountTab user={displayUser} subStatus={displaySubStatus} onLogout={onLogout} onRefresh={refreshUser} lang={lang} token={token} /></TabErrorBoundary>
+        )}
+      </ScrollView>
+
+      {/* Bottom Tabs */}
+      <View style={{ position: "absolute", bottom: 0, left: 0, right: 0,
+        backgroundColor: C.s1, borderTopWidth: 1,
+        borderTopColor: C.border, flexDirection: "row",
+        paddingBottom: Platform.OS==="ios"?24:10, paddingTop: 10 }}>
+        {tabs.map(t => (
+          <TouchableOpacity key={t.id}
+            onPress={() => navigateTo(t.id)}
+            style={{ flex: 1, alignItems: "center", gap: 3 }}>
+            <Text style={{ fontSize: 16 }}>{t.icon}</Text>
+            <Text style={{ color: activeTab===t.id?C.accent:C.muted,
+              fontSize: 8.5, fontWeight: "900" }}>{t.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
 }
 
 // ── Main App ──────────────────────────────────────────────
