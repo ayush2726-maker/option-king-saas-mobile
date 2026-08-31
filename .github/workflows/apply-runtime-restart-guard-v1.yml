@@ -1,0 +1,54 @@
+name: Apply Runtime Restart Guard V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/patch_runtime_restart_guard_v1.py"
+      - ".github/workflows/apply-runtime-restart-guard-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-runtime-restart-guard-v1
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply production restart guard
+        run: |
+          python3 scripts/patch_runtime_restart_guard_v1.py
+          grep -q "OKAI-RUNTIME-RESTART-GUARD-V1" App.js
+          grep -q "function DashboardScreen(" App.js
+          grep -q "function InnerApp()" App.js
+          grep -q "function OtaStatusBanner()" App.js
+          if grep -q 'import \* as Updates from "expo-updates"' App.js; then
+            echo "expo-updates import still present"
+            exit 1
+          fi
+          if grep -q 'Linking, AppState, DeviceEventEmitter' App.js; then
+            echo "AppState import still present"
+            exit 1
+          fi
+          git diff --check
+
+      - name: Persist patched App.js
+        run: |
+          if git diff --quiet -- App.js; then
+            echo "App.js already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "stop production JS fatal handler restart loop"
+          git push origin HEAD:main
