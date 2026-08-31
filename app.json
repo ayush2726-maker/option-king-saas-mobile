@@ -2,7 +2,7 @@
   "expo": {
     "name": "Option King AI",
     "slug": "option-king-saas",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -19,16 +19,16 @@
     ],
     "android": {
       "package": "com.optionkingai.saas",
-      "versionCode": 7,
+      "versionCode": 8,
       "jsEngine": "jsc"
     },
     "ios": {
       "bundleIdentifier": "com.optionkingai.saas",
-      "buildNumber": "1"
+      "buildNumber": "2"
     },
     "extra": {
       "saasUrl": "https://option-king-saas-production.up.railway.app",
-      "buildMarker": "option-king-ai-v7-biometric-final",
+      "buildMarker": "option-king-ai-v8-native-ota-disabled",
       "eas": {
         "projectId": "53c0c5ce-07e1-4036-9bda-62c8cf063d62"
       }
@@ -38,7 +38,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/53c0c5ce-07e1-4036-9bda-62c8cf063d62"
+      "enabled": false,
+      "checkAutomatically": "NEVER",
+      "fallbackToCacheTimeout": 0
     }
   }
 }
