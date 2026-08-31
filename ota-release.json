@@ -1,20 +1,17 @@
 {
-  "release": "runtime-restart-guard-v1",
+  "release": "pre-restart-rollback-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-31T19:20:00+05:30",
-  "reason": "Publish App.js commit 096a17dd7653f1f725efbdfc471d133f161f92b4 which prevents the production global JS error handler from delegating fatal errors to React Native's default handler and removes unused runtime OTA/AppState imports. User video still showed InnerApp remount/loading, so this guard must be delivered before further diagnosis.",
-  "source_commit": "096a17dd7653f1f725efbdfc471d133f161f92b4",
+  "requested_at": "2026-08-31T19:31:00+05:30",
+  "reason": "Publish rollback App.js restored from the last known pre-restart state to test and eliminate the restart regression without a new APK build.",
+  "source_commit": "01770c0c23dbc9e157ddd4e03278c5746347d714",
   "validation": {
     "required_checks": [
-      "DashboardScreen function exists",
       "Persistent auth session remains intact",
-      "No in-app OTA polling",
-      "Production fatal handler does not delegate to default handler",
+      "DashboardScreen exists",
       "Android export succeeds",
       "Production and default OTA channels publish successfully"
     ],
-    "logic_safety": "No broker execution, quantity, SL, exit, AI scoring, or trading-strategy logic changes."
-  },
-  "trade_safety": "Runtime lifecycle only; trading logic unchanged."
+    "logic_safety": "Rollback is limited to mobile app runtime/UI state; no backend broker or trading-strategy changes."
+  }
 }
