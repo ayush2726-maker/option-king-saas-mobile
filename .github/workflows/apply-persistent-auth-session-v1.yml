@@ -1,0 +1,46 @@
+name: Apply Persistent Auth Session V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/patch_persistent_auth_session_v1.py"
+      - ".github/workflows/apply-persistent-auth-session-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-persistent-auth-session-v1
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch persistent login session
+        run: |
+          python3 scripts/patch_persistent_auth_session_v1.py
+          grep -q "OKAI-PERSISTENT-AUTH-SESSION-V1" App.js
+          grep -q "okai_auth_session_v2" App.js
+          grep -q "await persistSession(t, u)" App.js
+          grep -q 'multiRemove(\[AUTH_SESSION_KEY, "saas_token", "saas_user"\])' App.js
+          git diff --check
+
+      - name: Commit patched App.js
+        run: |
+          if git diff --quiet -- App.js; then
+            echo "App.js already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "fix persistent mobile login session"
+          git push origin HEAD:main
