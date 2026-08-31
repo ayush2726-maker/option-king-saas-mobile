@@ -26,6 +26,7 @@ jobs:
 
       - name: Disable runtime OTA polling
         run: |
+          echo "Disabling all in-app Expo OTA polling"
           python3 scripts/patch_disable_in_app_ota_checker_v2.py
           grep -q "OKAI-INAPP-OTA-DISABLED-V2" App.js
           python3 - <<'PY'
