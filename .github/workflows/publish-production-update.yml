@@ -158,6 +158,7 @@ jobs:
             npm run ai:health
             npm run language:test
             npm run score-consistency:test
+            npm run angel-broker-save:test
             node scripts/test-missed-trade-learning-ui.js
             npx expo install --check
           } 2>&1 | tee /tmp/okai-ota/checks.log

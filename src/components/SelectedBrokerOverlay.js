@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  DeviceEventEmitter,
   Text,
   TouchableOpacity,
   View,
@@ -62,10 +63,15 @@ export default function SelectedBrokerOverlay() {
   useEffect(() => {
     aliveRef.current = true;
     loadSelection();
+    const brokerSavedSubscription = DeviceEventEmitter.addListener(
+      "okai:broker-saved",
+      loadSelection
+    );
     const timer = setInterval(loadSelection, 15000);
     return () => {
       aliveRef.current = false;
       clearInterval(timer);
+      brokerSavedSubscription.remove();
     };
   }, []);
 

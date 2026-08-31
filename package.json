@@ -16,6 +16,7 @@
     "ledger-sync:test": "node scripts/test-authoritative-ledger-sync.js",
     "admin-pnl:test": "node scripts/test-admin-user-pnl.js",
     "broker-rate-limit:test": "node scripts/test-broker-rate-limit.js",
+    "angel-broker-save:test": "node scripts/test-angel-broker-save.js",
     "live-risk-sizing:test": "node scripts/test-live-risk-sizing.js"
   },
   "dependencies": {

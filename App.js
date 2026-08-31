@@ -4,7 +4,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator, StatusBar, Alert,
   Platform, KeyboardAvoidingView, RefreshControl,
-  BackHandler, Linking, AppState
+  BackHandler, Linking, AppState, DeviceEventEmitter
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -973,8 +973,6 @@ function BrokerTab({ token, lang }) {
         set: setClientId, placeholder: hi ? "Aapka Angel One Client ID" : "Your Angel One Client ID" },
       { key: "apiKey", label: "API Key", state: apiKey,
         set: setApiKey, placeholder: "Angel One API Key" },
-      { key: "apiSecret", label: "API Secret", state: apiSecret,
-        set: setApiSecret, placeholder: "API Secret Key" },
       { key: "mpin", label: "MPIN", state: mpin,
         set: setMpin, placeholder: hi ? "4-digit MPIN" : "4-digit MPIN", secure: true },
       { key: "totpKey", label: "TOTP Key", state: totpKey,
@@ -1021,7 +1019,22 @@ function BrokerTab({ token, lang }) {
   }
 
   async function saveBroker() {
-    setError(""); setSuccess(""); setLoading(true);
+    setError(""); setSuccess("");
+
+    if (broker === "angelone") {
+      if (!clientId.trim() || !apiKey.trim() || !mpin.trim() || !totpKey.trim()) {
+        setError(hi
+          ? "Angel One ke liye Client ID, API Key, 4-digit MPIN aur TOTP Secret bharna zaroori hai."
+          : "Client ID, API Key, 4-digit MPIN and TOTP Secret are required for Angel One.");
+        return;
+      }
+      if (!/^\d{4}$/.test(mpin.trim())) {
+        setError(hi ? "Angel One MPIN 4 digits ka hona chahiye." : "Angel One MPIN must be 4 digits.");
+        return;
+      }
+    }
+
+    setLoading(true);
     try {
       const d = await apiPostAuth("/broker/connect", {
         broker_name: broker,
@@ -1029,11 +1042,16 @@ function BrokerTab({ token, lang }) {
           ? clientId.trim()
           : clientId.trim().toUpperCase(),
         api_key: apiKey.trim(),
-        api_secret: broker === "angelone" ? (apiSecret.trim() || mpin.trim()) : apiSecret.trim(),
+        // SmartAPI generateSession expects the Angel One MPIN here. Angel One
+        // does not issue a separate API Secret for this login request.
+        api_secret: broker === "angelone" ? mpin.trim() : apiSecret.trim(),
         totp_secret: broker === "angelone" ? totpKey.trim() : ""
       }, token);
       if (d.success) {
         setSuccess(hi ? "✅ Broker credentials save ho gaye!" : "✅ Broker credentials saved!");
+        DeviceEventEmitter.emit("okai:broker-saved", {
+          broker: String(d.selected_broker || d.broker || broker).toLowerCase(),
+        });
       } else {
         const detail = typeof d.detail === "string"
           ? d.detail
