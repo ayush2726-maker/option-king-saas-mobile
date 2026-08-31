@@ -1,0 +1,43 @@
+name: Apply OTA Restart Loop Guard V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/patch_ota_restart_loop_v1.py"
+      - ".github/workflows/apply-ota-restart-loop-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply restart-loop guard
+        run: |
+          python3 scripts/patch_ota_restart_loop_v1.py
+          grep -q "OKAI-OTA-SINGLE-CHECK-V1" App.js
+          if grep -q 'AppState.addEventListener("change"' App.js; then
+            echo "OTA AppState re-check listener still present"
+            exit 1
+          fi
+          git diff --check
+
+      - name: Persist patched App.js
+        run: |
+          if git diff --quiet -- App.js; then
+            echo "App.js already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "stop repeated OTA checks from restarting app"
+          git push origin HEAD:main
