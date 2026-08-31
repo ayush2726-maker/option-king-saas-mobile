@@ -193,16 +193,17 @@ assert.deepStrictEqual(
 );
 
 // Explicit UTC timestamps map to the stated IST entry-window boundaries.
-assert.strictEqual(marketTimeReason(Date.parse("2026-08-11T09:14:00Z")), "");
+assert.strictEqual(marketTimeReason(Date.parse("2026-08-11T09:44:00Z")), "");
 assert.strictEqual(
-  marketTimeReason(Date.parse("2026-08-11T09:15:00Z")),
-  "AUTO_ENTRY_CUTOFF_1445_IST"
+  marketTimeReason(Date.parse("2026-08-11T09:45:00Z")),
+  "AUTO_ENTRY_CUTOFF_1515_IST"
 );
 assert.strictEqual(
   marketTimeReason(Date.parse("2026-08-11T10:00:00Z")),
   "MARKET_CLOSED_AFTER_1530_IST"
 );
-assert.strictEqual(marketTimeLabel("AUTO_ENTRY_CUTOFF_1445_IST"), "ENTRY CUTOFF");
+assert.strictEqual(marketTimeLabel("AUTO_ENTRY_CUTOFF_1515_IST"), "ENTRY CUTOFF");
+assert.strictEqual(marketTimeLabel("FRESH_ENTRY_CUTOFF_15_15_IST"), "ENTRY CUTOFF");
 assert.strictEqual(marketTimeLabel("MARKET_CLOSED_AFTER_1530_IST"), "MARKET CLOSED");
 assert.strictEqual(
   executionBlockReason(
