@@ -1,19 +1,20 @@
 {
-  "release": "ota-restart-loop-guard-v1",
+  "release": "in-app-ota-disabled-v2",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-31T17:10:00+05:30",
-  "reason": "Publish the already-applied App.js OTA single-check guard so Android no longer re-checks OTA on every AppState active transition and the dashboard does not repeatedly restart.",
-  "source_commit": "0089965fedbf0cbb44a098853aa74a021dc0ff2e",
+  "requested_at": "2026-08-31T17:19:00+05:30",
+  "reason": "Disable the in-app Expo OTA checker completely because the single-check guard was delivered but the app still repeatedly restarted. OtaStatusBanner now performs zero runtime update checks or downloads.",
+  "source_commit": "5ed7bf2592adc6b3ecec0924e0cce123015bb362",
   "validation": {
     "required_checks": [
-      "OTA check runs once per JS launch",
-      "No AppState active OTA re-check listener",
-      "No retry loop on normal startup",
+      "OtaStatusBanner returns null",
+      "No checkForUpdateAsync in OtaStatusBanner",
+      "No fetchUpdateAsync in OtaStatusBanner",
+      "No AppState OTA listener in OtaStatusBanner",
       "Persistent login session remains intact",
       "Production and default OTA channels publish successfully"
     ],
-    "ui_fix": "OKAI-OTA-SINGLE-CHECK-V1",
+    "ui_fix": "OKAI-INAPP-OTA-DISABLED-V2",
     "logic_safety": "No broker execution, quantity, SL, exit, AI scoring, or trading-strategy logic changes."
   },
   "trade_safety": "OTA lifecycle only; trading logic remains unchanged."
