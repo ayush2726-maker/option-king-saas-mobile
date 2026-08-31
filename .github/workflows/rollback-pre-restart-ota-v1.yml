@@ -25,8 +25,8 @@ jobs:
 
       - name: Restore last known pre-restart App.js and OTA runtime config
         run: |
-          echo "Rolling back to d6079906 pre-restart mobile state"
-          git show d6079906c41aea94c270af6a95c3fa2218a66947:App.js > App.js
+          echo "Rolling back to d607c130 pre-restart mobile state"
+          git show d607c1307c2d7fd08ad8c62c952e2fb2e371719c:App.js > App.js
           cat > app.json <<'JSON'
           {
             "expo": {
