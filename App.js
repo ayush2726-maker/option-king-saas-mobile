@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import * as Updates from "expo-updates";
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, ActivityIndicator, StatusBar, Alert,
   Platform, KeyboardAvoidingView, RefreshControl,
-  BackHandler, Linking, AppState, DeviceEventEmitter
+  BackHandler, Linking, DeviceEventEmitter
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,21 +23,30 @@ const {
 } = require("./src/runtime/EntryWindowStatus");
 
 
-// ── Global crash catcher (temporary debug tool) ──────────────
+// OKAI-RUNTIME-RESTART-GUARD-V1
+// Production JS errors must not delegate to React Native's default fatal
+// handler, because that handler can terminate/relaunch the Android process and
+// make the app look like it is continuously restarting. ErrorBoundary remains
+// responsible for render errors; async/global JS errors are logged here.
 if (typeof ErrorUtils !== "undefined" && ErrorUtils.setGlobalHandler) {
   const __defaultHandler = ErrorUtils.getGlobalHandler ? ErrorUtils.getGlobalHandler() : null;
   ErrorUtils.setGlobalHandler((error, isFatal) => {
     try {
-      Alert.alert(
-        isFatal ? "Fatal Crash Caught" : "Error Caught",
-        String(error && error.message ? error.message : error) +
-          "\n\n" +
-          String(error && error.stack ? error.stack : "").slice(0, 600)
-      );
-    } catch (e) {}
-    if (__defaultHandler) __defaultHandler(error, isFatal);
+      console.log("OKAI_GLOBAL_RUNTIME_ERROR", {
+        fatal: !!isFatal,
+        message: String(error && error.message ? error.message : error),
+        stack: String(error && error.stack ? error.stack : "").slice(0, 1200),
+      });
+    } catch (_) {}
+
+    // In development keep the normal RN redbox/debug behaviour. In production
+    // do not call the default JS fatal handler; it may kill/relaunch the app.
+    if (__DEV__ && __defaultHandler) {
+      __defaultHandler(error, isFatal);
+    }
   });
 }
+
 // ── Colors ──────────────────────────────────────────────
 
 
