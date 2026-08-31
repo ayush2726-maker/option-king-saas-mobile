@@ -1,21 +1,20 @@
 {
-  "release": "dashboard-screen-restore-v1",
+  "release": "runtime-restart-guard-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-31T18:39:00+05:30",
-  "reason": "Publish repaired App.js after the previous OTA-disable patch accidentally removed DashboardScreen. Current main restores DashboardScreen and keeps in-app OTA polling disabled safely.",
-  "source_commit": "d275ffcb95448d3adbba8caaa6ae4d2d11d06906",
+  "requested_at": "2026-08-31T19:20:00+05:30",
+  "reason": "Publish App.js commit 096a17dd7653f1f725efbdfc471d133f161f92b4 which prevents the production global JS error handler from delegating fatal errors to React Native's default handler and removes unused runtime OTA/AppState imports. User video still showed InnerApp remount/loading, so this guard must be delivered before further diagnosis.",
+  "source_commit": "096a17dd7653f1f725efbdfc471d133f161f92b4",
   "validation": {
     "required_checks": [
       "DashboardScreen function exists",
-      "InnerApp function exists",
-      "OtaStatusBanner returns null",
-      "No runtime Expo OTA polling in OtaStatusBanner",
+      "Persistent auth session remains intact",
+      "No in-app OTA polling",
+      "Production fatal handler does not delegate to default handler",
       "Android export succeeds",
       "Production and default OTA channels publish successfully"
     ],
-    "ui_fix": "OKAI-INAPP-OTA-DISABLED-V3",
     "logic_safety": "No broker execution, quantity, SL, exit, AI scoring, or trading-strategy logic changes."
   },
-  "trade_safety": "UI/OTA lifecycle repair only; trading logic unchanged."
+  "trade_safety": "Runtime lifecycle only; trading logic unchanged."
 }
