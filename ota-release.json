@@ -1,19 +1,21 @@
 {
-  "release": "entry-cutoff-1515-ota-v1",
+  "release": "persistent-auth-session-v1",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-08-31T15:27:00+05:30",
-  "reason": "Publish the corrected fresh-entry cutoff so the app does not show ENTRY CUTOFF before 15:15 IST.",
+  "requested_at": "2026-08-31T16:30:00+05:30",
+  "reason": "Persist login token and cached user atomically so successful login is not lost during app or OTA restart, and restore dashboard from a valid saved token even when cached user JSON is missing or temporarily stale.",
+  "source_commit": "d6079906c41aea94c270af6a95c3fa2218a66947",
   "validation": {
     "required_checks": [
-      "Fresh entries remain allowed before 15:15 IST when no other block reason applies",
-      "ENTRY CUTOFF appears from 15:15 IST onward",
-      "Market close handling remains 15:30 IST",
+      "Successful login awaits AsyncStorage persistence before opening dashboard",
+      "Saved token restores dashboard even if cached user JSON is missing",
+      "Transient /auth/me failure does not force Login screen",
+      "Explicit Logout clears both new and legacy session keys",
       "Android Metro export succeeds",
-      "Production and default channels publish successfully"
+      "Production and default OTA channels publish successfully"
     ],
-    "ui_fix": "EntryWindowStatus uses AUTO_ENTRY_CUTOFF_1515_IST and no longer applies an earlier mobile cutoff.",
-    "logic_safety": "No broker order routing, quantity, SL, exit, AI scoring, or position-management logic changes."
+    "ui_fix": "OKAI-PERSISTENT-AUTH-SESSION-V1",
+    "logic_safety": "No broker execution, quantity, SL, exit, AI scoring, or trading-strategy logic changes."
   },
-  "trade_safety": "Only the mobile entry-window status release is being republished; existing backend trading rules remain unchanged."
+  "trade_safety": "Authentication persistence only; trading logic remains unchanged."
 }
