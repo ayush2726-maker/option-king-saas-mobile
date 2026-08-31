@@ -1,0 +1,64 @@
+name: Rollback Pre-Restart OTA V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/rollback-pre-restart-ota-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rollback-pre-restart-ota-v1
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore last known pre-restart App.js and OTA runtime config
+        run: |
+          git show d6079906c41aea94c270af6a95c3fa2218a66947:App.js > App.js
+          cat > app.json <<'JSON'
+          {
+            "expo": {
+              "name": "Option King AI",
+              "slug": "option-king-saas",
+              "version": "1.0.1",
+              "orientation": "portrait",
+              "icon": "./assets/icon.png",
+              "userInterfaceStyle": "dark",
+              "splash": {"backgroundColor": "#040d18"},
+              "plugins": [["expo-local-authentication", {"faceIDPermission": "Allow Option King AI to use Face ID for secure app unlock."}]],
+              "android": {"package": "com.optionkingai.saas", "versionCode": 7, "jsEngine": "jsc"},
+              "ios": {"bundleIdentifier": "com.optionkingai.saas", "buildNumber": "1"},
+              "extra": {
+                "saasUrl": "https://option-king-saas-production.up.railway.app",
+                "buildMarker": "option-king-ai-v7-biometric-final",
+                "eas": {"projectId": "53c0c5ce-07e1-4036-9bda-62c8cf063d62"}
+              },
+              "jsEngine": "jsc",
+              "runtimeVersion": {"policy": "appVersion"},
+              "updates": {"url": "https://u.expo.dev/53c0c5ce-07e1-4036-9bda-62c8cf063d62"}
+            }
+          }
+          JSON
+          grep -q "OKAI-PERSISTENT-AUTH-SESSION-V1" App.js
+          grep -q "function DashboardScreen(" App.js
+          grep -q '"version": "1.0.1"' app.json
+          git diff --check
+
+      - name: Commit rollback
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js app.json
+          git commit -m "rollback mobile to pre-restart OTA state"
+          git push origin HEAD:main
