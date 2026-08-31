@@ -1,0 +1,54 @@
+name: Apply Disable In-App OTA V2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/patch_disable_in_app_ota_checker_v2.py"
+      - ".github/workflows/apply-disable-in-app-ota-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-disable-in-app-ota-v2
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Disable runtime OTA polling
+        run: |
+          python3 scripts/patch_disable_in_app_ota_checker_v2.py
+          grep -q "OKAI-INAPP-OTA-DISABLED-V2" App.js
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('App.js').read_text()
+          start = text.index('function OtaStatusBanner() {')
+          end = text.index('// ── Main App', start)
+          block = text[start:end]
+          forbidden = ['checkForUpdateAsync', 'fetchUpdateAsync', 'AppState.addEventListener', 'checkOta(']
+          bad = [x for x in forbidden if x in block]
+          if bad:
+              raise SystemExit('OTA calls still present in banner: ' + ', '.join(bad))
+          PY
+          git diff --check
+
+      - name: Persist patched App.js
+        run: |
+          if git diff --quiet -- App.js; then
+            echo "App.js already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "disable in-app OTA polling to stop restart loop"
+          git push origin HEAD:main
