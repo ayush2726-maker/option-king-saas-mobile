@@ -184,12 +184,13 @@ function AdminUserPnlCard({ token, initiallyOpen = true }) {
 
                 React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900", marginTop: 7, marginBottom: 7 } }, "User-wise P&L"),
                 users.map((user) => {
+                  const activeMode = String(user?.active_mode || "paper").toUpperCase();
                   const todayNet = Number(user?.today_net_pnl || 0);
-                  const openNet = Number(user?.combined?.all_time?.open_pnl || 0);
+                  const openNet = Number(user?.open_pnl || 0);
                   const paperNet = Number(user?.paper?.all_time?.net_pnl || 0);
                   const liveNet = Number(user?.live?.all_time?.net_pnl || 0);
                   const totalNet = Number(user?.all_time_net_pnl || 0);
-                  const unpriced = Number(user?.combined?.all_time?.unpriced_open_trades || 0);
+                  const unpriced = Number(user?.unpriced_open_trades || 0);
                   return React.createElement(
                     View,
                     {
@@ -212,7 +213,16 @@ function AdminUserPnlCard({ token, initiallyOpen = true }) {
                         React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900" } }, user?.name || "User"),
                         React.createElement(Text, { style: { color: C.muted, fontSize: 9, marginTop: 2 } }, user?.email || "--")
                       ),
-                      React.createElement(Text, { style: { color: pnlColor(totalNet), fontSize: 13, fontWeight: "900" } }, money(totalNet))
+                      React.createElement(
+                        View,
+                        { style: { alignItems: "flex-end" } },
+                        React.createElement(Text, { style: { color: pnlColor(totalNet), fontSize: 13, fontWeight: "900" } }, money(totalNet)),
+                        React.createElement(
+                          Text,
+                          { style: { color: activeMode === "LIVE" ? C.green : C.blue, fontSize: 8, fontWeight: "900", marginTop: 2 } },
+                          `${activeMode} TOTAL`
+                        )
+                      )
                     ),
                     React.createElement(
                       View,
