@@ -1,0 +1,67 @@
+name: Apply Paper Capital Display V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/triggers/paper-capital-display-v1.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Make paper Current Capital show configured paper capital
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('App.js')
+          s = p.read_text()
+          old = '''  const currentCapital = hasServerCurrentCapital
+    ? Number(ledgerCurrentCapital)
+    : mode === "paper"
+    ? fallbackStartingCapital + Number(signal?.total_pnl || 0)
+    : null;'''
+          new = '''  // In PAPER mode the dashboard must show the configured paper capital itself.
+  // Historical cumulative P&L remains visible separately in Total P&L and must
+  // not be added back into the capital value the user just saved.
+  const currentCapital = mode === "paper"
+    ? fallbackStartingCapital
+    : hasServerCurrentCapital
+    ? Number(ledgerCurrentCapital)
+    : null;'''
+          count = s.count(old)
+          if count == 0:
+              raise SystemExit('Expected Current Capital formula not found')
+          s = s.replace(old, new)
+          p.write_text(s)
+          print(f'Patched {count} Current Capital formula block(s)')
+          PY
+          grep -q 'const currentCapital = mode === "paper"' App.js
+          git diff --check
+
+      - name: Validate flexible capital path
+        shell: bash
+        run: |
+          node scripts/test-paper-capital-flexible.js
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          if git diff --quiet -- App.js; then
+            echo "Already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "Fix paper capital display after save"
+          git push origin HEAD:main
