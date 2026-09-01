@@ -18,40 +18,26 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Make paper Current Capital show configured paper capital
+      - name: Patch paper capital dashboard value
         shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p = Path('App.js')
           s = p.read_text()
-          old = '''  const currentCapital = hasServerCurrentCapital
-    ? Number(ledgerCurrentCapital)
-    : mode === "paper"
-    ? fallbackStartingCapital + Number(signal?.total_pnl || 0)
-    : null;'''
-          new = '''  // In PAPER mode the dashboard must show the configured paper capital itself.
-  // Historical cumulative P&L remains visible separately in Total P&L and must
-  // not be added back into the capital value the user just saved.
-  const currentCapital = mode === "paper"
-    ? fallbackStartingCapital
-    : hasServerCurrentCapital
-    ? Number(ledgerCurrentCapital)
-    : null;'''
+          old = '  const currentCapital = hasServerCurrentCapital\n    ? Number(ledgerCurrentCapital)\n    : mode === "paper"\n    ? fallbackStartingCapital + Number(signal?.total_pnl || 0)\n    : null;'
+          new = '  // PAPER dashboard shows the configured paper capital; cumulative P&L is displayed separately.\n  const currentCapital = mode === "paper"\n    ? fallbackStartingCapital\n    : hasServerCurrentCapital\n    ? Number(ledgerCurrentCapital)\n    : null;'
           count = s.count(old)
           if count == 0:
               raise SystemExit('Expected Current Capital formula not found')
-          s = s.replace(old, new)
-          p.write_text(s)
+          p.write_text(s.replace(old, new))
           print(f'Patched {count} Current Capital formula block(s)')
           PY
           grep -q 'const currentCapital = mode === "paper"' App.js
           git diff --check
 
       - name: Validate flexible capital path
-        shell: bash
-        run: |
-          node scripts/test-paper-capital-flexible.js
+        run: node scripts/test-paper-capital-flexible.js
 
       - name: Commit patch
         shell: bash
