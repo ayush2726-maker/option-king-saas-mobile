@@ -1,1 +1,1 @@
-Trigger paper-capital display fix v1
+Trigger paper-capital display fix v1 - retry 2
