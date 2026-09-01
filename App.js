@@ -2331,6 +2331,9 @@ function AdminTab({ token, user, lang }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [paperCapital, setPaperCapital] = useState("");
+  const [capitalMsg, setCapitalMsg] = useState("");
+  const [capitalSaving, setCapitalSaving] = useState(false);
 
   const isAdmin = user?.role === "admin" || user?.is_admin;
 
@@ -2338,16 +2341,57 @@ function AdminTab({ token, user, lang }) {
     if (!isAdmin) return;
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const [s, u] = await Promise.all([
+      const [s, u, p] = await Promise.all([
         apiGet("/admin/stats", token),
         apiGet("/admin/users", token),
+        apiGet("/paper/account", token),
       ]);
       setStats(s); setUsers(u.users || []);
+      setPaperCapital(String(p?.account?.paper_capital ?? 100000));
     } catch {}
     if (isRefresh) setRefreshing(false); else setLoading(false);
   }
 
   useEffect(() => { load(false); }, []);
+
+  async function savePaperCapital() {
+    const capital = Number(paperCapital);
+    if (!Number.isFinite(capital) || capital < 1) {
+      setCapitalMsg(hi ? "Paper capital कम से कम ₹1 रखें" : "Paper capital must be at least ₹1");
+      return;
+    }
+    setCapitalSaving(true);
+    setCapitalMsg("");
+    try {
+      const result = await apiPostAuth("/paper/capital", {
+        capital,
+        make_paper_mode: false,
+      }, token);
+      setPaperCapital(String(result.paper_capital));
+      setCapitalMsg(hi ? "✅ Paper capital update हो गया" : "✅ Paper capital updated");
+    } catch (requestError) {
+      setCapitalMsg(String(requestError?.message || "Paper capital update failed"));
+    }
+    setCapitalSaving(false);
+  }
+
+  async function resetPaperCapital() {
+    const capital = Number(paperCapital);
+    if (!Number.isFinite(capital) || capital < 1) {
+      setCapitalMsg(hi ? "Paper capital कम से कम ₹1 रखें" : "Paper capital must be at least ₹1");
+      return;
+    }
+    setCapitalSaving(true);
+    setCapitalMsg("");
+    try {
+      const result = await apiPostAuth("/paper/reset", { capital }, token);
+      setPaperCapital(String(result.paper_capital));
+      setCapitalMsg(hi ? "✅ Paper P&L reset हो गया" : "✅ Paper P&L reset");
+    } catch (requestError) {
+      setCapitalMsg(String(requestError?.message || "Paper reset failed"));
+    }
+    setCapitalSaving(false);
+  }
 
   if (!isAdmin) {
     return (
@@ -2379,18 +2423,15 @@ function AdminTab({ token, user, lang }) {
         <Text style={{ color: C.muted, fontSize: 11,
           fontWeight: "800", marginBottom: 5 }}>{hi ? "Paper Capital" : "Paper Capital"}</Text>
         <TextInput style={[st.input, { marginBottom: 12 }]}
-          value={"100000"}
-          onChangeText={(v) => {
-            setPaperCapital(v);
-            setCapital(v);
-          }}
+          value={paperCapital}
+          onChangeText={setPaperCapital}
           keyboardType="numeric"
-          placeholder="100000"
+          placeholder="Enter any amount (₹1+)"
           placeholderTextColor={C.muted} />
 
         <Row style={{ gap: 10 }}>
           <Btn label={hi ? "Update Karo" : "Update"} icon="💾" color={C.green}
-            loading={loading}
+            loading={capitalSaving}
             onPress={savePaperCapital}
             style={{ flex: 1 }} />
           <Btn label={hi ? "P&L Reset Karo" : "Reset P&L"} icon="♻️" color={C.gold}
@@ -5297,8 +5338,8 @@ function BotTab({ token, lang }) {
         <Btn label={hi ? "Capital Save Karo" : "Save Capital"} icon="💾" color={C.blue} loading={saving}
           onPress={() => {
             const val = parseFloat(capitalInput);
-            if (!val || val < 1000) {
-              setError(hi ? "Paper capital kam se kam ₹1000 hona chahiye." : "Paper capital must be at least ₹1000.");
+            if (!val || val < 1) {
+              setError(hi ? "Paper capital कम से कम ₹1 होना चाहिए." : "Paper capital must be at least ₹1.");
               return;
             }
             saveSettings({ paper_capital: val });
@@ -5346,10 +5387,15 @@ function BacktestTab({ token, lang }) {
 
   async function savePaperCapital() {
     setCapitalMsg("");
+    const requestedCapital = Number(paperCapital);
+    if (!Number.isFinite(requestedCapital) || requestedCapital < 1) {
+      setCapitalMsg(hi ? "Paper capital कम से कम ₹1 रखें" : "Paper capital must be at least ₹1");
+      return;
+    }
     setLoading(true);
     try {
       const d = await apiPostAuth("/paper/capital", {
-        capital: Number(paperCapital || 100000),
+        capital: requestedCapital,
         make_paper_mode: true,
       }, token);
       const cap = String(d.paper_capital || paperCapital || 100000);
@@ -5374,10 +5420,15 @@ function BacktestTab({ token, lang }) {
 
   async function resetPaperCapital() {
     setCapitalMsg("");
+    const requestedCapital = Number(paperCapital);
+    if (!Number.isFinite(requestedCapital) || requestedCapital < 1) {
+      setCapitalMsg(hi ? "Paper capital कम से कम ₹1 रखें" : "Paper capital must be at least ₹1");
+      return;
+    }
     setLoading(true);
     try {
       const d = await apiPostAuth("/paper/reset", {
-        capital: Number(paperCapital || 100000),
+        capital: requestedCapital,
       }, token);
       const cap = String(d.paper_capital || paperCapital || 100000);
       setPaperCapital(cap);

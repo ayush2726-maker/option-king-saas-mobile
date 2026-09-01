@@ -43,6 +43,8 @@ const required = [
   "missed.recent.map((item, index) =>",
   "Load 20 more",
   "recent_pagination",
+  "exhaustion_rule_analysis",
+  "Last-two-candle exhaustion",
 ];
 
 required.forEach((marker) => {

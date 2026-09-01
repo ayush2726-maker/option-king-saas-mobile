@@ -510,6 +510,7 @@ function normalizeMissedReport(data) {
       ? recent.length < asNumber(summary.captured_total, recent.length)
       : Boolean(data.recent_pagination.has_more),
     nextLimit: asNumber(data?.recent_pagination?.next_limit, recent.length + 20),
+    exhaustionAnalysis: data?.exhaustion_rule_analysis || null,
     recent,
   };
 }
@@ -894,6 +895,18 @@ function AdvancedAiTabScreen() {
     copy,
     true
   );
+  const exhaustionAnalysis = missed?.exhaustionAnalysis || null;
+  const exhaustionStats = exhaustionAnalysis?.assessment_sample === "SOLE_REASON_ONLY"
+    ? exhaustionAnalysis?.sole_reason_only
+    : exhaustionAnalysis?.all_tagged;
+  const exhaustionKeep = exhaustionAnalysis?.assessment !== "REMOVE_HARD_BLOCK";
+  const exhaustionText = exhaustionStats?.evaluated_15m
+    ? (lang === "hi"
+      ? `Last-two-candle exhaustion: ${exhaustionKeep ? "KEEP" : "REVIEW REMOVE"} • 15m में ${exhaustionStats.block_avoided_loss} loss बचे, ${exhaustionStats.missed_profit} profit miss हुए • Net ₹${fixed(exhaustionStats.net_pnl_rupees_per_lot, 2)} per lot`
+      : `Last-two-candle exhaustion: ${exhaustionKeep ? "KEEP" : "REVIEW REMOVE"} • 15m: ${exhaustionStats.block_avoided_loss} losses avoided, ${exhaustionStats.missed_profit} profits missed • Net ₹${fixed(exhaustionStats.net_pnl_rupees_per_lot, 2)} per lot`)
+    : (lang === "hi"
+      ? "Last-two-candle exhaustion: KEEP • निर्णय के लिए अभी और outcome data चाहिए"
+      : "Last-two-candle exhaustion: KEEP • More outcome data is needed before changing this protection");
 
   return React.createElement(
     View,
@@ -1060,6 +1073,7 @@ function AdvancedAiTabScreen() {
           color: aggregate15m.color,
         })
       ),
+      React.createElement(InfoBox, { color: exhaustionKeep ? C.green : C.gold }, exhaustionText),
       missed?.recent?.length
         ? React.createElement(
             TouchableOpacity,
