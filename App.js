@@ -4628,10 +4628,11 @@ function BotTab({ token, lang }) {
       settings?.paper_capital ??
       0
   );
-  const currentCapital = hasServerCurrentCapital
+  // PAPER dashboard shows the configured paper capital; cumulative P&L is displayed separately.
+  const currentCapital = mode === "paper"
+    ? fallbackStartingCapital
+    : hasServerCurrentCapital
     ? Number(ledgerCurrentCapital)
-    : mode === "paper"
-    ? fallbackStartingCapital + Number(signal?.total_pnl || 0)
     : null;
 
   return (
