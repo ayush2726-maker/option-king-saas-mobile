@@ -3,6 +3,11 @@ from pathlib import Path
 PATH = Path("src/screens/AdvancedAiTabScreen.js")
 text = PATH.read_text(encoding="utf-8")
 
+OLD_REQUEST = 'fetchJson("/bot/ai-missed-trades?recent_limit=8")'
+SAFE_REQUEST = 'fetchJson("/bot/ai-missed-trades?recent_limit=20")'
+if OLD_REQUEST in text:
+    text = text.replace(OLD_REQUEST, SAFE_REQUEST, 1)
+
 # Keep every missed-trade row available; the UI now collapses the detail list
 # instead of silently truncating it to five rows.
 OLD_LIMIT = "missed.recent.slice(0, 5).map((item, index) => {"
@@ -114,7 +119,7 @@ checks = [
     "छूटे ट्रेड देखें",
 ]
 missing = [item for item in checks if item not in text]
-if OLD_LIMIT in text or missing:
+if OLD_LIMIT in text or OLD_REQUEST in text or missing:
     raise SystemExit(
         "Missed-trade dropdown patch verification failed: " + ", ".join(missing)
     )

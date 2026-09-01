@@ -504,6 +504,12 @@ function normalizeMissedReport(data) {
     avoidedLoss15m: asNumber(summary.block_avoided_loss_15m, 0),
     learningSamples15m: asNumber(summary.training_samples_added_15m, 0),
     netPnl15m: asNumber(summary.candidate_net_pnl_rupees_per_lot_15m, 0),
+    shown: asNumber(data?.recent_pagination?.shown, recent.length),
+    total: asNumber(data?.recent_pagination?.total, summary.captured_total || recent.length),
+    hasMore: data?.recent_pagination?.has_more == null
+      ? recent.length < asNumber(summary.captured_total, recent.length)
+      : Boolean(data.recent_pagination.has_more),
+    nextLimit: asNumber(data?.recent_pagination?.next_limit, recent.length + 20),
     recent,
   };
 }
@@ -747,6 +753,9 @@ function AdvancedAiTabScreen() {
   const [advanced, setAdvanced] = React.useState(null);
   const [news, setNews] = React.useState(null);
   const [missed, setMissed] = React.useState(null);
+  const [missedLimit, setMissedLimit] = React.useState(20);
+  const [showMissedTrades, setShowMissedTrades] = React.useState(true);
+  const OKAI_MISSED_TRADE_DROPDOWN_V6 = true;
   const [freeIndicators, setFreeIndicators] = React.useState(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState("");
@@ -780,7 +789,7 @@ function AdvancedAiTabScreen() {
     const results = await Promise.allSettled([
       fetchJson("/bot/ai-advanced-monitor?recent_limit=3"),
       fetchJson("/bot/ai-news-monitor?recent_limit=3"),
-      fetchJson("/bot/ai-missed-trades?recent_limit=8"),
+      fetchJson(`/bot/ai-missed-trades?recent_limit=${missedLimit}`),
       fetchJson("/bot/ai-free-indicators"),
     ]);
     const messages = [];
@@ -802,7 +811,7 @@ function AdvancedAiTabScreen() {
     } else messages.push(String(results[3].reason?.message || "Free indicators unavailable"));
     setError(messages.join(" • "));
     setLoading(false);
-  }, [token]);
+  }, [token, missedLimit]);
 
   React.useEffect(() => {
     if (!token) return undefined;
@@ -1053,9 +1062,44 @@ function AdvancedAiTabScreen() {
       ),
       missed?.recent?.length
         ? React.createElement(
+            TouchableOpacity,
+            {
+              accessibilityRole: "button",
+              accessibilityState: { expanded: showMissedTrades },
+              onPress: () => setShowMissedTrades((value) => !value),
+              style: {
+                marginTop: 13,
+                marginBottom: showMissedTrades ? 2 : 0,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: C.border,
+                backgroundColor: C.card2,
+                paddingHorizontal: 13,
+                paddingVertical: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              },
+            },
+            React.createElement(
+              Text,
+              { style: { color: C.text, fontSize: 12, fontWeight: "900" } },
+              `${showMissedTrades
+                ? (lang === "hi" ? "छूटे ट्रेड छिपाएँ" : "Hide missed trades")
+                : (lang === "hi" ? "छूटे ट्रेड देखें" : "View missed trades")} (${missed.recent.length}/${missed.total})`
+            ),
+            React.createElement(
+              Text,
+              { style: { color: C.gold, fontSize: 18, fontWeight: "900" } },
+              showMissedTrades ? "⌃" : "⌄"
+            )
+          )
+        : null,
+      showMissedTrades && missed?.recent?.length
+        ? React.createElement(
             View,
             { style: { marginTop: 13 } },
-            missed.recent.slice(0, 5).map((item, index) => {
+            missed.recent.map((item, index) => {
               const color = missedVerdictColor(item);
               const contract = item.candidateContract || {};
               const contractDetails = [
@@ -1117,8 +1161,42 @@ function AdvancedAiTabScreen() {
                   shorten(missedReasonText(item.reasons?.[0] || item.decisionKind, copy), 145)
                 )
               );
-            })
+            }),
+            missed.hasMore
+              ? React.createElement(
+                  TouchableOpacity,
+                  {
+                    accessibilityRole: "button",
+                    onPress: () => setMissedLimit((current) => Math.min(5000, Math.max(current + 20, missed.nextLimit))),
+                    disabled: loading,
+                    style: {
+                      marginTop: 4,
+                      borderRadius: 11,
+                      borderWidth: 1,
+                      borderColor: C.blue,
+                      paddingVertical: 11,
+                      alignItems: "center",
+                      opacity: loading ? 0.55 : 1,
+                    },
+                  },
+                  React.createElement(
+                    Text,
+                    { style: { color: C.blue, fontSize: 10.5, fontWeight: "900" } },
+                    loading
+                      ? (lang === "hi" ? "लोड हो रहा है..." : "Loading...")
+                      : (lang === "hi"
+                        ? `20 और लोड करें (${missed.recent.length}/${missed.total})`
+                        : `Load 20 more (${missed.recent.length}/${missed.total})`)
+                  )
+                )
+              : React.createElement(
+                  Text,
+                  { style: { color: C.green, fontSize: 9.5, fontWeight: "800", textAlign: "center", marginTop: 4 } },
+                  lang === "hi" ? `सभी ${missed.total} ट्रेड दिख रहे हैं` : `All ${missed.total} missed trades are shown`
+                )
           )
+        : missed?.recent?.length
+        ? null
         : React.createElement(
             Text,
             { style: { color: C.muted, fontSize: 11, lineHeight: 18, marginTop: 12 } },

@@ -30,6 +30,17 @@ jobs:
             exit 1
           fi
 
+      - name: Enforce unlimited missed-trade list
+        shell: bash
+        run: |
+          python3 scripts/patch_missed_trade_unlimited_list_v5.py
+          grep -Fq 'missed.recent.map((item, index) =>' src/screens/AdvancedAiTabScreen.js
+          if grep -Fq 'missed.recent.slice(0, 5).map' src/screens/AdvancedAiTabScreen.js; then
+            echo 'Missed-trade five-row cap is still present'
+            exit 1
+          fi
+          node --check src/screens/AdvancedAiTabScreen.js
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

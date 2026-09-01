@@ -7,7 +7,7 @@ const source = fs.readFileSync(
 );
 
 const required = [
-  "/bot/ai-missed-trades?recent_limit=8",
+  "recent_limit=${missedLimit}",
   "function normalizeMissedReport(data)",
   "would_have_profited_15m",
   "block_avoided_loss_15m",
@@ -40,6 +40,9 @@ const required = [
   "Entry premium",
   "Exact option contract resolving",
   "module.exports.normalizeMissedReport",
+  "missed.recent.map((item, index) =>",
+  "Load 20 more",
+  "recent_pagination",
 ];
 
 required.forEach((marker) => {
@@ -47,6 +50,10 @@ required.forEach((marker) => {
     throw new Error(`Missing missed-trade UI marker: ${marker}`);
   }
 });
+
+if (source.includes("missed.recent.slice(0, 5).map")) {
+  throw new Error("Missed-trade list must not be capped at five rows");
+}
 
 if (!source.includes("Trade blocking OFF") || !source.includes("Order execution OFF")) {
   throw new Error("Existing monitor-only safety copy must remain visible");
