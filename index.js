@@ -27,6 +27,11 @@ const { installDisableLegacyManualExitOverlayV9 } = require(
 );
 installDisableLegacyManualExitOverlayV9();
 
+const { installLiveTradeAuthorityPatch } = require(
+  './src/runtime/LiveTradeAuthorityPatch'
+);
+installLiveTradeAuthorityPatch();
+
 const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
 
