@@ -1,0 +1,38 @@
+name: Apply FINAL MTF Release Impact Card V1
+
+on:
+  push:
+    paths:
+      - '.github/triggers/final-mtf-release-impact-card-v1.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Apply mobile card patch
+        run: python scripts/patch_final_mtf_release_impact_card_v1.py
+      - name: Validate JS patch markers
+        run: |
+          grep -q 'finalMtfReleaseImpact: data?.final_mtf_release_impact || null' src/screens/AdvancedAiTabScreen.js
+          grep -q 'FINAL MTF Release Impact' src/screens/AdvancedAiTabScreen.js
+      - name: Commit patched UI
+        run: |
+          if git diff --quiet; then
+            echo "No UI changes needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/screens/AdvancedAiTabScreen.js
+          git commit -m "Show FINAL MTF release trade impact in Advanced AI"
+          git push
