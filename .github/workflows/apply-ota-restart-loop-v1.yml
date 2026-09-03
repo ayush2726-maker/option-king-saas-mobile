@@ -24,12 +24,12 @@ jobs:
       - name: Disable in-app OTA polling completely
         run: |
           python3 scripts/patch_disable_in_app_ota_checker_v2.py
-          grep -q "OKAI-INAPP-OTA-DISABLED-V2" App.js
+          grep -q "OKAI-INAPP-OTA-DISABLED-V3" App.js
           python3 - <<'PY'
           from pathlib import Path
           text = Path('App.js').read_text()
           start = text.index('function OtaStatusBanner() {')
-          end = text.index('// ── Main App', start)
+          end = text.index('// ── Dashboard Screen', start)
           block = text[start:end]
           forbidden = ['checkForUpdateAsync', 'fetchUpdateAsync', 'AppState.addEventListener', 'checkOta(']
           bad = [x for x in forbidden if x in block]
