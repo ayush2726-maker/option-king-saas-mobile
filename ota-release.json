@@ -1,9 +1,9 @@
 {
-  "release": "restart-loop-recovery-v5",
+  "release": "restart-loop-recovery-v6",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-09-04T22:36:00+05:30",
-  "reason": "Re-run restart-loop recovery after validating both mobile OTA/auth stability and backend gateway-profile state. Do not change trading execution logic.",
+  "requested_at": "2026-09-04T22:38:00+05:30",
+  "reason": "Re-run restart-loop recovery after making OTA regression guard version-agnostic. Validate app lifecycle/auth/gateway-status stability without touching trading execution logic.",
   "validation": {
     "required_checks": [
       "In-app OTA polling/reload remains disabled while app is active",
