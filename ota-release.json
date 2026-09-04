@@ -1,9 +1,9 @@
 {
-  "release": "restart-loop-recovery-v4",
+  "release": "restart-loop-recovery-v5",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-09-04T21:50:00+05:30",
-  "reason": "Republish the current production mobile bundle with in-app OTA polling disabled and persistent auth session enabled, so affected users such as Rohit/Rakesh recover from repeated app reloads without losing login state.",
+  "requested_at": "2026-09-04T21:56:00+05:30",
+  "reason": "Retry the production recovery bundle after fixing the stale V2 OTA guard regression check. In-app OTA polling stays disabled and persistent auth stays enabled for Rohit/Rakesh reload-loop recovery.",
   "validation": {
     "required_checks": [
       "OtaStatusBanner contains no Expo update polling or reload calls",
