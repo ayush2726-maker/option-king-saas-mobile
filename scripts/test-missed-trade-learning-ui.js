@@ -67,13 +67,18 @@ const appSource = fs.readFileSync(path.resolve(__dirname, "../App.js"), "utf8");
 // but App.js must not poll/download/reload updates while the user is active.
 [
   "MISSED-TRADE-AI-V2",
-  "OKAI-INAPP-OTA-DISABLED-V3",
   "function OtaStatusBanner()",
 ].forEach((marker) => {
   if (!appSource.includes(marker)) {
-    throw new Error(`Missing disabled OTA marker: ${marker}`);
+    throw new Error(`Missing OTA safety marker: ${marker}`);
   }
 });
+
+// Accept the current or future disabled-OTA marker version so this regression
+// guard does not fail merely because the marker version is bumped.
+if (!/OKAI-INAPP-OTA-DISABLED-V\d+/.test(appSource)) {
+  throw new Error("Missing disabled OTA marker");
+}
 
 const otaStart = appSource.indexOf("function OtaStatusBanner()");
 const otaEnd = appSource.indexOf("// ── Main App", otaStart);
