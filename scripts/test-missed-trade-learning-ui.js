@@ -67,7 +67,7 @@ const appSource = fs.readFileSync(path.resolve(__dirname, "../App.js"), "utf8");
 // but App.js must not poll/download/reload updates while the user is active.
 [
   "MISSED-TRADE-AI-V2",
-  "OKAI-INAPP-OTA-DISABLED-V2",
+  "OKAI-INAPP-OTA-DISABLED-V3",
   "function OtaStatusBanner()",
 ].forEach((marker) => {
   if (!appSource.includes(marker)) {
