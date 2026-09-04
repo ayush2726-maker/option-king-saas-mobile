@@ -2,18 +2,19 @@
   "release": "restart-loop-recovery-v5",
   "channel": "production",
   "runtime": "1.0.1",
-  "requested_at": "2026-09-04T21:56:00+05:30",
-  "reason": "Retry the production recovery bundle after fixing the stale V2 OTA guard regression check. In-app OTA polling stays disabled and persistent auth stays enabled for Rohit/Rakesh reload-loop recovery.",
+  "requested_at": "2026-09-04T22:36:00+05:30",
+  "reason": "Re-run restart-loop recovery after validating both mobile OTA/auth stability and backend gateway-profile state. Do not change trading execution logic.",
   "validation": {
     "required_checks": [
-      "OtaStatusBanner contains no Expo update polling or reload calls",
+      "In-app OTA polling/reload remains disabled while app is active",
       "Persistent auth restores dashboard from saved token",
-      "Transient /auth/me failure does not force logout",
+      "Transient auth/API failure does not force app reload/logout loop",
+      "Gateway/status API failures render stale/error state instead of restarting app",
       "Android export succeeds",
       "Production and default OTA channels publish successfully"
     ],
-    "ui_fix": "OKAI-INAPP-OTA-DISABLED-V3 + OKAI-PERSISTENT-AUTH-SESSION-V1",
+    "ui_fix": "OKAI-INAPP-OTA-DISABLED-V3 + OKAI-PERSISTENT-AUTH-SESSION-V1 + GATEWAY-STATUS-FAILSAFE",
     "logic_safety": "No broker execution, quantity, SL, exit, AI scoring, or trading-strategy logic changes."
   },
-  "trade_safety": "App lifecycle/auth stability only; trading logic unchanged."
+  "trade_safety": "App lifecycle/auth/gateway-status stability only; trading logic unchanged."
 }
