@@ -10,9 +10,14 @@
     "plugins": [["expo-local-authentication", {"faceIDPermission": "Allow Option King AI to use Face ID for secure app unlock."}]],
     "android": {"package": "com.optionkingai.saas", "versionCode": 7, "jsEngine": "jsc"},
     "ios": {"bundleIdentifier": "com.optionkingai.saas", "buildNumber": "1"},
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/icon.png"
+    },
     "extra": {
       "saasUrl": "https://option-king-saas-production.up.railway.app",
-      "buildMarker": "option-king-ai-v7-biometric-final",
+      "buildMarker": "option-king-ai-v7-biometric-final-web-v1",
       "eas": {"projectId": "53c0c5ce-07e1-4036-9bda-62c8cf063d62"}
     },
     "jsEngine": "jsc",
