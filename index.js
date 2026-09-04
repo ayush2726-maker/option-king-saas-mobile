@@ -6,6 +6,7 @@ const BiometricAppLock = require('./src/security/BiometricAppLock15m');
 const SessionAwareManualExitOverlayV10 = require(
   './src/components/SessionAwareManualExitOverlayV10'
 );
+const WebDesktopShell = require('./src/web/WebDesktopShell');
 
 const { installProfessionalLanguagePatch } = require(
   './src/runtime/ProfessionalLanguagePatch'
@@ -40,9 +41,13 @@ function SecuredOptionKingApp() {
     BiometricAppLock,
     null,
     React.createElement(
-      SessionAwareManualExitOverlayV10,
+      WebDesktopShell,
       null,
-      React.createElement(App)
+      React.createElement(
+        SessionAwareManualExitOverlayV10,
+        null,
+        React.createElement(App)
+      )
     )
   );
 }
