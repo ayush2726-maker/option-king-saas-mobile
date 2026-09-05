@@ -1,0 +1,90 @@
+name: Fix Web Background Refresh Crash V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fix-web-background-refresh-crash-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch dashboard background refresh resilience
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('App.js')
+          s = p.read_text()
+          original = s
+
+          # Do not let a transient background history request take down the dashboard.
+          s = re.sub(
+              r'(apiGet\(\n\s*`/bot/signal-history\?limit=\$\{historyLimit\}&days=\$\{chartRangeRef\.current\}&instrument=\$\{encodeURIComponent\(chartInstrumentRef\.current\)\}`,\n\s*token\n\s*\))(?!\.catch)',
+              r'\1.catch(() => null)',
+              s,
+              count=1,
+          )
+          s = re.sub(
+              r'(apiGet\("/bot/trade-history", token\))(?!\.catch)',
+              r'\1.catch(() => null)',
+              s,
+              count=1,
+          )
+
+          # Background/silent refresh must preserve the last good screen instead of showing a fatal-looking red error.
+          old = '''    } catch (e) {
+      setError(hi ? "Status load nahi ho paya. Refresh try karein." : "Could not load status. Please try refreshing.");
+    }
+'''
+          new = '''    } catch (e) {
+      if (!silent) {
+        setError(hi ? "Status load nahi ho paya. Refresh try karein." : "Could not load status. Please try refreshing.");
+      } else {
+        console.warn("WEB_DASHBOARD_BACKGROUND_REFRESH_FAILED", e);
+      }
+    }
+'''
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          if s == original:
+              print('No source changes required; patch may already be present')
+          else:
+              p.write_text(s)
+
+          # Verify expected safety markers are present after patching.
+          out = p.read_text()
+          if 'WEB_DASHBOARD_BACKGROUND_REFRESH_FAILED' not in out:
+              raise SystemExit('silent refresh guard was not applied')
+          if '/bot/signal-history' not in out or '.catch(() => null)' not in out:
+              raise SystemExit('history request resilience was not applied')
+          PY
+
+          git diff --check
+
+      - name: Commit hotfix
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js
+          git commit -m "Keep web dashboard alive during background refresh failures"
+          git push origin main
