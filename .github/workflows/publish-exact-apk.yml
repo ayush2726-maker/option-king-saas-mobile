@@ -2,11 +2,9 @@ name: Publish Exact APK
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - ".github/workflows/publish-exact-apk.yml"
-      - "scripts/publish_exact_apk.js"
   workflow_dispatch:
 
 permissions:
@@ -17,83 +15,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
-
       - name: Install Playwright
-        run: |
-          npm install playwright@1.55.0 --no-save --no-package-lock
-          npx playwright install chromium
-
+        run: npm install playwright@1.55.0 --no-save --no-package-lock && npx playwright install chromium
       - name: Download exact APK
         run: node scripts/publish_exact_apk.js
-
-      - name: Publish stable GitHub Release asset
+      - name: Publish release asset
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG=option-king-ai-latest
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Option King AI APK" --notes "Stable direct APK download for the Option King AI web app."
-          gh release upload "$TAG" Option-King-AI.apk --clobber
-
-      - name: Patch web Download APK button
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          p = Path('src/web/WebDesktopShell.js')
-          s = p.read_text()
-          direct = 'https://github.com/ayush2726-maker/option-king-saas-mobile/releases/download/option-king-ai-latest/Option-King-AI.apk'
-          s = re.sub(r"const APK_DOWNLOAD_PAGE = .*?;\n", f"const APK_DOWNLOAD_URL = '{direct}';\n", s, count=1)
-          if 'const APK_DOWNLOAD_URL' not in s:
-              s = s.replace("const GREEN = '#00d4a0';\n", "const GREEN = '#00d4a0';\nconst APK_DOWNLOAD_URL = '" + direct + "';\n", 1)
-          s = re.sub(
-              r"function openApkDownload\(\) \{.*?\n\}\n\nasync function directLogout",
-              """function openApkDownload() {
-  try {
-    if (typeof globalThis !== 'undefined' && globalThis.document) {
-      const a = globalThis.document.createElement('a');
-      a.href = APK_DOWNLOAD_URL;
-      a.download = 'Option-King-AI.apk';
-      a.rel = 'noopener noreferrer';
-      globalThis.document.body.appendChild(a);
-      a.click();
-      a.remove();
-      return true;
-    }
-    if (typeof globalThis !== 'undefined' && globalThis.location) {
-      globalThis.location.href = APK_DOWNLOAD_URL;
-      return true;
-    }
-  } catch (_) {}
-  return false;
-}
-
-async function directLogout""",
-              s,
-              count=1,
-              flags=re.S,
-          )
-          p.write_text(s)
-          PY
-          node --check src/web/WebDesktopShell.js
-          git diff --check
-
-      - name: Commit direct-download patch
-        shell: bash
-        run: |
-          if git diff --quiet; then
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/web/WebDesktopShell.js
-          git commit -m 'Use direct APK release download on web'
-          git pull --rebase origin main
-          git push origin main
+          gh release view option-king-ai-latest >/dev/null 2>&1 || gh release create option-king-ai-latest --title "Option King AI APK" --notes "Stable direct APK download"
+          gh release upload option-king-ai-latest Option-King-AI.apk --clobber
