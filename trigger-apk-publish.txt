@@ -1,2 +1,3 @@
 Trigger direct APK publishing from the existing Force Publish APK workflow.
 Run the direct-download publishing job now.
+Trigger exact APK release publishing after workflow update.
