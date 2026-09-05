@@ -14,6 +14,9 @@ const { installHomeAccordionEnhancementV3 } = require(
 const { installWebNavigationBridge } = require(
   "./src/runtime/WebNavigationBridge"
 );
+const { installWebHideBottomNavigation } = require(
+  "./src/web/WebHideBottomNavigation"
+);
 
 // Install the AI patch first. NavigationHelp then converts the original
 // navigation to the final compact tabs, and the AI patch appends its dedicated
@@ -23,6 +26,7 @@ installNavigationHelpEnhancement();
 installLegacyGuideScreenReplacement();
 installHomeAccordionEnhancementV3();
 installWebNavigationBridge();
+installWebHideBottomNavigation();
 
 const AppPaymentsPatchedModule = require("./AppPaymentsPatched");
 const AppPaymentsPatched =
