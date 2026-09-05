@@ -2218,7 +2218,7 @@ function PlansTab({ token, user, onSuccess }) {
         await Linking.openURL(checkoutUrl);
         Alert.alert(
           "UPI / QR Payment",
-          "₹5,000 for 30 days. Secure checkout opened. Pay using UPI / QR / supported payment method. After the verified payment, your account activates automatically."
+          "₹5,000 for 30 days. Paytm / UPI payment page opened. Payment ke baad admin confirmation ke baad account 30 days ke liye activate hoga."
         );
         onSuccess && onSuccess();
       } else setError(d?.detail || d?.message || "Payment link create failed");
@@ -2284,7 +2284,7 @@ function PlansTab({ token, user, onSuccess }) {
             </Row>
           ))}
 
-          <Btn label={"Pay ₹5,000 via UPI / QR"} icon="▣"
+          <Btn label={"Pay ₹5,000 via Paytm / UPI"} icon="▣"
             color={plan.color} onPress={() => subscribe(plan.id)}
             loading={loading === plan.id}
             style={{ marginTop: 12 }} />
@@ -2296,9 +2296,9 @@ function PlansTab({ token, user, onSuccess }) {
           textTransform: "uppercase", letterSpacing: 1.2,
           marginBottom: 12 }}>🔒 Secure Payment</Text>
         {[
-          ["▣", "UPI / QR", "Secure verified payment checkout"],
+          ["▣", "Paytm / UPI", "Open the ₹5,000 payment page"],
           ["🔐", "SSL Encrypted", "100% secure transactions"],
-          ["✅", "Server Verified", "Automatic access after verified ₹5,000 payment"],
+          ["✅", "Manual Activation", "Admin confirms payment and activates 30 days"],
         ].map(([icon, t, d]) => (
           <Row key={t} style={{ gap: 10, paddingVertical: 8,
             borderBottomWidth: 1, borderBottomColor: C.border }}>
@@ -7620,13 +7620,20 @@ function AccountTab({ user, subStatus, onLogout, onRefresh, lang, token }) {
         loading={refreshing} onPress={refreshAccount} />
 
       <Btn label={hi ? "Logout" : "Logout"} icon="🚪" color={C.red}
-        onPress={() => Alert.alert(
-          hi ? "Logout" : "Logout",
-          hi ? "Aap logout karna chahte hain?" : "Do you want to logout?",
-          [
-            { text: hi ? "Cancel" : "Cancel", style: "cancel" },
-            { text: hi ? "Logout" : "Logout", style: "destructive", onPress: onLogout }
-          ])} />
+        onPress={() => {
+          if (Platform.OS === "web") {
+            onLogout && onLogout();
+            return;
+          }
+          Alert.alert(
+            hi ? "Logout" : "Logout",
+            hi ? "Aap logout karna chahte hain?" : "Do you want to logout?",
+            [
+              { text: hi ? "Cancel" : "Cancel", style: "cancel" },
+              { text: hi ? "Logout" : "Logout", style: "destructive", onPress: onLogout }
+            ]
+          );
+        }} />
     </ScrollView>
   );
 }
@@ -7807,12 +7814,23 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
 
   async function refreshUser() {
     try {
-      const data = await apiGet("/auth/me", token);
+      const data = await apiGet("/auth/me?_okai_ts=" + Date.now(), token);
       setUserFresh(data.user);
-      const sub = await apiGet("/subscription/status", token);
+      const sub = await apiGet("/subscription/status?_okai_ts=" + Date.now(), token);
       setSubStatus(sub);
     } catch {}
   }
+
+  useEffect(() => {
+    const timer = setInterval(refreshUser, 10000);
+    const appStateSubscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshUser();
+    });
+    return () => {
+      clearInterval(timer);
+      appStateSubscription?.remove?.();
+    };
+  }, [token]);
 
   const isAdmin = userFresh?.role==="admin" || !!userFresh?.is_admin;
   const serverSubscriptionStatus = subStatus?.subscription_status
