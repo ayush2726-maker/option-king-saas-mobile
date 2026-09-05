@@ -14,11 +14,15 @@ const { installHomeLayoutEnhancement } = require(
 const { installWebAlertConfirmPatch } = require(
   "./src/runtime/WebAlertConfirmPatch"
 );
+const { installManualSubscriptionCopyPatch } = require(
+  "./src/runtime/ManualSubscriptionCopyPatch"
+);
 
 installProfessionalIconEnhancement();
 installAppThemeEnhancement();
 installHomeLayoutEnhancement();
 installWebAlertConfirmPatch();
+installManualSubscriptionCopyPatch();
 
 const AppNavigationPatchedModule = require("./AppNavigationPatched");
 const AppNavigationPatched =
