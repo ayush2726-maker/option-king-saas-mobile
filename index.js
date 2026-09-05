@@ -6,6 +6,7 @@ const BiometricAppLock = require('./src/security/BiometricAppLock15m');
 const SessionAwareManualExitOverlayV10 = require(
   './src/components/SessionAwareManualExitOverlayV10'
 );
+const CustomerOnboardingAssistant = require('./src/components/CustomerOnboardingAssistant');
 const WebDesktopShell = require('./src/web/WebDesktopShell');
 const SubscriptionActivationGate = require('./src/runtime/SubscriptionActivationGate');
 
@@ -45,12 +46,16 @@ function SecuredOptionKingApp() {
       SubscriptionActivationGate,
       null,
       React.createElement(
-        WebDesktopShell,
+        CustomerOnboardingAssistant,
         null,
         React.createElement(
-          SessionAwareManualExitOverlayV10,
+          WebDesktopShell,
           null,
-          React.createElement(App)
+          React.createElement(
+            SessionAwareManualExitOverlayV10,
+            null,
+            React.createElement(App)
+          )
         )
       )
     )
