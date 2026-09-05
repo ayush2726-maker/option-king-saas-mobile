@@ -94,12 +94,12 @@ function CustomerOnboardingAssistant({ children }) {
 
   const openRoute=(route)=>{ setOpen(false); setTimeout(()=>nav(route),80); };
   const toggle=(n)=>setExpanded(v=>v===n?0:n);
-  const ipText=state.assignedIp || 'Allocation pending';
+  const ipText=state.assignedIp || 'Allocation Pending';
 
   return React.createElement(React.Fragment,null,
     children,
     React.createElement(TouchableOpacity,{onPress:()=>{setExpanded(stage);setOpen(true);},activeOpacity:.86,style:{position:'absolute',right:12,bottom:RN.Platform.OS==='web'?18:86,zIndex:9999,minHeight:46,paddingHorizontal:15,borderRadius:23,backgroundColor:'#0f5ecf',borderWidth:1,borderColor:'#4d9fff',alignItems:'center',justifyContent:'center',shadowColor:'#000',shadowOpacity:.35,shadowRadius:8,elevation:14}},
-      React.createElement(Text,{style:{color:'#fff',fontWeight:'900',fontSize:12}},'🚀 Live Setup')
+      React.createElement(Text,{style:{color:'#fff',fontWeight:'900',fontSize:12}},'🚀 Set Up Live Trading')
     ),
     React.createElement(Modal,{visible:open,transparent:true,animationType:'slide',onRequestClose:()=>setOpen(false)},
       React.createElement(View,{style:{flex:1,backgroundColor:'rgba(2,7,15,.92)',justifyContent:'flex-end'}},
@@ -107,53 +107,53 @@ function CustomerOnboardingAssistant({ children }) {
           React.createElement(View,{style:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
             React.createElement(View,{style:{flex:1,minWidth:0,paddingRight:10}},
               React.createElement(Text,{style:{color:'#fff',fontSize:22,fontWeight:'900'}},'Live Trading Setup'),
-              React.createElement(Text,{style:{color:'#91a4bd',fontSize:12,marginTop:3}},'Har step par tap karein — wahi process open hoga aur next step status automatically update hoga.')
+              React.createElement(Text,{style:{color:'#91a4bd',fontSize:12,marginTop:3}},'Tap any step to open it. The next step\'s status will update automatically.')
             ),
             React.createElement(TouchableOpacity,{onPress:()=>setOpen(false),style:{width:38,height:38,borderRadius:19,backgroundColor:'#172338',alignItems:'center',justifyContent:'center'}},React.createElement(Text,{style:{color:'#fff',fontSize:22}},'×'))
           ),
           React.createElement(View,{style:{flexDirection:'row',gap:8,marginBottom:16}},
             React.createElement(View,{style:{flex:1,padding:11,borderRadius:12,backgroundColor:'#10231f',borderWidth:1,borderColor:'#1e6a55'}},
-              React.createElement(Text,{style:{color:'#78deb0',fontSize:11,fontWeight:'900'}},'PAPER FREE'),
-              React.createElement(Text,{style:{color:'#fff',fontSize:16,fontWeight:'900',marginTop:2}},paperAllowed?`${paperDays} days left`:'Expired')
+              React.createElement(Text,{style:{color:'#78deb0',fontSize:11,fontWeight:'900'}},'PAPER ACCESS'),
+              React.createElement(Text,{style:{color:'#fff',fontSize:16,fontWeight:'900',marginTop:2}},paperAllowed?`${paperDays} days remaining`:'Expired')
             ),
             React.createElement(View,{style:{flex:1,padding:11,borderRadius:12,backgroundColor:'#122038',borderWidth:1,borderColor:'#315c91'}},
               React.createElement(Text,{style:{color:'#73b8ff',fontSize:11,fontWeight:'900'}},'LIVE ACCESS'),
-              React.createElement(Text,{style:{color:'#fff',fontSize:16,fontWeight:'900',marginTop:2}},liveAllowed?(state.ent?.live_access==='trial'?`${liveDays} days trial`:'Active'):'Locked')
+              React.createElement(Text,{style:{color:'#fff',fontSize:16,fontWeight:'900',marginTop:2}},liveAllowed?(state.ent?.live_access==='trial'?`${liveDays} trial days remaining`:'Active'):'Locked')
             )
           ),
           React.createElement(ScrollView,{contentContainerStyle:{paddingBottom:10},keyboardShouldPersistTaps:'handled'},
-            React.createElement(Step,{n:1,title:'Account created',detail:'Option King AI account aur login.',done:true,active:false,expanded:expanded===1,onPress:()=>toggle(1)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'Account ready hai. Yahan profile, mobile/email aur subscription status check kar sakte hain.'),
+            React.createElement(Step,{n:1,title:'Account Created',detail:'Your Option King AI account is ready.',done:true,active:false,expanded:expanded===1,onPress:()=>toggle(1)},
+              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'View your profile, registered mobile number or email, and subscription status here.'),
               React.createElement(ActionButton,{label:'Open Account',onPress:()=>openRoute('account')})
             ),
-            React.createElement(Step,{n:2,title:'Connect your broker',detail:'Angel One ya Upstox choose karke broker/API setup complete karein.',done:state.brokerReady,active:stage===2,expanded:expanded===2,onPress:()=>toggle(2)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},state.brokerReady?`Broker connected: ${state.selected || 'saved broker'}. Ab Paper test karein.`:'Broker page khulega. Customer broker select karke required credentials/API details save karega; app connection status verify karega.'),
+            React.createElement(Step,{n:2,title:'Connect Your Broker',detail:'Choose Angel One or Upstox and complete the API setup.',done:state.brokerReady,active:stage===2,expanded:expanded===2,onPress:()=>toggle(2)},
+              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},state.brokerReady?`Broker connected: ${state.selected || 'saved broker'}. You can now test Paper Trading.`:'The Broker Setup page will open. Select your broker, save the required credentials and API details, and verify the connection.'),
               React.createElement(ActionButton,{label:state.brokerReady?'Review Broker':'Connect Broker Now',onPress:()=>openRoute('broker')})
             ),
-            React.createElement(Step,{n:3,title:'Test in Paper first',detail:'Real money ke bina signal, entry/exit aur capital display verify karein.',done:state.brokerReady && paperAllowed,active:stage===3,expanded:expanded===3,onPress:()=>toggle(3)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},paperAllowed?'Paper mode open karke Bot Start karein. Kam se kam setup/status verify hone ke baad hi Live par jayein.':'Paper free access expire ho chuka hai; subscription activate karna hoga.'),
+            React.createElement(Step,{n:3,title:'Test with Paper Trading',detail:'Verify signals, entries, exits, and capital without risking real money.',done:state.brokerReady && paperAllowed,active:stage===3,expanded:expanded===3,onPress:()=>toggle(3)},
+              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},paperAllowed?'Open Paper mode and start the bot. Confirm that the setup and status work correctly before switching to Live Trading.':'Your free Paper Trading access has expired. Activate a subscription to continue.'),
               React.createElement(ActionButton,{label:paperAllowed?'Open Paper Bot':'Paper Access Expired',onPress:()=>openRoute('bot'),disabled:!paperAllowed})
             ),
-            React.createElement(Step,{n:4,title:'Secure Live Connection',detail:state.gatewayReady?'Dedicated secure execution connection ready hai.':'Dedicated static-IP execution setup pending hai.',done:state.gatewayReady,active:stage===4,expanded:expanded===4,onPress:()=>toggle(4)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'Live API orders registered static IP se hi jayenge. Customer ko phone/Termux chalane ki zarurat nahi honi chahiye; Option King AI server-side execution connection use karega.'),
+            React.createElement(Step,{n:4,title:'Set Up Secure Connection',detail:state.gatewayReady?'Your dedicated secure connection is ready.':'Your dedicated static-IP connection setup is pending.',done:state.gatewayReady,active:stage===4,expanded:expanded===4,onPress:()=>toggle(4)},
+              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'Live API orders will be sent only from the registered static IP. You will not need to keep a phone or Termux running; Option King AI will use a secure server-side connection.'),
               React.createElement(View,{style:{marginTop:10,padding:10,borderRadius:10,backgroundColor:'#0c1725',borderWidth:1,borderColor:'#2a4a6d'}},
                 React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},'YOUR DEDICATED EXECUTION IP'),
                 React.createElement(Text,{style:{color:'#fff',fontSize:15,fontWeight:'900',marginTop:3}},ipText),
-                React.createElement(Text,{style:{color:'#91a4bd',fontSize:11,lineHeight:16,marginTop:4}},state.assignedIp?'Isi IP ko broker Developer/My Apps me Primary Static IP ke roop me register karein. App matching automatically verify karega.':'IP abhi assign nahi hua hai. Jab server-side dedicated IP provision hoga tab yahin exact IP dikhega; random/shared IP use nahi karna hai.')
+                React.createElement(Text,{style:{color:'#91a4bd',fontSize:11,lineHeight:16,marginTop:4}},state.assignedIp?'Register this IP as the Primary Static IP in your broker\'s Developer or My Apps section. The app will verify the match automatically.':'A dedicated IP has not been assigned yet. Once it is provisioned, the exact IP will appear here. Do not register a random or shared IP.')
               ),
               React.createElement(ActionButton,{label:state.gatewayReady?'Connection Ready':'Check Secure Connection',onPress:load})
             ),
-            React.createElement(Step,{n:5,title:'Enable Live',detail:'Live access + broker + dedicated secure connection ready hone par hi enable hoga.',done:state.gatewayReady && liveAllowed,active:stage===5,expanded:expanded===5,onPress:()=>toggle(5)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},liveAllowed?(state.gatewayReady?'Sab checks ready hain. Live enable karne se pehle explicit customer confirmation required rahega.':'Live trial active hai, lekin secure connection ready hone tak real orders blocked rahenge.'):'Live access locked hai. Trial/subscription active hone par hi real orders enable honge.'),
+            React.createElement(Step,{n:5,title:'Enable Live Trading',detail:'Live Trading can be enabled only after your broker, Live access, and secure connection are ready.',done:state.gatewayReady && liveAllowed,active:stage===5,expanded:expanded===5,onPress:()=>toggle(5)},
+              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},liveAllowed?(state.gatewayReady?'All checks are complete. Your confirmation will still be required before Live Trading is enabled.':'Your Live trial is active, but real orders will remain blocked until the secure connection is ready.'):'Live access is locked. Real orders can be enabled only after a trial or subscription is activated.'),
               React.createElement(ActionButton,{label:liveAllowed && state.gatewayReady?'Go to Live Controls':'Live Not Ready',onPress:()=>openRoute('bot'),disabled:!(liveAllowed && state.gatewayReady)})
             ),
-            React.createElement(Step,{n:6,title:'Subscription when trial ends',detail:'7-day Live trial; Paper 30 days. Paid plan Paper + Live unlock karta hai.',done:false,active:stage===6,expanded:expanded===6,onPress:()=>toggle(6)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'Live trial khatam hone par Paper 30-day window ke andar continue kar sakta hai. Paid activation ke baad dono access active ho jayenge.'),
+            React.createElement(Step,{n:6,title:'Choose a Plan After the Trial',detail:'Live trial: 7 days • Paper Trading: 30 days. A paid plan unlocks both.',done:false,active:stage===6,expanded:expanded===6,onPress:()=>toggle(6)},
+              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'After the Live trial ends, you can continue Paper Trading during the 30-day free period. Both features will be available after you activate a paid plan.'),
               React.createElement(ActionButton,{label:'Open Subscription',onPress:()=>openRoute('plans')})
             ),
             React.createElement(View,{style:{marginTop:4,padding:12,borderRadius:12,backgroundColor:'#151b29',borderWidth:1,borderColor:'#2d3a50'}},
-              React.createElement(Text,{style:{color:'#f6c85f',fontWeight:'900',fontSize:12}},'Safety rule'),
-              React.createElement(Text,{style:{color:'#aebbd0',fontSize:11,lineHeight:17,marginTop:5}},'Broker connected + Live entitlement + dedicated static-IP connection ready — teenon checks ke bina real order block rahega. Customer confirmation ke bina Live arm nahi hoga.')
+              React.createElement(Text,{style:{color:'#f6c85f',fontWeight:'900',fontSize:12}},'Safety Rule'),
+              React.createElement(Text,{style:{color:'#aebbd0',fontSize:11,lineHeight:17,marginTop:5}},'Real orders remain blocked until all three checks pass: broker connected, Live access active, and dedicated static-IP connection ready. Live Trading will not start without your confirmation.')
             )
           ),
           React.createElement(TouchableOpacity,{onPress:load,disabled:loading,style:{marginTop:10,minHeight:46,borderRadius:13,backgroundColor:'#17253a',borderWidth:1,borderColor:'#31557c',alignItems:'center',justifyContent:'center'}},loading?React.createElement(ActivityIndicator,{color:'#8bc2ff'}):React.createElement(Text,{style:{color:'#8bc2ff',fontWeight:'900'}},'Refresh Setup Status'))
