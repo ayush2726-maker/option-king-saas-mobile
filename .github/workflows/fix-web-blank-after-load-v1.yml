@@ -1,0 +1,73 @@
+name: Fix Web Blank After Load V1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fix-web-blank-after-load-v1.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch web refresh so UI never blanks after load
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('App.js')
+          s = p.read_text()
+          original = s
+
+          old_heavy = '''        const [hist, trades] = await Promise.all([\n          apiGet(\n            `/bot/signal-history?limit=${historyLimit}&days=${chartRangeRef.current}&instrument=${encodeURIComponent(chartInstrumentRef.current)}`,\n            token\n          ),\n          apiGet("/bot/trade-history", token),\n          loadChart(chartInstrumentRef.current, true),\n        ]);\n        if (hist && hist.points) {\n          setHistory(hist.points);\n        }\n        if (trades && trades.paper_trades) setPaperTrades(trades.paper_trades);\n        if (trades?.today) setServerTodayLedger(trades.today);\n        if (trades?.ledger) setServerLedger(trades.ledger);\n'''
+
+          new_heavy = '''        const [histResult, tradesResult, chartResult] = await Promise.allSettled([\n          apiGet(\n            `/bot/signal-history?limit=${historyLimit}&days=${chartRangeRef.current}&instrument=${encodeURIComponent(chartInstrumentRef.current)}`,\n            token\n          ),\n          apiGet("/bot/trade-history", token),\n          loadChart(chartInstrumentRef.current, true),\n        ]);\n        const hist = histResult.status === "fulfilled" ? histResult.value : null;\n        const trades = tradesResult.status === "fulfilled" ? tradesResult.value : null;\n        if (hist && hist.points) {\n          setHistory(hist.points);\n        }\n        if (trades && trades.paper_trades) setPaperTrades(trades.paper_trades);\n        if (trades?.today) setServerTodayLedger(trades.today);\n        if (trades?.ledger) setServerLedger(trades.ledger);\n'''
+
+          if old_heavy in s:
+              s = s.replace(old_heavy, new_heavy, 1)
+
+          old_catch = '''    } catch (e) {\n      setError(hi ? "Status load nahi ho paya. Refresh try karein." : "Could not load status. Please try refreshing.");\n    }\n'''
+          new_catch = '''    } catch (e) {\n      if (!silent) {\n        setError(hi ? "Status load nahi ho paya. Refresh try karein." : "Could not load status. Please try refreshing.");\n      } else {\n        console.warn("WEB_DASHBOARD_BACKGROUND_REFRESH_FAILED", e);\n      }\n    }\n'''
+          if old_catch in s:
+              s = s.replace(old_catch, new_catch, 1)
+
+          # Browser should keep the previous good UI even if an optional request rejects.
+          s = s.replace('const [hist, trades] = await Promise.all([', 'const [hist, trades] = await Promise.all([', 1)
+
+          if s == original:
+              raise SystemExit('Expected dashboard refresh anchors were not found; refusing no-op')
+
+          p.write_text(s)
+
+          out = p.read_text()
+          if 'WEB_DASHBOARD_BACKGROUND_REFRESH_FAILED' not in out:
+              raise SystemExit('background refresh guard missing')
+          if 'Promise.allSettled' not in out:
+              raise SystemExit('allSettled guard missing')
+          PY
+
+          git diff --check
+
+      - name: Commit hotfix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git add App.js
+          git commit -m "Fix web blank screen after background refresh"
+          git push origin main
