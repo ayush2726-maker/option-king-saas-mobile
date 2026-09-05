@@ -6,33 +6,62 @@ const AsyncStorage = AsyncStorageModule.default || AsyncStorageModule;
 const { ActivityIndicator, AppState, Linking, Modal, Text, TouchableOpacity, View } = ReactNative;
 const API = 'https://option-king-saas-production.up.railway.app';
 
+async function getAuthToken() {
+  const preferred = ['saas_token', 'token', 'auth_token', 'okai_token', 'access_token'];
+  for (const key of preferred) {
+    try {
+      const value = await AsyncStorage.getItem(key);
+      if (value && String(value).trim().length > 20) return String(value).trim();
+    } catch (_) {}
+  }
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    for (const key of keys || []) {
+      if (!/token|auth|session/i.test(String(key))) continue;
+      const value = await AsyncStorage.getItem(key);
+      if (value && String(value).trim().length > 20) return String(value).trim();
+    }
+  } catch (_) {}
+  return '';
+}
+
 function SubscriptionActivationGate({ children }) {
   const [visible, setVisible] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState('');
 
   const checkStatus = React.useCallback(async () => {
-    const token = await AsyncStorage.getItem('saas_token');
+    const token = await getAuthToken();
     if (!token) {
       setVisible(false);
       return;
     }
     try {
       const response = await fetch(API + '/subscription/status?_okai_ts=' + Date.now(), {
-        headers: { Authorization: 'Bearer ' + token, 'Cache-Control': 'no-cache' },
+        headers: {
+          Authorization: 'Bearer ' + token,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
+        },
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) return;
+      if (!response.ok) {
+        setMessage(data?.detail || 'Subscription status check failed.');
+        return;
+      }
       const status = String(data?.subscription_status || '').toLowerCase();
-      const expired = status === 'expired' || status === 'inactive';
+      const expired = status === 'expired' || status === 'inactive' || status === 'suspended';
       setVisible(expired);
+      globalThis.__OKAI_SUBSCRIPTION_STATUS__ = data;
       if (!expired) setMessage('');
-    } catch (_) {}
+    } catch (_) {
+      setMessage('Subscription status check nahi ho paya. Refresh karein.');
+    }
   }, []);
 
   React.useEffect(() => {
     checkStatus();
-    const timer = setInterval(checkStatus, 10000);
+    const timer = setInterval(checkStatus, 5000);
     const subscription = AppState?.addEventListener
       ? AppState.addEventListener('change', (state) => {
           if (state === 'active') checkStatus();
@@ -49,15 +78,15 @@ function SubscriptionActivationGate({ children }) {
     setLoading(true);
     setMessage('');
     try {
-      const token = await AsyncStorage.getItem('saas_token');
+      const token = await getAuthToken();
       if (!token) throw new Error('Please login again.');
-      const response = await fetch(API + '/subscription/razorpay/create-link', {
+      const response = await fetch(API + '/subscription/manual-payment-link', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer ' + token,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ plan_id: 'monthly_5000' }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data?.checkout_url) {
@@ -140,7 +169,7 @@ function SubscriptionActivationGate({ children }) {
             },
             loading
               ? React.createElement(ActivityIndicator, { color: '#fff' })
-              : React.createElement(Text, { style: { color: '#fff', fontSize: 15, fontWeight: '900' } }, 'Pay ₹5,000 with Paytm / UPI'),
+              : React.createElement(Text, { style: { color: '#fff', fontSize: 15, fontWeight: '900' } }, 'Subscribe ₹5,000'),
           ),
           React.createElement(
             TouchableOpacity,
