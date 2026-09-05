@@ -1,0 +1,219 @@
+name: Fix Web Status And Logout V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fix-web-status-and-logout-v1.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch web dashboard and logout
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          app = Path('App.js')
+          text = app.read_text()
+
+          old_settings = '''      if (!silent) {
+        const strat = await apiGet("/strategy/settings", token);
+        if (strat && strat.settings) {
+          setSettings(strat.settings);
+
+          if (!chartSelectionInitializedRef.current) {
+            const initialChart = String(
+              strat.settings.primary_instrument || "NIFTY"
+            ).toUpperCase();
+
+            chartSelectionInitializedRef.current = true;
+            chartInstrumentRef.current = initialChart;
+            setChartInstrument(initialChart);
+          }
+        }
+      }
+'''
+          new_settings = '''      if (!silent) {
+        try {
+          const strat = await apiGet("/strategy/settings", token);
+          if (strat && strat.settings) {
+            setSettings(strat.settings);
+
+            if (!chartSelectionInitializedRef.current) {
+              const initialChart = String(
+                strat.settings.primary_instrument || "NIFTY"
+              ).toUpperCase();
+
+              chartSelectionInitializedRef.current = true;
+              chartInstrumentRef.current = initialChart;
+              setChartInstrument(initialChart);
+            }
+          }
+        } catch (settingsError) {
+          console.warn("WEB DASHBOARD optional settings load failed", settingsError);
+        }
+      }
+'''
+          if old_settings in text:
+            text = text.replace(old_settings, new_settings, 1)
+
+          old_heavy = '''        const [hist, trades] = await Promise.all([
+          apiGet(
+            `/bot/signal-history?limit=${historyLimit}&days=${chartRangeRef.current}&instrument=${encodeURIComponent(chartInstrumentRef.current)}`,
+            token
+          ),
+          apiGet("/bot/trade-history", token),
+          loadChart(chartInstrumentRef.current, true),
+        ]);
+        if (hist && hist.points) {
+          setHistory(hist.points);
+        }
+        if (trades && trades.paper_trades) setPaperTrades(trades.paper_trades);
+        if (trades?.today) setServerTodayLedger(trades.today);
+        if (trades?.ledger) setServerLedger(trades.ledger);
+'''
+          new_heavy = '''        const [histResult, tradesResult] = await Promise.allSettled([
+          apiGet(
+            `/bot/signal-history?limit=${historyLimit}&days=${chartRangeRef.current}&instrument=${encodeURIComponent(chartInstrumentRef.current)}`,
+            token
+          ),
+          apiGet("/bot/trade-history", token),
+        ]);
+        await loadChart(chartInstrumentRef.current, true);
+        const hist = histResult.status === "fulfilled" ? histResult.value : null;
+        const trades = tradesResult.status === "fulfilled" ? tradesResult.value : null;
+        if (hist && hist.points) {
+          setHistory(hist.points);
+        }
+        if (trades && trades.paper_trades) setPaperTrades(trades.paper_trades);
+        if (trades?.today) setServerTodayLedger(trades.today);
+        if (trades?.ledger) setServerLedger(trades.ledger);
+'''
+          if old_heavy in text:
+            text = text.replace(old_heavy, new_heavy, 1)
+
+          app.write_text(text)
+
+          shell = Path('src/web/WebDesktopShell.js')
+          s = shell.read_text()
+
+          old_import = "const { View, Text, Platform, useWindowDimensions, TouchableOpacity } = require('react-native');\n"
+          new_import = old_import + "const AsyncStorageModule = require('@react-native-async-storage/async-storage');\nconst AsyncStorage = AsyncStorageModule.default || AsyncStorageModule;\n"
+          if "const AsyncStorageModule = require('@react-native-async-storage/async-storage');" not in s:
+            if old_import not in s:
+              raise SystemExit('WebDesktopShell import anchor not found')
+            s = s.replace(old_import, new_import, 1)
+
+          nav_anchor = '''function directNavigate(route) {
+  try {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_WEB_NAVIGATE__ === 'function') {
+      return globalThis.__OKAI_WEB_NAVIGATE__(route);
+    }
+  } catch (_) {}
+  return false;
+}
+'''
+          logout_helper = nav_anchor + '''
+async function directLogout() {
+  try {
+    await AsyncStorage.multiRemove(['okai_auth_session_v2', 'saas_token', 'saas_user']);
+  } catch (_) {}
+  try {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_WEB_LOGOUT__ === 'function') {
+      await globalThis.__OKAI_WEB_LOGOUT__();
+      return true;
+    }
+  } catch (_) {}
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis.location) {
+      globalThis.location.reload();
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+'''
+          if 'async function directLogout()' not in s:
+            if nav_anchor not in s:
+              raise SystemExit('directNavigate anchor not found')
+            s = s.replace(nav_anchor, logout_helper, 1)
+
+          go_anchor = '''  const go = (key, route) => {
+    setActiveKey && setActiveKey(key);
+    onClose && onClose();
+    setTimeout(() => directNavigate(route), 0);
+  };
+'''
+          go_new = go_anchor + '''
+  const logout = async () => {
+    onClose && onClose();
+    await directLogout();
+  };
+'''
+          if 'const logout = async () =>' not in s:
+            if go_anchor not in s:
+              raise SystemExit('NavPanel go anchor not found')
+            s = s.replace(go_anchor, go_new, 1)
+
+          items_anchor = '''    ...items.map(([key, icon, label, route]) =>
+      React.createElement(RailItem, {
+        key, navKey: key, icon, label, compact,
+        active: activeKey === key,
+        onPress: () => go(key, route),
+      })
+    ),
+    React.createElement(
+      View,
+'''
+          items_new = '''    ...items.map(([key, icon, label, route]) =>
+      React.createElement(RailItem, {
+        key, navKey: key, icon, label, compact,
+        active: activeKey === key,
+        onPress: () => go(key, route),
+      })
+    ),
+    React.createElement(RailItem, {
+      key: 'logout', navKey: 'logout', icon: '⇥', label: 'Logout', compact,
+      active: false,
+      onPress: logout,
+    }),
+    React.createElement(
+      View,
+'''
+          if "navKey: 'logout'" not in s:
+            if items_anchor not in s:
+              raise SystemExit('Nav items anchor not found')
+            s = s.replace(items_anchor, items_new, 1)
+
+          shell.write_text(s)
+          PY
+
+          git diff --check
+          node --check src/web/WebDesktopShell.js
+          git diff -- App.js src/web/WebDesktopShell.js
+
+      - name: Commit hotfix
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js src/web/WebDesktopShell.js
+          git commit -m "Fix web dashboard status resilience and add logout"
+          git push origin main
