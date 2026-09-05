@@ -1,0 +1,37 @@
+name: Patch Trial Banner Subscription Popup
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/patch_trial_banner_subscription_popup_v1.py"
+      - ".github/workflows/patch-trial-banner-subscription-popup.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply subscription popup patch
+        run: |
+          python3 scripts/patch_trial_banner_subscription_popup_v1.py
+          grep -q '__OKAI_OPEN_SUBSCRIPTION__' App.js
+          grep -q '__OKAI_OPEN_SUBSCRIPTION__ = () =>' src/runtime/SubscriptionActivationGate.js
+          git diff --check
+      - name: Commit patch
+        run: |
+          if git diff --quiet -- App.js src/runtime/SubscriptionActivationGate.js; then
+            echo "Already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add App.js src/runtime/SubscriptionActivationGate.js
+          git commit -m "Open new subscription popup from trial banner"
+          git push origin HEAD:main
