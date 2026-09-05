@@ -5,19 +5,17 @@ const React = require('react');
 const { Platform } = require('react-native');
 
 function WebRoot() {
-  // Keep the browser bundle on the smallest, safest path possible.
-  // Do not import native wrappers or enhancement installers on web: several of
-  // them monkey-patch React / schedule background checks and can tear down the
-  // RN Web tree after the first successful paint.
+  // Browser stays isolated from native-only wrappers, but uses the current
+  // patched app stack so the latest UI and web navigation bridge are present.
   const WebDesktopShellModule = require('./src/web/WebDesktopShell');
   const WebDesktopShell = WebDesktopShellModule.default || WebDesktopShellModule;
-  const BaseAppModule = require('./App');
-  const BaseApp = BaseAppModule.default || BaseAppModule;
+  const WebAppModule = require('./AppTradeExplanationPatched');
+  const WebApp = WebAppModule.default || WebAppModule;
 
   return React.createElement(
     WebDesktopShell,
     null,
-    React.createElement(BaseApp)
+    React.createElement(WebApp)
   );
 }
 
