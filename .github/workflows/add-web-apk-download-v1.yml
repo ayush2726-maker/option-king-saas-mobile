@@ -1,11 +1,8 @@
 name: Add Web APK Download V1
 
-# trigger: direct-apk-download-2026-09-05
 on:
   push:
     branches: [main]
-    paths:
-      - ".github/workflows/add-web-apk-download-v1.yml"
   workflow_dispatch:
 
 permissions:
@@ -14,114 +11,86 @@ permissions:
 jobs:
   patch:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           ref: main
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Setup EAS
-        run: npm install --global eas-cli@latest --no-audit --no-fund
-
-      - name: Find latest downloadable Android APK
-        shell: bash
+      - name: Install Playwright
         run: |
-          test -n "$EXPO_TOKEN" || (echo "Missing EXPO_TOKEN" && exit 1)
-          eas build:list --platform android --status finished --limit 20 --json --non-interactive > /tmp/builds.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          data=json.loads(Path('/tmp/builds.json').read_text() or '[]')
-          if isinstance(data, dict):
-              data=data.get('builds') or data.get('data') or []
-          apk=''
-          for b in data:
-              art=(b or {}).get('artifacts') or {}
-              # IMPORTANT: applicationArchiveUrl is the actual APK binary.
-              # buildUrl is an Expo details page and must not be used for direct download.
-              url=art.get('applicationArchiveUrl') or art.get('buildUrl') or ''
-              profile=str((b or {}).get('buildProfile') or '').lower()
-              if url and (profile=='preview' or url.lower().endswith('.apk') or 'artifacts' in url.lower()):
-                  apk=url
-                  break
-          Path('/tmp/apk_url.txt').write_text(apk)
-          print('APK URL found:', bool(apk))
-          PY
+          npm install playwright@1.55.0 --no-save --no-package-lock
+          npx playwright install --with-deps chromium
 
-      - name: Build APK only if none exists
-        shell: bash
+      - name: Download exact APK from firestorage
         run: |
-          if [ -s /tmp/apk_url.txt ]; then
-            echo "Using existing APK"
-            exit 0
-          fi
-          npm install --no-audit --no-fund
-          eas build --platform android --profile preview --non-interactive --wait --json > /tmp/newbuild.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          raw=json.loads(Path('/tmp/newbuild.json').read_text() or '[]')
-          if isinstance(raw, list):
-              b=raw[0] if raw else {}
-          else:
-              b=raw
-          art=(b or {}).get('artifacts') or {}
-          url=art.get('applicationArchiveUrl') or art.get('buildUrl') or ''
-          if not url:
-              raise SystemExit('APK build finished but no downloadable URL was returned')
-          Path('/tmp/apk_url.txt').write_text(url)
-          print('New APK URL ready')
-          PY
+          cat >/tmp/get-apk.js <<'JS'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const context=await browser.newContext({acceptDownloads:true});
+            const page=await context.newPage();
+            await page.goto('https://firestorage.ai/ja/f/pHAN6dP_usT8',{waitUntil:'domcontentloaded',timeout:120000});
+            await page.waitForTimeout(12000);
+            console.log((await page.locator('body').innerText()).slice(0,15000));
+            let saved=false;
+            const candidates=[
+              page.getByText('Option King AI.apk',{exact:false}),
+              page.getByRole('button',{name:/download|ダウンロード/i}),
+              page.getByRole('link',{name:/download|ダウンロード/i})
+            ];
+            for(const loc of candidates){
+              const n=await loc.count().catch(()=>0);
+              for(let i=0;i<n&&!saved;i++){
+                const el=loc.nth(i);
+                if(!await el.isVisible().catch(()=>false)) continue;
+                try{
+                  const dp=page.waitForEvent('download',{timeout:30000});
+                  await el.click({timeout:15000});
+                  const d=await dp;
+                  await d.saveAs('Option-King-AI.apk');
+                  saved=true;
+                }catch(e){console.log('no download',String(e));}
+              }
+              if(saved) break;
+            }
+            await browser.close();
+            if(!saved||!fs.existsSync('Option-King-AI.apk')) throw new Error('APK not downloaded');
+            const size=fs.statSync('Option-King-AI.apk').size;
+            console.log('APK_BYTES='+size);
+            if(size<80000000||size>95000000) throw new Error('Unexpected APK size '+size);
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+          node /tmp/get-apk.js
+          sha256sum Option-King-AI.apk
 
-      - name: Patch web menu with Download APK
-        shell: bash
+      - name: Publish GitHub release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=option-king-ai-latest
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Option King AI APK" --notes "Direct APK download"
+          gh release upload "$TAG" Option-King-AI.apk --clobber
+
+      - name: Patch web Download APK button
         run: |
           python - <<'PY'
           from pathlib import Path
-          import json
-
-          apk=Path('/tmp/apk_url.txt').read_text().strip()
-          if not apk:
-              raise SystemExit('No APK URL available')
-
+          import re
           p=Path('src/web/WebDesktopShell.js')
           s=p.read_text()
-
-          marker="const GREEN = '#00d4a0';\n"
-          const_line=f"const APK_DOWNLOAD_URL = {json.dumps(apk)};\n"
-          if 'const APK_DOWNLOAD_URL =' in s:
-              import re
-              s=re.sub(r"const APK_DOWNLOAD_URL = .*?;\n", const_line, s, count=1)
-          else:
-              if marker not in s:
-                  raise SystemExit('color anchor missing')
-              s=s.replace(marker, marker+const_line, 1)
-
-          import re
-          # Remove the old Expo builds-page constant if present.
-          s=re.sub(r"const APK_DOWNLOAD_PAGE = .*?;\n", '', s, count=1)
-
-          old_helper="""function openApkDownload() {
-  try {
-    if (typeof globalThis !== 'undefined' && typeof globalThis.open === 'function') {
-      globalThis.open(APK_DOWNLOAD_PAGE, '_blank', 'noopener,noreferrer');
-      return true;
-    }
-    if (typeof globalThis !== 'undefined' && globalThis.location) {
-      globalThis.location.href = APK_DOWNLOAD_PAGE;
-      return true;
-    }
-  } catch (_) {}
-  return false;
-}
-"""
-          new_helper="""function openApkDownload() {
+          url='https://github.com/ayush2726-maker/option-king-saas-mobile/releases/download/option-king-ai-latest/Option-King-AI.apk'
+          s=re.sub(r"const APK_DOWNLOAD_PAGE = .*?;\n",f"const APK_DOWNLOAD_URL = '{url}';\n",s,count=1)
+          if 'const APK_DOWNLOAD_URL' not in s:
+              s=s.replace("const GREEN = '#00d4a0';\n", "const GREEN = '#00d4a0';\nconst APK_DOWNLOAD_URL = '"+url+"';\n",1)
+          s=re.sub(r"function openApkDownload\(\) \{.*?\n\}\n\nasync function directLogout",'''function openApkDownload() {
   try {
     if (typeof globalThis !== 'undefined' && globalThis.document) {
       const a = globalThis.document.createElement('a');
@@ -140,77 +109,18 @@ jobs:
   } catch (_) {}
   return false;
 }
-"""
-          if old_helper in s:
-              s=s.replace(old_helper, new_helper, 1)
-          elif 'function downloadAndroidApk()' in s:
-              s=re.sub(r"function downloadAndroidApk\(\) \{.*?\n\}\n", new_helper, s, count=1, flags=re.S)
-              s=s.replace('downloadAndroidApk();', 'openApkDownload();')
-          elif 'function openApkDownload()' not in s:
-              nav_anchor="""function directNavigate(route) {
-  try {
-    if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_WEB_NAVIGATE__ === 'function') {
-      return globalThis.__OKAI_WEB_NAVIGATE__(route);
-    }
-  } catch (_) {}
-  return false;
-}
-"""
-              if nav_anchor not in s:
-                  raise SystemExit('directNavigate anchor missing')
-              s=s.replace(nav_anchor, nav_anchor+'\n'+new_helper, 1)
 
-          items_anchor="""    ...items.map(([key, icon, label, route]) =>
-      React.createElement(RailItem, {
-        key, navKey: key, icon, label, compact,
-        active: activeKey === key,
-        onPress: () => go(key, route),
-      })
-    ),
-    React.createElement(
-      View,
-"""
-          items_new="""    ...items.map(([key, icon, label, route]) =>
-      React.createElement(RailItem, {
-        key, navKey: key, icon, label, compact,
-        active: activeKey === key,
-        onPress: () => go(key, route),
-      })
-    ),
-    React.createElement(RailItem, {
-      key: 'download-apk', navKey: 'download-apk', icon: '⇩', label: 'Download APK', compact,
-      active: false,
-      onPress: () => { onClose && onClose(); openApkDownload(); },
-    }),
-    React.createElement(
-      View,
-"""
-          if "navKey: 'download-apk'" not in s:
-              if items_anchor not in s:
-                  raise SystemExit('nav list anchor missing')
-              s=s.replace(items_anchor, items_new, 1)
-
+async function directLogout''',s,count=1,flags=re.S)
           p.write_text(s)
-          Path('.latest-apk.json').write_text(json.dumps({
-              'platform':'android',
-              'type':'apk',
-              'download_url':apk,
-              'source':'EAS latest finished build direct archive'
-          }, indent=2)+'\n')
           PY
-
           node --check src/web/WebDesktopShell.js
           git diff --check
 
-      - name: Commit download option
-        shell: bash
+      - name: Commit direct download patch
         run: |
-          if git diff --quiet; then
-            echo "Already up to date"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/web/WebDesktopShell.js .latest-apk.json
-          git commit -m "Add direct APK download to web menu"
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/web/WebDesktopShell.js
+          git commit -m 'Use stable direct APK download'
           git push origin main
