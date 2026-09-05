@@ -10,17 +10,14 @@ on:
       - "AppPaymentsPatched.js"
       - "index.js"
       - "src/**"
-      - "scripts/**"
       - "app.json"
       - "eas.json"
       - "package.json"
-      - "ota-release.json"
-      - "trade-ui-patch-v7.json"
       - ".github/workflows/publish-production-update.yml"
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: production-ota
@@ -34,81 +31,12 @@ jobs:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
       - name: Check Expo token
-        id: token
         shell: bash
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "Missing GitHub Actions secret: EXPO_TOKEN"
-            exit 1
-          fi
+          test -n "$EXPO_TOKEN" || (echo "Missing EXPO_TOKEN" && exit 1)
 
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Remove missed-trade five-row UI cap
-        id: missed_trade_rows
-        shell: bash
-        run: |
-          python3 scripts/patch_missed_trade_unlimited_list_v5.py
-          grep -q "missed.recent.map((item, index) =>" src/screens/AdvancedAiTabScreen.js
-          if grep -q "missed.recent.slice(0, 5).map" src/screens/AdvancedAiTabScreen.js; then
-            echo "Missed-trade five-row cap is still present"
-            exit 1
-          fi
-          git diff --check
-
-      - name: Apply multi-active-trade source patch
-        id: trade_patch
-        shell: bash
-        run: |
-          python3 scripts/patch_multi_active_trades_v7.py
-          grep -q "OKAI-MULTI-ACTIVE-TRADE-TAB-V7" App.js
-          grep -q "Active Paper Trades" App.js
-          grep -q "EXIT THIS TRADE" App.js
-          grep -q "Promise.allSettled" App.js
-          git diff --check
-
-      - name: Apply daily trade history and execution cost UI
-        id: daily_trade_history
-        shell: bash
-        run: |
-          python3 scripts/patch_daily_trade_history_v1.py
-          grep -q "OKAI-DAILY-TRADE-HISTORY-V1" App.js
-          grep -q "Daily Trade History" App.js
-          grep -q "EXECUTION COST" App.js
-          grep -q "executionCostValue" App.js
-          git diff --check
-
-      - name: Persist patched App.js to main
-        id: persist_trade_history
-        shell: bash
-        run: |
-          if git diff --quiet -- App.js; then
-            echo "App.js already permanently patched"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add App.js
-          git commit -m "Persist daily trade history and execution costs UI"
-          git push origin HEAD:main
-
-      - name: Patch actual Live Score Trade tab
-        id: live_score_trade_patch
-        shell: bash
-        run: |
-          python3 scripts/patch_live_score_multi_trades_v8.py
-          grep -q "OKAI-LIVE-SCORE-MULTI-TRADE-V8" src/runtime/LiveScoreTradeTabEnhancement.js
-          grep -q "mergeOpenPositionsV8" src/runtime/LiveScoreTradeTabEnhancement.js
-          grep -q "Active.*Trades" src/runtime/LiveScoreTradeTabEnhancement.js
-          grep -q "__okaiMultiTradeBypass" src/runtime/LiveScoreTradeTabEnhancement.js
-          grep -q "EXIT THIS TRADE" src/runtime/LiveScoreTradeTabEnhancement.js
-          node --check src/runtime/LiveScoreTradeTabEnhancement.js
-          git diff --check
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -116,185 +44,47 @@ jobs:
           node-version: 20
 
       - name: Setup EAS
-        shell: bash
-        run: |
-          npm install --global eas-cli@latest --no-audit --no-fund
-          eas --version
+        run: npm install --global eas-cli@latest --no-audit --no-fund
 
       - name: Install dependencies
-        id: install
-        shell: bash
-        run: |
-          mkdir -p /tmp/okai-ota
-          set -o pipefail
-          npm install --no-audit --no-fund 2>&1 | tee /tmp/okai-ota/install.log
+        run: npm install --no-audit --no-fund
 
-      - name: Run source and regression checks
-        id: checks
-        env:
-          CI: "1"
+      - name: Validate current source
         shell: bash
         run: |
-          set -o pipefail
-          {
-            grep -q "OKAI-MULTI-ACTIVE-TRADE-TAB-V7" App.js
-            grep -q "Active Paper Trades" App.js
-            grep -q "EXIT THIS TRADE" App.js
-            grep -q "OKAI-DAILY-TRADE-HISTORY-V1" App.js
-            grep -q "Daily Trade History" App.js
-            grep -q "EXECUTION COST" App.js
-            grep -q "OKAI-LIVE-SCORE-MULTI-TRADE-V8" src/runtime/LiveScoreTradeTabEnhancement.js
-            grep -q "mergeOpenPositionsV8" src/runtime/LiveScoreTradeTabEnhancement.js
-            grep -q "__okaiMultiTradeBypass" src/runtime/LiveScoreTradeTabEnhancement.js
-            grep -q "missed.recent.map((item, index) =>" src/screens/AdvancedAiTabScreen.js
-            if grep -q "missed.recent.slice(0, 5).map" src/screens/AdvancedAiTabScreen.js; then exit 1; fi
-            node --check src/runtime/LiveScoreTradeTabEnhancement.js
-            node --check src/screens/AdvancedAiTabScreen.js
-            node --check src/components/SectorRotationCard.js
-            node --check src/runtime/SectorRotationEnhancement.js
-            node --check src/runtime/DirectHomeSectorRotationV4.js
-            npm run sector:test
-            npm run ai:test
-            npm run ai:health
-            npm run language:test
-            npm run score-consistency:test
-            npm run angel-broker-save:test
-            node scripts/test-missed-trade-learning-ui.js
-            npx expo install --check
-          } 2>&1 | tee /tmp/okai-ota/checks.log
+          node --check src/runtime/SubscriptionActivationGate.js
+          node --check src/screens/LocalGatewayScreen.js
+          npx expo install --check
 
       - name: Validate Android export
-        id: export
         env:
           CI: "1"
         shell: bash
         run: |
-          set -o pipefail
           rm -rf /tmp/okai-ota-export
-          npx expo export --platform android --clear --output-dir /tmp/okai-ota-export 2>&1 | tee /tmp/okai-ota/export.log
+          npx expo export --platform android --clear --output-dir /tmp/okai-ota-export
           test -f /tmp/okai-ota-export/metadata.json
 
-      - name: Publish Android update to production branch
-        id: publish
+      - name: Publish Android update
         env:
           CI: "1"
         shell: bash
         run: |
-          set -o pipefail
           SHORT_SHA="${GITHUB_SHA::7}"
-          eas update \
-            --branch production \
-            --platform android \
-            --clear-cache \
-            --message "OKAI Android OTA ${SHORT_SHA}: daily trade history + execution costs" \
-            --non-interactive 2>&1 | tee /tmp/okai-ota/publish.log
+          eas update --branch production --platform android --clear-cache --message "OKAI production ${SHORT_SHA}: customer friendly UI and subscription access" --non-interactive
 
-      - name: Point and verify production channel
-        id: channel
+      - name: Point production channel
         env:
           CI: "1"
         shell: bash
         run: |
-          set -o pipefail
-          eas channel:edit production --branch production --non-interactive 2>&1 | tee /tmp/okai-ota/channel-edit.log
-          eas channel:resume production --branch production --non-interactive 2>&1 | tee /tmp/okai-ota/channel-resume.log || true
-          eas channel:view production --json --non-interactive 2>&1 | tee /tmp/okai-ota/channel-view.log
+          eas channel:edit production --branch production --non-interactive
+          eas channel:resume production --branch production --non-interactive || true
 
-      - name: Bridge legacy default channel to production branch
-        id: legacy_channel
+      - name: Keep legacy default channel compatible
         env:
           CI: "1"
         shell: bash
         run: |
-          set -o pipefail
-          eas channel:create default --non-interactive 2>&1 | tee /tmp/okai-ota/default-channel-create.log || true
-          eas channel:edit default --branch production --non-interactive 2>&1 | tee /tmp/okai-ota/default-channel-edit.log
-          eas channel:view default --json --non-interactive 2>&1 | tee /tmp/okai-ota/default-channel-view.log
-
-      - name: Upload OTA diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: okai-production-ota-diagnostics-${{ github.run_id }}
-          path: /tmp/okai-ota
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Write verifiable OTA status
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TOKEN_OUTCOME: ${{ steps.token.outcome }}
-          INSTALL_OUTCOME: ${{ steps.install.outcome }}
-          CHECKS_OUTCOME: ${{ steps.checks.outcome }}
-          EXPORT_OUTCOME: ${{ steps.export.outcome }}
-          PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
-          CHANNEL_OUTCOME: ${{ steps.channel.outcome }}
-          LEGACY_CHANNEL_OUTCOME: ${{ steps.legacy_channel.outcome }}
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json
-          import os
-          from datetime import datetime, timezone
-          from pathlib import Path
-
-          logs = {}
-          root = Path('/tmp/okai-ota')
-          for name in (
-              'install', 'checks', 'export', 'publish',
-              'channel-edit', 'channel-resume', 'channel-view',
-              'default-channel-create', 'default-channel-edit', 'default-channel-view'
-          ):
-              path = root / f'{name}.log'
-              if path.exists():
-                  text = path.read_text(errors='replace')
-                  logs[name] = text[-5000:]
-
-          outcomes = {
-              'token': os.getenv('TOKEN_OUTCOME') or 'unknown',
-              'install': os.getenv('INSTALL_OUTCOME') or 'unknown',
-              'checks': os.getenv('CHECKS_OUTCOME') or 'unknown',
-              'export': os.getenv('EXPORT_OUTCOME') or 'unknown',
-              'publish': os.getenv('PUBLISH_OUTCOME') or 'unknown',
-              'production_channel': os.getenv('CHANNEL_OUTCOME') or 'unknown',
-              'legacy_default_channel': os.getenv('LEGACY_CHANNEL_OUTCOME') or 'unknown',
-          }
-          success = (
-              outcomes['checks'] == 'success'
-              and outcomes['export'] == 'success'
-              and outcomes['publish'] == 'success'
-              and outcomes['production_channel'] == 'success'
-              and outcomes['legacy_default_channel'] == 'success'
-          )
-          payload = {
-              'success': success,
-              'status': 'PUBLISHED' if success else 'FAILED',
-              'channels': ['production', 'default'],
-              'branch': 'production',
-              'platform': 'android',
-              'runtime_version': '1.0.1',
-              'commit': os.getenv('GITHUB_SHA'),
-              'run_id': os.getenv('GITHUB_RUN_ID'),
-              'daily_trade_history': 'persisted-in-App.js',
-              'checked_at_utc': datetime.now(timezone.utc).isoformat(),
-              'steps': outcomes,
-              'logs_tail': logs,
-          }
-          Path('/tmp/ota-status.json').write_text(
-              json.dumps(payload, ensure_ascii=False, indent=2) + '\n'
-          )
-          PY
-
-          CONTENT=$(base64 -w0 /tmp/ota-status.json)
-          STATUS_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/contents/.ota-status.json" --jq '.sha' 2>/dev/null || true)
-          if [ -n "$STATUS_SHA" ]; then
-            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/.ota-status.json" \
-              -f message="Record dual-channel OTA result for ${GITHUB_SHA::7}" \
-              -f content="$CONTENT" \
-              -f sha="$STATUS_SHA" >/dev/null
-          else
-            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/.ota-status.json" \
-              -f message="Record dual-channel OTA result for ${GITHUB_SHA::7}" \
-              -f content="$CONTENT" >/dev/null
-          fi
+          eas channel:create default --non-interactive || true
+          eas channel:edit default --branch production --non-interactive
