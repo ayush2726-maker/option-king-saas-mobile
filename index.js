@@ -2,7 +2,12 @@ import './src/polyfills';
 import { registerRootComponent } from 'expo';
 
 const React = require('react');
-const BiometricAppLock = require('./src/security/BiometricAppLock15m');
+const { Platform } = require('react-native');
+
+const BiometricAppLock = Platform.OS === 'web'
+  ? function WebSafeBiometricPassThrough({ children }) { return children; }
+  : require('./src/security/BiometricAppLock15m');
+
 const SessionAwareManualExitOverlayV10 = require(
   './src/components/SessionAwareManualExitOverlayV10'
 );
