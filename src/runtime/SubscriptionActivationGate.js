@@ -5,7 +5,6 @@ const AsyncStorage = AsyncStorageModule.default || AsyncStorageModule;
 
 const { ActivityIndicator, Linking, Modal, Text, TouchableOpacity, View } = ReactNative;
 const API = 'https://option-king-saas-production.up.railway.app';
-const MANUAL_PAYTM_LINK = 'https://p.ppsl.io/PYTMPS/cn1hjk';
 
 async function getAuthToken() {
   const preferred = ['saas_token', 'token', 'auth_token', 'okai_token', 'access_token'];
@@ -30,11 +29,13 @@ function SubscriptionActivationGate({ children }) {
   const [visible, setVisible] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [message, setMessage] = React.useState('');
+  const dismissedRef = React.useRef(false);
 
   const checkStatus = React.useCallback(async () => {
     const token = await getAuthToken();
     if (!token) {
       setVisible(false);
+      dismissedRef.current = false;
       return;
     }
     try {
@@ -52,9 +53,14 @@ function SubscriptionActivationGate({ children }) {
       }
       const status = String(data?.subscription_status || '').toLowerCase();
       const expired = status === 'expired' || status === 'inactive' || status === 'suspended';
-      setVisible(expired);
+      if (expired) {
+        setVisible(!dismissedRef.current);
+      } else {
+        dismissedRef.current = false;
+        setVisible(false);
+        setMessage('');
+      }
       globalThis.__OKAI_SUBSCRIPTION_STATUS__ = data;
-      if (!expired) setMessage('');
     } catch (_) {
       setMessage('Subscription status check nahi ho paya. Refresh karein.');
     }
@@ -66,14 +72,34 @@ function SubscriptionActivationGate({ children }) {
     return () => clearInterval(timer);
   }, [checkStatus]);
 
+  function dismissPopup() {
+    dismissedRef.current = true;
+    setVisible(false);
+    setMessage('');
+  }
+
   async function activateNow() {
     if (loading) return;
     setLoading(true);
     setMessage('');
     try {
-      const supported = await Linking.canOpenURL(MANUAL_PAYTM_LINK);
-      if (!supported) throw new Error('Payment link open nahi ho pa rahi.');
-      await Linking.openURL(MANUAL_PAYTM_LINK);
+      const token = await getAuthToken();
+      if (!token) throw new Error('Please login again.');
+      const response = await fetch(API + '/subscription/razorpay/create-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + token,
+        },
+        body: JSON.stringify({ plan_id: 'monthly_5000' }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.detail || data?.message || 'Payment page create nahi ho payi.');
+      const checkoutUrl = String(data?.checkout_url || '').trim();
+      if (!checkoutUrl) throw new Error('Payment page URL missing hai.');
+      const supported = await Linking.canOpenURL(checkoutUrl);
+      if (!supported) throw new Error('Payment page open nahi ho pa rahi.');
+      await Linking.openURL(checkoutUrl);
       setMessage('Payment ke baad admin payment confirm karke 30 days activate karega. Activation ke baad Refresh dabayein.');
     } catch (error) {
       setMessage(error?.message || 'Could not open payment page.');
@@ -85,6 +111,7 @@ function SubscriptionActivationGate({ children }) {
   async function refreshStatus() {
     setLoading(true);
     setMessage('Checking activation status...');
+    dismissedRef.current = false;
     await checkStatus();
     setLoading(false);
   }
@@ -95,7 +122,7 @@ function SubscriptionActivationGate({ children }) {
     children,
     React.createElement(
       Modal,
-      { visible, transparent: true, animationType: 'fade', onRequestClose: () => {} },
+      { visible, transparent: true, animationType: 'fade', onRequestClose: dismissPopup },
       React.createElement(
         View,
         {
@@ -122,10 +149,33 @@ function SubscriptionActivationGate({ children }) {
               shadowOpacity: 0.35,
               shadowRadius: 22,
               elevation: 14,
+              position: 'relative',
             },
           },
-          React.createElement(Text, { style: { color: '#67b7ff', fontSize: 12, fontWeight: '900', letterSpacing: 1 } }, 'OPTION KING AI'),
-          React.createElement(Text, { style: { color: '#ffffff', fontSize: 24, fontWeight: '900', marginTop: 8 } }, 'Subscription Required'),
+          React.createElement(
+            TouchableOpacity,
+            {
+              onPress: dismissPopup,
+              accessibilityLabel: 'Close subscription popup',
+              style: {
+                position: 'absolute',
+                right: 14,
+                top: 12,
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#18263b',
+                borderWidth: 1,
+                borderColor: '#36516f',
+                zIndex: 5,
+              },
+            },
+            React.createElement(Text, { style: { color: '#d8e8ff', fontSize: 24, fontWeight: '700', lineHeight: 26 } }, '×')
+          ),
+          React.createElement(Text, { style: { color: '#67b7ff', fontSize: 12, fontWeight: '900', letterSpacing: 1, paddingRight: 42 } }, 'OPTION KING AI'),
+          React.createElement(Text, { style: { color: '#ffffff', fontSize: 24, fontWeight: '900', marginTop: 8, paddingRight: 42 } }, 'Subscription Required'),
           React.createElement(Text, { style: { color: '#aab7cc', fontSize: 14, lineHeight: 21, marginTop: 10 } }, 'Your subscription is inactive. Pay ₹5,000 for 30 days and the administrator will activate your account after payment confirmation.'),
           React.createElement(
             View,
@@ -169,8 +219,22 @@ function SubscriptionActivationGate({ children }) {
             },
             React.createElement(Text, { style: { color: '#9bc8ff', fontSize: 13, fontWeight: '800' } }, 'Refresh Activation Status'),
           ),
+          React.createElement(
+            TouchableOpacity,
+            {
+              onPress: dismissPopup,
+              style: {
+                marginTop: 8,
+                minHeight: 40,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+            },
+            React.createElement(Text, { style: { color: '#8fa3bf', fontSize: 12, fontWeight: '700' } }, 'Close for now')
+          ),
           message ? React.createElement(Text, { style: { color: '#f3c969', fontSize: 11, lineHeight: 17, marginTop: 12, textAlign: 'center' } }, message) : null,
-          React.createElement(Text, { style: { color: '#667892', fontSize: 10, lineHeight: 15, marginTop: 14, textAlign: 'center' } }, 'Payment does not activate automatically. Admin activation is required.'),
+          React.createElement(Text, { style: { color: '#667892', fontSize: 10, lineHeight: 15, marginTop: 10, textAlign: 'center' } }, 'Payment does not activate automatically. Admin activation is required.'),
         )
       )
     )
