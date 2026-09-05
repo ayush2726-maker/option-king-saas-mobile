@@ -1,0 +1,83 @@
+name: Fix Live Setup Copy V2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fix-live-setup-copy-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch live setup copy and completion detection
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/CustomerOnboardingAssistantV2.js')
+          s = p.read_text()
+
+          old = "const Clipboard = require('expo-clipboard');"
+          new = "let Clipboard = null;\ntry { Clipboard = require('expo-clipboard'); } catch (_) {}"
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          old = """    try {\n      await Clipboard.setStringAsync(String(value ?? ''));\n      setCopied(true);\n      setTimeout(()=>setCopied(false),1400);\n    } catch (_) {\n      Alert.alert('Copy failed','Press and hold the value to copy it manually.');\n    }"""
+          new = """    try {\n      const text = String(value ?? '');\n      if (Clipboard && typeof Clipboard.setStringAsync === 'function') {\n        await Clipboard.setStringAsync(text);\n      } else if (RN.Clipboard && typeof RN.Clipboard.setString === 'function') {\n        RN.Clipboard.setString(text);\n      } else if (RN.Platform.OS === 'web' && typeof globalThis !== 'undefined' && globalThis.navigator?.clipboard?.writeText) {\n        await globalThis.navigator.clipboard.writeText(text);\n      } else {\n        throw new Error('Clipboard API unavailable');\n      }\n      setCopied(true);\n      setTimeout(()=>setCopied(false),1400);\n    } catch (_) {\n      Alert.alert('Copy unavailable','Press and hold the value to copy it manually.');\n    }"""
+          if old not in s:
+              raise SystemExit('copy handler pattern not found')
+          s = s.replace(old, new, 1)
+
+          old = "const [me,ent,brokers,gateway,prov] = await Promise.all(["
+          new = "const [me,ent,brokers,gateway,prov,botStatus] = await Promise.all(["
+          if old not in s:
+              raise SystemExit('promise destructuring pattern not found')
+          s = s.replace(old, new, 1)
+
+          old = """        api('/local-gateway/status',t).catch(()=>({})),\n        api('/local-gateway/provision/status',t).catch(()=>({})),\n      ]);"""
+          new = """        api('/local-gateway/status',t).catch(()=>({})),\n        api('/local-gateway/provision/status',t).catch(()=>({})),\n        api('/bot/status',t).catch(()=>({})),\n      ]);"""
+          if old not in s:
+              raise SystemExit('status api block pattern not found')
+          s = s.replace(old, new, 1)
+
+          old = "const userId = Number(user?.id || 0);"
+          new = """const userId = Number(user?.id || 0);\n      const tradingMode = String(\n        botStatus?.mode || botStatus?.trading_mode || botStatus?.bot?.mode || botStatus?.status?.mode || ''\n      ).trim().toLowerCase();"""
+          if old not in s:
+              raise SystemExit('userId pattern not found')
+          s = s.replace(old, new, 1)
+
+          old = """        provisionState:String(p?.state || 'not_requested').toLowerCase(),\n        ipConfirmed:Boolean(p?.broker_ip_confirmed_at),"""
+          new = """        provisionState:String(p?.state || 'not_requested').toLowerCase(),\n        tradingMode,\n        ipConfirmed:Boolean(p?.broker_ip_confirmed_at),"""
+          if old not in s:
+              raise SystemExit('state insert pattern not found')
+          s = s.replace(old, new, 1)
+
+          old = "const liveSetupComplete = Boolean(state.gateway?.server_armed);"
+          new = "const liveSetupComplete = Boolean(state.tradingMode === 'live' || state.gateway?.server_armed);"
+          if old not in s:
+              raise SystemExit('liveSetupComplete pattern not found')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          PY
+          node --check src/components/CustomerOnboardingAssistantV2.js
+      - name: Commit hotfix
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/CustomerOnboardingAssistantV2.js
+          git commit -m "Fix live setup shortcut and clipboard fallback"
+          git push origin main
