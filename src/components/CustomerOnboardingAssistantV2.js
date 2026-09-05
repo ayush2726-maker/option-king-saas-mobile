@@ -77,7 +77,7 @@ function Step({n,title,detail,done,active,expanded,onPress,children}) {
   );
 }
 
-function GuideRow({label,value,note}) {
+function GuideRow({label,value,note,copyable=false}) {
   const [copied,setCopied] = React.useState(false);
   const copyValue = async()=>{
     try {
@@ -101,9 +101,9 @@ function GuideRow({label,value,note}) {
     React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},label),
     React.createElement(View,{style:{flexDirection:'row',alignItems:'center',gap:8,marginTop:3}},
       React.createElement(Text,{selectable:true,style:{color:'#fff',fontSize:12,fontWeight:'800',lineHeight:18,flex:1}},value),
-      React.createElement(TouchableOpacity,{onPress:copyValue,activeOpacity:.8,accessibilityLabel:`Copy ${label}`,style:{minWidth:58,height:30,paddingHorizontal:9,borderRadius:8,backgroundColor:copied?'#0e5947':'#172f4d',borderWidth:1,borderColor:copied?'#21a981':'#3d82c4',alignItems:'center',justifyContent:'center'}},
+      copyable ? React.createElement(TouchableOpacity,{onPress:copyValue,activeOpacity:.8,accessibilityLabel:`Copy ${label}`,style:{minWidth:58,height:30,paddingHorizontal:9,borderRadius:8,backgroundColor:copied?'#0e5947':'#172f4d',borderWidth:1,borderColor:copied?'#21a981':'#3d82c4',alignItems:'center',justifyContent:'center'}},
         React.createElement(Text,{style:{color:copied?'#78deb0':'#8bc2ff',fontSize:10,fontWeight:'900'}},copied?'✓ Copied':'⧉ Copy')
-      )
+      ) : null
     ),
     note ? React.createElement(Text,{style:{color:'#91a4bd',fontSize:10,lineHeight:15,marginTop:2}},note) : null
   );
@@ -262,6 +262,21 @@ function CustomerOnboardingAssistantV2({children}) {
 
   const brokerName = state.chosenBroker === 'angelone' ? 'Angel One' : state.chosenBroker === 'upstox' ? 'Upstox' : '';
   const ip = state.assignedIp || 'Preparing...';
+  const [ipCopied,setIpCopied] = React.useState(false);
+  const copyStaticIp = async()=>{
+    if (!state.assignedIp) return;
+    try {
+      const text = String(state.assignedIp);
+      if (Clipboard && typeof Clipboard.setStringAsync === 'function') await Clipboard.setStringAsync(text);
+      else if (RN.Clipboard && typeof RN.Clipboard.setString === 'function') RN.Clipboard.setString(text);
+      else if (RN.Platform.OS === 'web' && typeof globalThis !== 'undefined' && globalThis.navigator?.clipboard?.writeText) await globalThis.navigator.clipboard.writeText(text);
+      else throw new Error('Clipboard API unavailable');
+      setIpCopied(true);
+      setTimeout(()=>setIpCopied(false),1400);
+    } catch (_) {
+      Alert.alert('Copy unavailable','Press and hold the static IP to copy it manually.');
+    }
+  };
 
   return React.createElement(React.Fragment,null,
     children,
@@ -307,7 +322,12 @@ function CustomerOnboardingAssistantV2({children}) {
             React.createElement(Step,{n:3,title:'Select Broker & Create API Credentials',detail:state.brokerReady?`${brokerName || 'Broker'} connected successfully.`:state.chosenBroker?`${brokerName} selected. Create the API, then enter its credentials in Option King AI.`:state.assignedIp?'Select Angel One or Upstox. The official API creation page will open.':'Wait for your dedicated IP first.',done:state.brokerReady,active:stage===3,expanded:expanded===3,onPress:()=>toggle(3)},
               React.createElement(View,{style:{padding:10,borderRadius:10,backgroundColor:'#0c1725',borderWidth:1,borderColor:'#2a4a6d'}},
                 React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},'ENTER THIS STATIC IP IN THE BROKER APP'),
-                React.createElement(Text,{style:{color:'#fff',fontSize:17,fontWeight:'900',marginTop:3}},state.assignedIp || 'Waiting for IP')
+                React.createElement(View,{style:{flexDirection:'row',alignItems:'center',gap:8,marginTop:3}},
+                  React.createElement(Text,{selectable:true,style:{color:'#fff',fontSize:17,fontWeight:'900',flex:1}},state.assignedIp || 'Waiting for IP'),
+                  state.assignedIp ? React.createElement(TouchableOpacity,{onPress:copyStaticIp,activeOpacity:.8,accessibilityLabel:'Copy static IP',style:{minWidth:66,height:32,paddingHorizontal:10,borderRadius:8,backgroundColor:ipCopied?'#0e5947':'#172f4d',borderWidth:1,borderColor:ipCopied?'#21a981':'#3d82c4',alignItems:'center',justifyContent:'center'}},
+                    React.createElement(Text,{style:{color:ipCopied?'#78deb0':'#8bc2ff',fontSize:10,fontWeight:'900'}},ipCopied?'✓ Copied':'⧉ Copy')
+                  ) : null
+                )
               ),
               React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:19,marginTop:10}},'Choose your broker below. Its official Developer / API Apps page will open. Log in, create a Trading API app and enter the exact static IP shown above.'),
               React.createElement(View,{style:{flexDirection:'row',gap:8}},
@@ -317,9 +337,9 @@ function CustomerOnboardingAssistantV2({children}) {
               state.chosenBroker==='angelone'
                 ? React.createElement(View,{style:{marginTop:10,padding:11,borderRadius:10,backgroundColor:'#111c2c',borderWidth:1,borderColor:'#31557c'}},
                     React.createElement(Text,{style:{color:'#f2f6ff',fontSize:12,fontWeight:'900'}},'Fill these fields in Angel One SmartAPI'),
-                    React.createElement(GuideRow,{label:'APP NAME',value:'Option King AI'}),
-                    React.createElement(GuideRow,{label:'API / APP TYPE',value:'Trading API / Self-coded (Personal)',note:'Choose the trading-order API option if the portal shows multiple API products.'}),
-                    React.createElement(GuideRow,{label:'PRIMARY STATIC IP',value:state.assignedIp || 'Wait for Step 2'}),
+                    React.createElement(GuideRow,{label:'APP NAME',value:'Option King AI',copyable:true}),
+                    React.createElement(GuideRow,{label:'API / APP TYPE',value:'Trading API / Self-coded (Personal)',note:'Choose the trading-order API option if the portal shows multiple API products.',copyable:true}),
+                    React.createElement(GuideRow,{label:'PRIMARY STATIC IP',value:state.assignedIp || 'Wait for Step 2',copyable:Boolean(state.assignedIp)}),
                     React.createElement(GuideRow,{label:'SECONDARY STATIC IP',value:'Leave blank',note:'Only the dedicated Primary IP is required for this setup.'}),
                     React.createElement(Text,{style:{color:'#78deb0',fontSize:11,fontWeight:'900',marginTop:10}},'After Create App, copy the API Key. Then fill Option King AI:'),
                     React.createElement(GuideRow,{label:'CLIENT ID',value:'Your Angel One login/client ID (example: A123456)'}),
@@ -330,11 +350,11 @@ function CustomerOnboardingAssistantV2({children}) {
                 : state.chosenBroker==='upstox'
                   ? React.createElement(View,{style:{marginTop:10,padding:11,borderRadius:10,backgroundColor:'#111c2c',borderWidth:1,borderColor:'#31557c'}},
                       React.createElement(Text,{style:{color:'#f2f6ff',fontSize:12,fontWeight:'900'}},'Fill these fields in Upstox Developer Apps'),
-                      React.createElement(GuideRow,{label:'APP NAME',value:'Option King AI'}),
-                      React.createElement(GuideRow,{label:'APP TYPE',value:'Algo Trading App',note:'Use the normal/live app, not Sandbox or Analytics Token for order placement.'}),
-                      React.createElement(GuideRow,{label:'REDIRECT URL',value:UPSTOX_REDIRECT_URL,note:'Paste exactly without adding spaces.'}),
-                      React.createElement(GuideRow,{label:'POSTBACK / NOTIFIER URL',value:UPSTOX_POSTBACK_URL,note:'Enter this only when the portal shows the field.'}),
-                      React.createElement(GuideRow,{label:'PRIMARY STATIC IP',value:state.assignedIp || 'Wait for Step 2'}),
+                      React.createElement(GuideRow,{label:'APP NAME',value:'Option King AI',copyable:true}),
+                      React.createElement(GuideRow,{label:'APP TYPE',value:'Algo Trading App',note:'Use the normal/live app, not Sandbox or Analytics Token for order placement.',copyable:true}),
+                      React.createElement(GuideRow,{label:'REDIRECT URL',value:UPSTOX_REDIRECT_URL,note:'Paste exactly without adding spaces.',copyable:true}),
+                      React.createElement(GuideRow,{label:'POSTBACK / NOTIFIER URL',value:UPSTOX_POSTBACK_URL,note:'Enter this only when the portal shows the field.',copyable:true}),
+                      React.createElement(GuideRow,{label:'PRIMARY STATIC IP',value:state.assignedIp || 'Wait for Step 2',copyable:Boolean(state.assignedIp)}),
                       React.createElement(GuideRow,{label:'SECONDARY STATIC IP',value:'Leave blank'}),
                       React.createElement(GuideRow,{label:'ALGO NAME',value:'Leave blank unless Upstox has approved an Algo Name'}),
                       React.createElement(Text,{style:{color:'#78deb0',fontSize:11,fontWeight:'900',marginTop:10}},'After Create App, fill Option King AI:'),
