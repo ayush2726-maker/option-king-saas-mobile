@@ -10,89 +10,49 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install Playwright
-        run: |
-          npm install playwright@1.55.0 --no-save --no-package-lock
-          npx playwright install chromium
-      - name: Get exact APK
-        run: |
-          cat >/tmp/get.js <<'JS'
-          const { chromium } = require('playwright');
-          const fs = require('fs');
-          (async()=>{
-            const b=await chromium.launch({headless:true});
-            const c=await b.newContext({acceptDownloads:true});
-            const p=await c.newPage();
-            await p.goto('https://firestorage.ai/ja/f/pHAN6dP_usT8',{waitUntil:'domcontentloaded',timeout:120000});
-            await p.waitForTimeout(10000);
-            console.log((await p.locator('body').innerText()).slice(0,15000));
-            const els=[p.getByText('Option King AI.apk',{exact:false}),p.getByRole('button',{name:/download|ダウンロード/i}),p.getByRole('link',{name:/download|ダウンロード/i})];
-            let ok=false;
-            for(const loc of els){
-              const n=await loc.count().catch(()=>0);
-              for(let i=0;i<n&&!ok;i++){
-                const e=loc.nth(i); if(!await e.isVisible().catch(()=>false)) continue;
-                try{ const dP=p.waitForEvent('download',{timeout:30000}); await e.click({timeout:15000}); const d=await dP; await d.saveAs('Option-King-AI.apk'); ok=true; }catch(err){ console.log('no download',String(err)); }
-              }
-              if(ok) break;
-            }
-            await b.close();
-            if(!ok||!fs.existsSync('Option-King-AI.apk')) throw new Error('APK not downloaded');
-            const z=fs.statSync('Option-King-AI.apk').size; console.log('APK_BYTES='+z); if(z<80000000) throw new Error('wrong file size');
-          })().catch(e=>{console.error(e);process.exit(1)});
-          JS
-          node /tmp/get.js
-          sha256sum Option-King-AI.apk
-      - name: Publish release asset
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TAG=option-king-ai-latest
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Option King AI APK" --notes "Direct APK download"
-          gh release upload "$TAG" Option-King-AI.apk --clobber
-      - name: Patch web button
+
+      - name: Patch web button for direct Android save
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
-          p=Path('src/web/WebDesktopShell.js'); s=p.read_text()
-          u='https://github.com/ayush2726-maker/option-king-saas-mobile/releases/download/option-king-ai-latest/Option-King-AI.apk'
-          s=re.sub(r"const APK_DOWNLOAD_PAGE = .*?;\n",f"const APK_DOWNLOAD_URL = '{u}';\n",s,count=1)
-          s=re.sub(r"function openApkDownload\(\) \{.*?\n\}\n\nasync function directLogout",'''function openApkDownload() {
+          p = Path('src/web/WebDesktopShell.js')
+          s = p.read_text()
+          replacement = '''function openApkDownload() {
   try {
     if (typeof globalThis !== 'undefined' && globalThis.document) {
-      const a = globalThis.document.createElement('a');
-      a.href = APK_DOWNLOAD_URL;
-      a.download = 'Option-King-AI.apk';
-      a.rel = 'noopener noreferrer';
-      globalThis.document.body.appendChild(a);
-      a.click();
-      a.remove();
+      const old = globalThis.document.getElementById('okai-apk-download-frame');
+      if (old) old.remove();
+      const frame = globalThis.document.createElement('iframe');
+      frame.id = 'okai-apk-download-frame';
+      frame.style.display = 'none';
+      frame.src = APK_DOWNLOAD_URL + '?download=1&t=' + Date.now();
+      globalThis.document.body.appendChild(frame);
+      setTimeout(() => { try { frame.remove(); } catch (_) {} }, 120000);
       return true;
     }
     if (typeof globalThis !== 'undefined' && globalThis.location) {
-      globalThis.location.href = APK_DOWNLOAD_URL;
+      globalThis.location.href = APK_DOWNLOAD_URL + '?download=1';
       return true;
     }
   } catch (_) {}
   return false;
-}
-
-async function directLogout''',s,count=1,flags=re.S)
-          p.write_text(s)
+}'''
+          ns, n = re.subn(r'function openApkDownload\(\) \{.*?\n\}\n\nasync function directLogout', replacement + '\n\nasync function directLogout', s, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('openApkDownload block not found')
+          p.write_text(ns)
           PY
           node --check src/web/WebDesktopShell.js
+
       - name: Commit web patch
         run: |
-          if git diff --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/web/WebDesktopShell.js
-          git commit -m 'Use stable direct APK download'
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Download APK without leaving web app'
+          git pull --rebase origin main
           git push origin main
