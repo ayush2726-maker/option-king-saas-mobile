@@ -11,6 +11,9 @@ const { installLegacyGuideScreenReplacement } = require(
 const { installHomeAccordionEnhancementV3 } = require(
   "./src/runtime/HomeAccordionEnhancementV3"
 );
+const { installWebNavigationBridge } = require(
+  "./src/runtime/WebNavigationBridge"
+);
 
 // Install the AI patch first. NavigationHelp then converts the original
 // navigation to the final compact tabs, and the AI patch appends its dedicated
@@ -19,6 +22,7 @@ installAdvancedAiTabEnhancement();
 installNavigationHelpEnhancement();
 installLegacyGuideScreenReplacement();
 installHomeAccordionEnhancementV3();
+installWebNavigationBridge();
 
 const AppPaymentsPatchedModule = require("./AppPaymentsPatched");
 const AppPaymentsPatched =
