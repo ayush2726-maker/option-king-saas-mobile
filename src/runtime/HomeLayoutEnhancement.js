@@ -1,5 +1,7 @@
 const React = require("react");
 const ReactNative = require("react-native");
+const CustomerLiveOnboardingCardModule = require("../components/CustomerLiveOnboardingCard");
+const CustomerLiveOnboardingCard = CustomerLiveOnboardingCardModule.default || CustomerLiveOnboardingCardModule;
 
 let jsxRuntime = null;
 let jsxDevRuntime = null;
@@ -62,10 +64,7 @@ function stripFloatingStyle(props, childrenText) {
     zIndex: undefined,
   };
 
-  return {
-    ...(props || {}),
-    style: nextStyle,
-  };
+  return { ...(props || {}), style: nextStyle };
 }
 
 function looksLikeHomeScroll(children) {
@@ -102,10 +101,12 @@ function rearrangeHomeChildren(children) {
     else rest.push(item);
   }
 
-  if (!controls.length) return rest;
+  const onboarding = React.createElement(CustomerLiveOnboardingCard, {
+    key: "okai-customer-live-onboarding-v1",
+  });
 
-  // Requested Home order: Start/Stop first, Refresh next, then every dashboard card.
-  return [...controls, ...rest];
+  // Customer-first Home: setup/status first, then primary controls, then details.
+  return [onboarding, ...controls, ...rest];
 }
 
 function transformElement(type, props, children) {
@@ -122,10 +123,7 @@ function transformElement(type, props, children) {
     transforming = true;
     try {
       nextChildren = rearrangeHomeChildren(children);
-      nextProps = {
-        ...nextProps,
-        stickyHeaderIndices: undefined,
-      };
+      nextProps = { ...nextProps, stickyHeaderIndices: undefined };
     } finally {
       transforming = false;
     }
