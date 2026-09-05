@@ -15,22 +15,42 @@ function Dot() {
   });
 }
 
+function clickMatchingButton(labels) {
+  if (typeof document === 'undefined') return false;
+  const wanted = labels.map((x) => String(x).trim().toLowerCase());
+  const nodes = Array.from(document.querySelectorAll('[role="button"],button,a'));
+  const match = nodes.find((node) => {
+    const text = String(node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const aria = String(node.getAttribute?.('aria-label') || '').trim().toLowerCase();
+    return wanted.some((label) => text === label || aria === label || text.includes(label));
+  });
+  if (!match) return false;
+  try { match.click(); return true; } catch (_) { return false; }
+}
+
+function navigateTo(primaryLabels, secondaryLabels) {
+  const primaryWorked = clickMatchingButton(primaryLabels);
+  if (secondaryLabels && secondaryLabels.length) {
+    setTimeout(() => clickMatchingButton(secondaryLabels), primaryWorked ? 180 : 0);
+  }
+}
+
 function RailItem({ icon, label, active, compact, onPress }) {
-  const Comp = onPress ? TouchableOpacity : View;
   return React.createElement(
-    Comp,
+    TouchableOpacity,
     {
       onPress,
+      activeOpacity: 0.75,
       style: {
-        minHeight: compact ? 52 : 48,
+        minHeight: compact ? 48 : 46,
         marginHorizontal: compact ? 8 : 10,
-        marginBottom: 6,
+        marginBottom: 5,
         borderRadius: 10,
         alignItems: compact ? 'flex-start' : 'center',
         justifyContent: 'center',
-        backgroundColor: active ? '#172133' : 'transparent',
+        backgroundColor: active ? '#17335e' : 'transparent',
         borderWidth: active ? 1 : 0,
-        borderColor: active ? '#2d3b55' : 'transparent',
+        borderColor: active ? '#285eaa' : 'transparent',
         paddingHorizontal: compact ? 14 : 6,
       },
     },
@@ -38,7 +58,7 @@ function RailItem({ icon, label, active, compact, onPress }) {
       React.createElement(Text, { style: { fontSize: 17, marginRight: compact ? 12 : 0, marginBottom: compact ? 0 : 3 } }, icon),
       React.createElement(Text, {
         style: {
-          color: active ? TEXT : MUTED,
+          color: active ? '#ffffff' : '#b2bfd1',
           fontSize: compact ? 12 : 11,
           fontWeight: active ? '900' : '700',
           textAlign: compact ? 'left' : 'center',
@@ -56,6 +76,7 @@ function HeaderBrand({ phone, menuOpen, setMenuOpen }) {
       TouchableOpacity,
       {
         onPress: () => setMenuOpen(!menuOpen),
+        activeOpacity: 0.8,
         style: {
           width: 38,
           height: 38,
@@ -96,16 +117,37 @@ function HeaderBrand({ phone, menuOpen, setMenuOpen }) {
   );
 }
 
-function NavPanel({ compact, onClose }) {
-  const close = () => onClose && onClose();
+function NavPanel({ compact, onClose, activeKey, setActiveKey }) {
+  const go = (key, primary, secondary) => {
+    setActiveKey && setActiveKey(key);
+    onClose && onClose();
+    setTimeout(() => navigateTo(primary, secondary), 30);
+  };
+  const items = [
+    ['dashboard', '⌂', 'Dashboard', ['Home', 'Bot'], null],
+    ['trades', '↗', 'Trades', ['Trade', 'Trades'], null],
+    ['ai', '◎', 'AI', ['AI'], null],
+    ['reports', '▤', 'Reports', ['Trade', 'Trades'], ['Reports', 'Report', 'History']],
+    ['settings', '⚙', 'Settings', ['Settings', 'Tools'], null],
+    ['broker', '⌁', 'Brokers', ['Settings', 'Tools'], ['Broker', 'Broker Setup', 'Angel One', 'Upstox']],
+    ['backtest', '↺', 'Backtest', ['Settings', 'Tools'], ['Backtest']],
+    ['help', '?', 'Help', ['Help', 'Guide'], null],
+    ['account', '◉', 'Account', ['Account'], null],
+  ];
+
   return React.createElement(
     View,
-    { style: { flex: 1, paddingTop: 12, paddingBottom: 12 } },
-    React.createElement(RailItem, { icon: '⌂', label: 'Dashboard', active: true, compact, onPress: close }),
-    React.createElement(RailItem, { icon: '↗', label: 'Trades', compact, onPress: close }),
-    React.createElement(RailItem, { icon: '◎', label: 'AI', compact, onPress: close }),
-    React.createElement(RailItem, { icon: '▤', label: 'Reports', compact, onPress: close }),
-    React.createElement(RailItem, { icon: '⚙', label: 'Settings', compact, onPress: close }),
+    { style: { flex: 1, paddingTop: 12, paddingBottom: 14 } },
+    ...items.map(([key, icon, label, primary, secondary]) =>
+      React.createElement(RailItem, {
+        key,
+        icon,
+        label,
+        compact,
+        active: activeKey === key,
+        onPress: () => go(key, primary, secondary),
+      })
+    ),
     React.createElement(
       View,
       {
@@ -134,10 +176,11 @@ function WebDesktopShell({ children }) {
   const phone = width < 700;
   const compact = width < 900;
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [activeKey, setActiveKey] = React.useState('dashboard');
 
   const headerHeight = phone ? 56 : 64;
   const railWidth = compact ? 82 : 210;
-  const outerPad = phone ? 6 : compact ? 8 : 18;
+  const outerPad = phone ? 0 : compact ? 8 : 18;
 
   return React.createElement(
     View,
@@ -147,8 +190,8 @@ function WebDesktopShell({ children }) {
       {
         style: {
           height: headerHeight,
-          paddingLeft: phone ? 10 : 18,
-          paddingRight: phone ? 10 : 18,
+          paddingLeft: phone ? 8 : 18,
+          paddingRight: phone ? 8 : 18,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -190,7 +233,7 @@ function WebDesktopShell({ children }) {
             borderRightColor: BORDER,
           },
         },
-        React.createElement(NavPanel, { compact })
+        React.createElement(NavPanel, { compact, activeKey, setActiveKey })
       ),
       phone && menuOpen && React.createElement(
         React.Fragment,
@@ -199,32 +242,29 @@ function WebDesktopShell({ children }) {
           activeOpacity: 1,
           onPress: () => setMenuOpen(false),
           style: {
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            top: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.55)',
-            zIndex: 29,
+            position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.58)', zIndex: 29,
           },
         }),
         React.createElement(
           View,
           {
             style: {
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: Math.min(270, Math.max(220, width * 0.78)),
+              position: 'absolute', left: 0, top: 0, bottom: 0,
+              width: Math.min(292, Math.max(238, width * 0.82)),
               backgroundColor: PANEL,
               borderRightWidth: 1,
               borderRightColor: BORDER,
               zIndex: 30,
-              boxShadow: '8px 0 28px rgba(0,0,0,0.35)',
+              boxShadow: '8px 0 28px rgba(0,0,0,0.4)',
             },
           },
-          React.createElement(NavPanel, { compact: true, onClose: () => setMenuOpen(false) })
+          React.createElement(NavPanel, {
+            compact: true,
+            activeKey,
+            setActiveKey,
+            onClose: () => setMenuOpen(false),
+          })
         )
       ),
       React.createElement(
@@ -234,6 +274,7 @@ function WebDesktopShell({ children }) {
             flex: 1,
             minWidth: 0,
             padding: outerPad,
+            paddingBottom: phone ? 22 : outerPad,
             backgroundColor: BG,
           },
         },
@@ -251,6 +292,7 @@ function WebDesktopShell({ children }) {
               borderRadius: phone ? 0 : compact ? 10 : 16,
               overflow: 'hidden',
               boxShadow: phone ? 'none' : compact ? '0 8px 24px rgba(0,0,0,0.22)' : '0 18px 50px rgba(0,0,0,0.28)',
+              paddingBottom: phone ? 72 : 0,
             },
           },
           children
