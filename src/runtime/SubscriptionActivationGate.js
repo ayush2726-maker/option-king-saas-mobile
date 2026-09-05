@@ -3,7 +3,7 @@ const ReactNative = require('react-native');
 const AsyncStorageModule = require('@react-native-async-storage/async-storage');
 const AsyncStorage = AsyncStorageModule.default || AsyncStorageModule;
 
-const { ActivityIndicator, AppState, Linking, Modal, Text, TouchableOpacity, View } = ReactNative;
+const { ActivityIndicator, Linking, Modal, Text, TouchableOpacity, View } = ReactNative;
 const API = 'https://option-king-saas-production.up.railway.app';
 const MANUAL_PAYTM_LINK = 'https://p.ppsl.io/PYTMPS/cn1hjk';
 
@@ -63,15 +63,7 @@ function SubscriptionActivationGate({ children }) {
   React.useEffect(() => {
     checkStatus();
     const timer = setInterval(checkStatus, 5000);
-    const subscription = AppState?.addEventListener
-      ? AppState.addEventListener('change', (state) => {
-          if (state === 'active') checkStatus();
-        })
-      : null;
-    return () => {
-      clearInterval(timer);
-      if (subscription?.remove) subscription.remove();
-    };
+    return () => clearInterval(timer);
   }, [checkStatus]);
 
   async function activateNow() {
