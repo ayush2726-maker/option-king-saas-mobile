@@ -4,53 +4,65 @@ import { registerRootComponent } from 'expo';
 const React = require('react');
 const { Platform } = require('react-native');
 
-const BiometricAppLock = require('./src/security/BiometricAppLock15m');
-const SessionAwareManualExitOverlayV10 = require(
-  './src/components/SessionAwareManualExitOverlayV10'
-);
-const CustomerOnboardingAssistant = require('./src/components/CustomerOnboardingAssistantV2');
-const WebDesktopShell = require('./src/web/WebDesktopShell');
-const SubscriptionActivationGate = require('./src/runtime/SubscriptionActivationGate');
+function WebRoot() {
+  // Keep the browser bundle on the smallest, safest path possible.
+  // Do not import native wrappers or enhancement installers on web: several of
+  // them monkey-patch React / schedule background checks and can tear down the
+  // RN Web tree after the first successful paint.
+  const WebDesktopShellModule = require('./src/web/WebDesktopShell');
+  const WebDesktopShell = WebDesktopShellModule.default || WebDesktopShellModule;
+  const BaseAppModule = require('./App');
+  const BaseApp = BaseAppModule.default || BaseAppModule;
 
-const { installProfessionalLanguagePatch } = require(
-  './src/runtime/ProfessionalLanguagePatch'
-);
-installProfessionalLanguagePatch();
+  return React.createElement(
+    WebDesktopShell,
+    null,
+    React.createElement(BaseApp)
+  );
+}
 
-const { installHindiNewsResponsePatch } = require(
-  './src/runtime/HindiNewsResponsePatch'
-);
-installHindiNewsResponsePatch();
+function NativeRoot() {
+  const BiometricAppLockModule = require('./src/security/BiometricAppLock15m');
+  const BiometricAppLock = BiometricAppLockModule.default || BiometricAppLockModule;
+  const SessionAwareManualExitOverlayV10Module = require(
+    './src/components/SessionAwareManualExitOverlayV10'
+  );
+  const SessionAwareManualExitOverlayV10 =
+    SessionAwareManualExitOverlayV10Module.default || SessionAwareManualExitOverlayV10Module;
+  const CustomerOnboardingAssistantModule = require('./src/components/CustomerOnboardingAssistantV2');
+  const CustomerOnboardingAssistant =
+    CustomerOnboardingAssistantModule.default || CustomerOnboardingAssistantModule;
+  const SubscriptionActivationGateModule = require('./src/runtime/SubscriptionActivationGate');
+  const SubscriptionActivationGate =
+    SubscriptionActivationGateModule.default || SubscriptionActivationGateModule;
 
-const { installLiveScoreBodyPreserveV4 } = require(
-  './src/runtime/LiveScoreBodyPreserveV4'
-);
-installLiveScoreBodyPreserveV4();
+  const { installProfessionalLanguagePatch } = require(
+    './src/runtime/ProfessionalLanguagePatch'
+  );
+  installProfessionalLanguagePatch();
 
-const { installDisableLegacyManualExitOverlayV9 } = require(
-  './src/runtime/DisableLegacyManualExitOverlayV9'
-);
-installDisableLegacyManualExitOverlayV9();
+  const { installHindiNewsResponsePatch } = require(
+    './src/runtime/HindiNewsResponsePatch'
+  );
+  installHindiNewsResponsePatch();
 
-const { installLiveTradeAuthorityPatch } = require(
-  './src/runtime/LiveTradeAuthorityPatch'
-);
-installLiveTradeAuthorityPatch();
+  const { installLiveScoreBodyPreserveV4 } = require(
+    './src/runtime/LiveScoreBodyPreserveV4'
+  );
+  installLiveScoreBodyPreserveV4();
 
-const AppModule = require('./AppTradeExplanationPatched');
-const App = AppModule.default || AppModule;
+  const { installDisableLegacyManualExitOverlayV9 } = require(
+    './src/runtime/DisableLegacyManualExitOverlayV9'
+  );
+  installDisableLegacyManualExitOverlayV9();
 
-function SecuredOptionKingApp() {
-  // Web must stay isolated from native-only security/onboarding/subscription wrappers.
-  // Those wrappers use AppState, LocalAuthentication, native Modal/Linking and timed
-  // background checks that can unmount the React Native Web tree after initial load.
-  if (Platform.OS === 'web') {
-    return React.createElement(
-      WebDesktopShell,
-      null,
-      React.createElement(App)
-    );
-  }
+  const { installLiveTradeAuthorityPatch } = require(
+    './src/runtime/LiveTradeAuthorityPatch'
+  );
+  installLiveTradeAuthorityPatch();
+
+  const AppModule = require('./AppTradeExplanationPatched');
+  const App = AppModule.default || AppModule;
 
   return React.createElement(
     BiometricAppLock,
@@ -62,17 +74,19 @@ function SecuredOptionKingApp() {
         CustomerOnboardingAssistant,
         null,
         React.createElement(
-          WebDesktopShell,
+          SessionAwareManualExitOverlayV10,
           null,
-          React.createElement(
-            SessionAwareManualExitOverlayV10,
-            null,
-            React.createElement(App)
-          )
+          React.createElement(App)
         )
       )
     )
   );
 }
 
-registerRootComponent(SecuredOptionKingApp);
+function OptionKingRoot() {
+  return Platform.OS === 'web'
+    ? React.createElement(WebRoot)
+    : React.createElement(NativeRoot);
+}
+
+registerRootComponent(OptionKingRoot);
