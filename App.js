@@ -2212,36 +2212,27 @@ function PlansTab({ token, user, onSuccess }) {
   async function subscribe(plan) {
     setError(""); setLoading(plan);
     try {
-      const d = await apiPostAuth("/subscription/create-order",
-        { plan }, token);
-      if (d.order_id) {
-        Alert.alert("Payment", `Order created!\nID: ${d.order_id}\n\nRazorpay checkout karo.`);
+      const d = await apiPostAuth("/subscription/paytm/create-link", {}, token);
+      const checkoutUrl = d?.checkout_url || d?.redirect_url || d?.payment_url;
+      if (checkoutUrl) {
+        await Linking.openURL(checkoutUrl);
+        Alert.alert(
+          "Secure Payment Started",
+          "₹5,000 monthly subscription payment link opened. After successful payment, return to Option King AI and refresh your account status."
+        );
         onSuccess && onSuccess();
-      } else setError(d.detail || "Order create failed");
-    } catch { setError("Server error"); }
+      } else setError(d?.detail || d?.message || "Payment link create failed");
+    } catch (e) { setError(e?.message || "Payment service unavailable"); }
     setLoading(null);
   }
 
   const plans = [
     {
-      id: "monthly", icon: "⚡", name: "Monthly Pro",
-      price: "₹999", period: "/month", color: C.accent,
-      features: ["Unlimited Signals", "All Strategies",
-        "HERO Zero Expiry", "WhatsApp Alerts", "Priority Support"],
-    },
-    {
-      id: "quarterly", icon: "🌟", name: "Quarterly Pro",
-      price: "₹2499", period: "/3 months", color: C.gold,
-      badge: "SAVE 17%",
-      features: ["Sab Monthly wala", "Backtest Reports",
-        "Custom SL/TP", "Dedicated Support"],
-    },
-    {
-      id: "yearly", icon: "", name: "Annual Pro",
-      price: "₹7999", period: "/year", color: C.green,
-      badge: "BEST VALUE",
-      features: ["Sab Quarterly wala", "API Access",
-        "Admin Dashboard", "1-on-1 Onboarding"],
+      id: "monthly_5000", icon: "⚡", name: "Monthly Pro",
+      price: "₹5,000", period: "/30 days", color: C.accent,
+      badge: "FULL ACCESS",
+      features: ["Full Option King AI access", "Paper & Live trading tools",
+        "All strategies & backtests", "Trade alerts & reports", "30 days validity"],
     },
   ];
 
@@ -2305,9 +2296,9 @@ function PlansTab({ token, user, onSuccess }) {
           textTransform: "uppercase", letterSpacing: 1.2,
           marginBottom: 12 }}>🔒 Secure Payment</Text>
         {[
-          ["🏦", "Razorpay", "India ka #1 payment gateway"],
+          ["🏦", "Paytm / UPI", "Secure payment link"],
           ["🔐", "SSL Encrypted", "100% secure transactions"],
-          ["↩️", "Easy Refund", "7-din refund policy"],
+          ["✅", "Server Verified", "Access activates after verified payment"],
         ].map(([icon, t, d]) => (
           <Row key={t} style={{ gap: 10, paddingVertical: 8,
             borderBottomWidth: 1, borderBottomColor: C.border }}>
