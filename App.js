@@ -4171,7 +4171,7 @@ function BotTab({ token, lang }) {
       if (refreshHeavyData) {
         lastHeavyRefreshRef.current = now;
         const historyLimit = chartRangeRef.current === 1 ? 600 : 6000;
-        const [hist, trades] = await Promise.all([
+        const [histResult, tradesResult, chartResult] = await Promise.allSettled([
           apiGet(
             `/bot/signal-history?limit=${historyLimit}&days=${chartRangeRef.current}&instrument=${encodeURIComponent(chartInstrumentRef.current)}`,
             token
@@ -4179,6 +4179,8 @@ function BotTab({ token, lang }) {
           apiGet("/bot/trade-history", token),
           loadChart(chartInstrumentRef.current, true),
         ]);
+        const hist = histResult.status === "fulfilled" ? histResult.value : null;
+        const trades = tradesResult.status === "fulfilled" ? tradesResult.value : null;
         if (hist && hist.points) {
           setHistory(hist.points);
         }
@@ -4187,7 +4189,11 @@ function BotTab({ token, lang }) {
         if (trades?.ledger) setServerLedger(trades.ledger);
       }
     } catch (e) {
-      setError(hi ? "Status load nahi ho paya. Refresh try karein." : "Could not load status. Please try refreshing.");
+      if (!silent) {
+        setError(hi ? "Status load nahi ho paya. Refresh try karein." : "Could not load status. Please try refreshing.");
+      } else {
+        console.warn("WEB_DASHBOARD_BACKGROUND_REFRESH_FAILED", e);
+      }
     }
     if (!silent) setLoading(false);
   }
