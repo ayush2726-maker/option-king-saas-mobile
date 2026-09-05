@@ -1,25 +1,16 @@
 from pathlib import Path
-import re
 
 path = Path('App.js')
 text = path.read_text(encoding='utf-8')
 
-old_subscribe = '''  async function subscribe(plan) {
-    setError(""); setLoading(plan);
-    try {
-      const d = await apiPostAuth("/subscription/create-order",
-        { plan }, token);
-      if (d.order_id) {
-        Alert.alert("Payment", `Order created!\\
-ID: ${d.order_id}\\
-\\
-Razorpay checkout karo.`);
-        onSuccess && onSuccess();
-      } else setError(d.detail || "Order create failed");
-    } catch { setError("Server error"); }
-    setLoading(null);
-  }
-'''
+plans_tab = text.find('function PlansTab')
+if plans_tab < 0:
+    raise SystemExit('PlansTab not found')
+
+subscribe_start = text.find('  async function subscribe(plan) {', plans_tab)
+plans_start = text.find('  const plans = [', plans_tab)
+if subscribe_start < 0 or plans_start < 0 or plans_start <= subscribe_start:
+    raise SystemExit('PlansTab subscribe/plans boundaries not found')
 
 new_subscribe = '''  async function subscribe(plan) {
     setError(""); setLoading(plan);
@@ -37,19 +28,16 @@ new_subscribe = '''  async function subscribe(plan) {
     } catch (e) { setError(e?.message || "Payment service unavailable"); }
     setLoading(null);
   }
+
 '''
+text = text[:subscribe_start] + new_subscribe + text[plans_start:]
 
-if old_subscribe not in text:
-    raise SystemExit('PlansTab subscribe block not found')
-text = text.replace(old_subscribe, new_subscribe, 1)
-
-start = text.find('  const plans = [', text.find('function PlansTab'))
-if start < 0:
-    raise SystemExit('Plans array start not found')
-end = text.find('  ];', start)
-if end < 0:
+plans_start = text.find('  const plans = [', plans_tab)
+plans_end = text.find('  ];', plans_start)
+if plans_end < 0:
     raise SystemExit('Plans array end not found')
-end += len('  ];')
+plans_end += len('  ];')
+
 new_plans = '''  const plans = [
     {
       id: "monthly_5000", icon: "⚡", name: "Monthly Pro",
@@ -59,7 +47,7 @@ new_plans = '''  const plans = [
         "All strategies & backtests", "Trade alerts & reports", "30 days validity"],
     },
   ];'''
-text = text[:start] + new_plans + text[end:]
+text = text[:plans_start] + new_plans + text[plans_end:]
 
 text = text.replace('["🏦", "Razorpay", "India ka #1 payment gateway"]', '["🏦", "Paytm / UPI", "Secure payment link"]', 1)
 text = text.replace('["↩️", "Easy Refund", "7-din refund policy"]', '["✅", "Server Verified", "Access activates after verified payment"]', 1)
