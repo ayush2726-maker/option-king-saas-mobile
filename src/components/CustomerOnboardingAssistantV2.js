@@ -5,6 +5,10 @@ const AsyncStorage = AsyncStorageModule.default || AsyncStorageModule;
 
 const { ActivityIndicator, Alert, Modal, ScrollView, Text, TouchableOpacity, View } = RN;
 const API = 'https://option-king-saas-production.up.railway.app';
+const BROKER_PORTALS = {
+  angelone: 'https://smartapi.angelone.in/publisher-login/v2/login/',
+  upstox: 'https://account.upstox.com/developer/apps',
+};
 
 async function authToken() {
   for (const key of ['saas_token','token','auth_token','okai_token','access_token']) {
@@ -131,30 +135,46 @@ function CustomerOnboardingAssistantV2({children}) {
   const provisionStarted = ['requested','allocating','bootstrapping','ready'].includes(state.provisionState);
 
   let stage = 2;
-  if (state.chosenBroker) stage = 3;
-  if (state.assignedIp) stage = 4;
-  if (state.brokerReady) stage = 5;
-  if (state.brokerReady && paperAck && state.gatewayReady) stage = 6;
-  if (!liveAllowed && paperAllowed) stage = 6;
+  if (state.assignedIp) stage = 3;
+  if (state.brokerReady) stage = 4;
+  if (state.brokerReady && paperAck) stage = 5;
+  if (state.brokerReady && paperAck && state.gatewayReady && state.ipConfirmed) stage = 6;
+  if (!liveAllowed && state.brokerReady) stage = 6;
 
   const toggle = n => setExpanded(v=>v===n?0:n);
   const openRoute = route => { setOpen(false); setTimeout(()=>navigate(route),80); };
 
-  const chooseBrokerAndAllocate = async brokerName => {
+  const requestAllocation = async()=>{
     const t = await authToken();
     if (!t) return;
     setBusy('allocate'); setError('');
     try {
-      await api('/local-gateway/provision/request',t,'POST',{broker_name:brokerName});
-      setExpanded(3);
+      await api('/local-gateway/provision/request',t,'POST',{});
+      setExpanded(2);
       await load();
     } catch (e) { setError(String(e?.message || e)); }
     finally { setBusy(''); }
   };
 
-  const retryAllocation = async()=>{
-    if (!state.chosenBroker) { setExpanded(2); return; }
-    return chooseBrokerAndAllocate(state.chosenBroker);
+  const chooseBrokerAndOpenPortal = async brokerName => {
+    const t = await authToken();
+    const portal = BROKER_PORTALS[brokerName];
+    if (!t || !state.assignedIp || !portal) return;
+    setBusy('broker'); setError('');
+    try {
+      await api('/local-gateway/provision/request',t,'POST',{broker_name:brokerName});
+      await load();
+      await RN.Linking.openURL(portal);
+    } catch (e) { setError(String(e?.message || e)); }
+    finally { setBusy(''); }
+  };
+
+  const reopenBrokerPortal = async()=>{
+    const portal = BROKER_PORTALS[state.chosenBroker];
+    if (!portal) return;
+    setError('');
+    try { await RN.Linking.openURL(portal); }
+    catch (e) { setError(String(e?.message || e)); }
   };
 
   const markPaperTested = async()=>{
@@ -162,7 +182,7 @@ function CustomerOnboardingAssistantV2({children}) {
       try { await AsyncStorage.setItem('okai_paper_test_ack_' + state.userId,'1'); } catch (_) {}
     }
     setPaperAck(true);
-    setExpanded(6);
+    setExpanded(5);
   };
 
   const confirmIp = async()=>{
@@ -231,44 +251,51 @@ function CustomerOnboardingAssistantV2({children}) {
               React.createElement(Btn,{label:'Open Account',onPress:()=>openRoute('account')})
             ),
 
-            React.createElement(Step,{n:2,title:'Choose Your Broker',detail:state.chosenBroker?`${brokerName} selected.`:'Select Angel One or Upstox. Your secure IP allocation starts automatically.',done:Boolean(state.chosenBroker),active:stage===2,expanded:expanded===2,onPress:()=>toggle(2)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'Choose the broker you will use for LIVE trading. You do not need API credentials yet.'),
-              React.createElement(View,{style:{flexDirection:'row',gap:8}},
-                React.createElement(View,{style:{flex:1}},React.createElement(Btn,{label:busy==='allocate'?'Please wait...':'Angel One',onPress:()=>chooseBrokerAndAllocate('angelone'),disabled:busy==='allocate',kind:state.chosenBroker==='angelone'?'green':'blue'})),
-                React.createElement(View,{style:{flex:1}},React.createElement(Btn,{label:busy==='allocate'?'Please wait...':'Upstox',onPress:()=>chooseBrokerAndAllocate('upstox'),disabled:busy==='allocate',kind:state.chosenBroker==='upstox'?'green':'blue'}))
-              )
-            ),
-
-            React.createElement(Step,{n:3,title:'Get Your Dedicated Static IP',detail:state.assignedIp?`Dedicated IP ready: ${state.assignedIp}`:provisionStarted?'AWS is preparing your dedicated IP automatically.':'Choose a broker first to start automatic allocation.',done:Boolean(state.assignedIp),active:stage===3,expanded:expanded===3,onPress:()=>toggle(3)},
+            React.createElement(Step,{n:2,title:'Get Your Dedicated Static IP',detail:state.assignedIp?`Dedicated IP ready: ${state.assignedIp}`:provisionStarted?'AWS is preparing your dedicated IP automatically.':'Allocate your secure IP before creating broker credentials.',done:Boolean(state.assignedIp),active:stage===2,expanded:expanded===2,onPress:()=>toggle(2)},
               React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'Option King AI creates a dedicated AWS execution server and Elastic IP for your account. No Termux, VPN, second phone or gateway commands are required.'),
               React.createElement(View,{style:{marginTop:10,padding:11,borderRadius:10,backgroundColor:'#0c1725',borderWidth:1,borderColor:'#2a4a6d'}},
                 React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},'YOUR LIVE ORDER STATIC IP'),
                 React.createElement(Text,{style:{color:'#fff',fontSize:18,fontWeight:'900',marginTop:4}},ip),
                 React.createElement(Text,{style:{color:'#91a4bd',fontSize:11,lineHeight:16,marginTop:4}},state.assignedIp?'Use this exact IP in your broker Developer / API App settings. This IP is dedicated to your Option King AI account.':`Status: ${state.provisionState.replaceAll('_',' ')}`)
               ),
-              React.createElement(Btn,{label:state.assignedIp?'Refresh IP Status':busy==='allocate'?'Starting...':'Start / Retry Automatic IP Setup',onPress:state.assignedIp?load:retryAllocation,disabled:busy==='allocate' || !state.chosenBroker})
+              React.createElement(Btn,{label:state.assignedIp?'Refresh IP Status':busy==='allocate'?'Starting...':'Allocate My Secure IP',onPress:state.assignedIp?load:requestAllocation,disabled:busy==='allocate'})
             ),
 
-            React.createElement(Step,{n:4,title:'Create Broker API & Connect',detail:state.brokerReady?`${brokerName || 'Broker'} connected successfully.`:state.assignedIp?'Register the shown IP in your broker API app, then save your API credentials in Option King AI.':'Wait for your dedicated IP first.',done:state.brokerReady,active:stage===4,expanded:expanded===4,onPress:()=>toggle(4)},
+            React.createElement(Step,{n:3,title:'Select Broker & Create API Credentials',detail:state.brokerReady?`${brokerName || 'Broker'} connected successfully.`:state.chosenBroker?`${brokerName} selected. Create the API, then enter its credentials in Option King AI.`:state.assignedIp?'Select Angel One or Upstox. The official API creation page will open.':'Wait for your dedicated IP first.',done:state.brokerReady,active:stage===3,expanded:expanded===3,onPress:()=>toggle(3)},
+              React.createElement(View,{style:{padding:10,borderRadius:10,backgroundColor:'#0c1725',borderWidth:1,borderColor:'#2a4a6d'}},
+                React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},'ENTER THIS STATIC IP IN THE BROKER APP'),
+                React.createElement(Text,{style:{color:'#fff',fontSize:17,fontWeight:'900',marginTop:3}},state.assignedIp || 'Waiting for IP')
+              ),
+              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:19,marginTop:10}},'Choose your broker below. Its official Developer / API Apps page will open. Log in, create a Trading API app and enter the exact static IP shown above.'),
+              React.createElement(View,{style:{flexDirection:'row',gap:8}},
+                React.createElement(View,{style:{flex:1}},React.createElement(Btn,{label:busy==='broker'?'Opening...':'Angel One — Create API',onPress:()=>chooseBrokerAndOpenPortal('angelone'),disabled:!state.assignedIp || busy==='broker',kind:state.chosenBroker==='angelone'?'green':'blue'})),
+                React.createElement(View,{style:{flex:1}},React.createElement(Btn,{label:busy==='broker'?'Opening...':'Upstox — Create API',onPress:()=>chooseBrokerAndOpenPortal('upstox'),disabled:!state.assignedIp || busy==='broker',kind:state.chosenBroker==='upstox'?'green':'blue'}))
+              ),
               state.chosenBroker==='angelone'
                 ? React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:19}},`Angel One: open SmartAPI → Create App → enter ${state.assignedIp || 'your dedicated IP'} as the static/registered IP → copy API Key. Then in Option King AI enter Client ID, API Key, Trading Password and TOTP Secret.`)
-                : React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:19}},`Upstox: open Developer Apps → Create App → enter ${state.assignedIp || 'your dedicated IP'} as Primary Static IP → complete Redirect/Postback details shown in the Broker guide → copy API Key/Secret and connect your token.`),
-              React.createElement(Btn,{label:state.assignedIp?(state.brokerReady?'Review Broker Connection':'Open Broker Setup'):'Static IP Not Ready Yet',onPress:()=>openRoute('broker'),disabled:!state.assignedIp})
+                : state.chosenBroker==='upstox'
+                  ? React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:19}},`Upstox: open Developer Apps → Create App → enter ${state.assignedIp || 'your dedicated IP'} as Primary Static IP → complete Redirect/Postback details shown in the Broker guide → copy API Key/Secret and connect your token.`)
+                  : null,
+              state.chosenBroker ? React.createElement(Btn,{label:`Open ${brokerName} API Page Again`,onPress:reopenBrokerPortal,disabled:!state.assignedIp}) : null,
+              React.createElement(Btn,{label:state.brokerReady?'Review Broker Connection':state.chosenBroker?'Enter Credentials in Option King AI':'Select a Broker First',onPress:()=>openRoute('broker'),disabled:!state.assignedIp || !state.chosenBroker})
             ),
 
-            React.createElement(Step,{n:5,title:'Test Paper Trading First',detail:paperAck?'Paper test marked complete.':'Open Paper mode, start the bot and confirm status/signals before Live.',done:paperAck,active:stage===5,expanded:expanded===5,onPress:()=>toggle(5)},
+            React.createElement(Step,{n:4,title:'Test Paper Trading First',detail:paperAck?'Paper test marked complete.':'Open Paper mode, start the bot and confirm status/signals before Live.',done:paperAck,active:stage===4,expanded:expanded===4,onPress:()=>toggle(4)},
               React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},paperAllowed?'Paper mode uses no real money. Check capital, broker status, signals, entry/exit display and bot start/stop once before enabling Live.':'Paper access has expired; activate a plan to continue.'),
               React.createElement(Btn,{label:paperAllowed?'Open Paper Bot':'Paper Access Expired',onPress:()=>openRoute('bot'),disabled:!paperAllowed || !state.brokerReady}),
               React.createElement(Btn,{label:paperAck?'Paper Test Completed ✓':'I Tested Paper — Continue',onPress:markPaperTested,disabled:!paperAllowed || !state.brokerReady,kind:paperAck?'green':'blue'})
             ),
 
-            React.createElement(Step,{n:6,title:'Register IP & Enable Live',detail:state.gatewayReady?(state.ipConfirmed?'Secure connection verified. Live can be enabled after confirmation.':'Cloud gateway is online. Confirm that you registered the IP in your broker app.'):'Cloud gateway will come online after broker credentials are connected.',done:state.gatewayReady && state.ipConfirmed && liveAllowed,active:stage===6,expanded:expanded===6,onPress:()=>toggle(6)},
+            React.createElement(Step,{n:5,title:'Verify Secure Connection',detail:state.gatewayReady?(state.ipConfirmed?'Secure connection and broker IP registration verified.':'Cloud gateway is online. Confirm that you registered the IP in your broker app.'):'Cloud gateway will come online after broker credentials are connected.',done:state.gatewayReady && state.ipConfirmed,active:stage===5,expanded:expanded===5,onPress:()=>toggle(5)},
               React.createElement(View,{style:{padding:10,borderRadius:10,backgroundColor:'#0c1725',borderWidth:1,borderColor:'#2a4a6d'}},
                 React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},'REGISTER THIS IP IN YOUR BROKER'),
                 React.createElement(Text,{style:{color:'#fff',fontSize:17,fontWeight:'900',marginTop:3}},state.assignedIp || 'Waiting for IP'),
                 React.createElement(Text,{style:{color:'#91a4bd',fontSize:11,lineHeight:16,marginTop:4}},state.gatewayReady?'Secure AWS gateway is online from this IP.':'The app is waiting for the dedicated gateway heartbeat.')
               ),
-              React.createElement(Btn,{label:state.ipConfirmed?'IP Registered ✓':busy==='confirm'?'Confirming...':'I Registered This IP in Broker',onPress:confirmIp,disabled:!state.gatewayReady || !state.brokerReady || busy==='confirm',kind:state.ipConfirmed?'green':'blue'}),
+              React.createElement(Btn,{label:state.ipConfirmed?'IP Registered ✓':busy==='confirm'?'Confirming...':'I Registered This IP in Broker',onPress:confirmIp,disabled:!state.gatewayReady || !state.brokerReady || busy==='confirm',kind:state.ipConfirmed?'green':'blue'})
+            ),
+
+            React.createElement(Step,{n:6,title:liveAllowed?'Enable Live Trading':'Activate Live Subscription',detail:liveAllowed?'Enable Live only after the broker, paper test and secure connection are ready.':'Your Live trial has ended. Activate a plan to unlock Live Trading.',done:false,active:stage===6,expanded:expanded===6,onPress:()=>toggle(6)},
               React.createElement(Btn,{label:liveAllowed?(busy==='live'?'Enabling Live...':'Enable LIVE Trading'):'Live Trial / Subscription Required',onPress:askEnableLive,disabled:!liveAllowed || !state.ipConfirmed || !state.gatewayReady || !paperAck || busy==='live',kind:'red'}),
               !liveAllowed && paperAllowed ? React.createElement(Text,{style:{color:'#f6c85f',fontSize:11,lineHeight:17,marginTop:8}},'Your 7-day Live trial has ended, but Paper Trading remains available during the 30-day free period. Activate a paid plan to unlock Live again.') : null,
               !liveAllowed ? React.createElement(Btn,{label:'Open Subscription',onPress:()=>openRoute('plans')}) : null

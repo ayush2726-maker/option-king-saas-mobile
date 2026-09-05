@@ -38,18 +38,28 @@ assert.strictEqual(
 
 assert.strictEqual(navigate("unknown-page"), false, "Unknown routes must remain blocked");
 
+const indexSource = fs.readFileSync(path.join(__dirname, "../index.js"), "utf8");
+assert(
+  indexSource.includes("require('./src/components/CustomerOnboardingAssistantV2')"),
+  "The tested onboarding assistant must be the one mounted by index.js"
+);
+
 const assistant = fs.readFileSync(
-  path.join(__dirname, "../src/components/CustomerOnboardingAssistant.js"),
+  path.join(__dirname, "../src/components/CustomerOnboardingAssistantV2.js"),
   "utf8"
 );
 
 const buttonWiring = [
   ["Open Account", /label:'Open Account',onPress:\(\)=>openRoute\('account'\)/],
-  ["Secure IP", /onPress:\(state\.gatewayReady \|\| ipReady \|\| provisionStarted\)\?load:requestProvisioning/],
-  ["Connect Broker", /label:state\.brokerReady\?'Review Broker':ipReady\?'Connect Broker Now':'Complete Static IP First',onPress:\(\)=>openRoute\('broker'\),disabled:!ipReady/],
-  ["Paper Bot", /label:!state\.brokerReady\?'Connect Broker First':paperAllowed\?'Open Paper Bot':'Paper Access Expired',onPress:\(\)=>openRoute\('bot'\),disabled:!state\.brokerReady \|\| !paperAllowed/],
-  ["Live Controls", /label:liveAllowed && state\.gatewayReady\?'Go to Live Controls':'Live Not Ready',onPress:\(\)=>openRoute\('bot'\)/],
-  ["Subscription", /label:'Open Subscription',onPress:openSubscription/],
+  ["Allocate IP", /label:state\.assignedIp\?'Refresh IP Status':busy==='allocate'\?'Starting\.\.\.':'Allocate My Secure IP'/],
+  ["Angel One portal", /angelone: 'https:\/\/smartapi\.angelone\.in\/publisher-login\/v2\/login\/'/],
+  ["Upstox portal", /upstox: 'https:\/\/account\.upstox\.com\/developer\/apps'/],
+  ["Open selected portal", /await RN\.Linking\.openURL\(portal\)/],
+  ["Persist broker choice", /\{broker_name:brokerName\}/],
+  ["Enter credentials", /'Enter Credentials in Option King AI'/],
+  ["Broker setup", /onPress:\(\)=>openRoute\('broker'\),disabled:!state\.assignedIp \|\| !state\.chosenBroker/],
+  ["Paper Bot", /label:paperAllowed\?'Open Paper Bot':'Paper Access Expired'/],
+  ["Subscription", /label:'Open Subscription',onPress:\(\)=>openRoute\('plans'\)/],
   ["Refresh", /onPress:load,disabled:loading/],
 ];
 
@@ -60,10 +70,9 @@ buttonWiring.forEach(([name, pattern]) => {
 const orderedSteps = [
   "Account Created",
   "Get Your Dedicated Static IP",
-  "Connect Your Broker",
-  "Test with Paper Trading",
-  "Enable Live Trading",
-  "Choose a Plan After the Trial",
+  "Select Broker & Create API Credentials",
+  "Test Paper Trading First",
+  "Verify Secure Connection",
 ];
 let previousIndex = -1;
 orderedSteps.forEach((title) => {
@@ -73,13 +82,13 @@ orderedSteps.forEach((title) => {
 });
 
 assert(
-  /const stage=!ipReady\?2:!state\.brokerReady\?3:/.test(assistant),
-  "Broker setup must not become the active step before a static IP is ready"
+  /let stage = 2;\s*if \(state\.assignedIp\) stage = 3;\s*if \(state\.brokerReady\) stage = 4;/.test(assistant),
+  "Static IP must be completed before broker credentials become the active step"
 );
 
 assert(
-  /if \(nav\(route\)\) \{\s*setOpen\(false\)/.test(assistant),
-  "The popup must close only after navigation succeeds"
+  /setPaperAck\(true\);\s*setExpanded\(5\)/.test(assistant),
+  "Completing Paper Trading must open the secure connection step"
 );
 
 console.log("PASS OKAI-ONBOARDING-BUTTON-NAVIGATION");
