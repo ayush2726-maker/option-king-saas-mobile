@@ -42,7 +42,9 @@ jobs:
           apk=''
           for b in data:
               art=(b or {}).get('artifacts') or {}
-              url=art.get('buildUrl') or art.get('applicationArchiveUrl') or ''
+              # IMPORTANT: applicationArchiveUrl is the actual APK binary.
+              # buildUrl is an Expo details page and must not be used for direct download.
+              url=art.get('applicationArchiveUrl') or art.get('buildUrl') or ''
               profile=str((b or {}).get('buildProfile') or '').lower()
               if url and (profile=='preview' or url.lower().endswith('.apk') or 'artifacts' in url.lower()):
                   apk=url
@@ -69,7 +71,7 @@ jobs:
           else:
               b=raw
           art=(b or {}).get('artifacts') or {}
-          url=art.get('buildUrl') or art.get('applicationArchiveUrl') or ''
+          url=art.get('applicationArchiveUrl') or art.get('buildUrl') or ''
           if not url:
               raise SystemExit('APK build finished but no downloadable URL was returned')
           Path('/tmp/apk_url.txt').write_text(url)
@@ -100,18 +102,36 @@ jobs:
                   raise SystemExit('color anchor missing')
               s=s.replace(marker, marker+const_line, 1)
 
-          nav_anchor="""function directNavigate(route) {
+          import re
+          # Remove the old Expo builds-page constant if present.
+          s=re.sub(r"const APK_DOWNLOAD_PAGE = .*?;\n", '', s, count=1)
+
+          old_helper="""function openApkDownload() {
   try {
-    if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_WEB_NAVIGATE__ === 'function') {
-      return globalThis.__OKAI_WEB_NAVIGATE__(route);
+    if (typeof globalThis !== 'undefined' && typeof globalThis.open === 'function') {
+      globalThis.open(APK_DOWNLOAD_PAGE, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+    if (typeof globalThis !== 'undefined' && globalThis.location) {
+      globalThis.location.href = APK_DOWNLOAD_PAGE;
+      return true;
     }
   } catch (_) {}
   return false;
 }
 """
-          helper=nav_anchor+"""
-function downloadAndroidApk() {
+          new_helper="""function openApkDownload() {
   try {
+    if (typeof globalThis !== 'undefined' && globalThis.document) {
+      const a = globalThis.document.createElement('a');
+      a.href = APK_DOWNLOAD_URL;
+      a.download = 'Option-King-AI.apk';
+      a.rel = 'noopener noreferrer';
+      globalThis.document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return true;
+    }
     if (typeof globalThis !== 'undefined' && globalThis.location) {
       globalThis.location.href = APK_DOWNLOAD_URL;
       return true;
@@ -120,10 +140,24 @@ function downloadAndroidApk() {
   return false;
 }
 """
-          if 'function downloadAndroidApk()' not in s:
+          if old_helper in s:
+              s=s.replace(old_helper, new_helper, 1)
+          elif 'function downloadAndroidApk()' in s:
+              s=re.sub(r"function downloadAndroidApk\(\) \{.*?\n\}\n", new_helper, s, count=1, flags=re.S)
+              s=s.replace('downloadAndroidApk();', 'openApkDownload();')
+          elif 'function openApkDownload()' not in s:
+              nav_anchor="""function directNavigate(route) {
+  try {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_WEB_NAVIGATE__ === 'function') {
+      return globalThis.__OKAI_WEB_NAVIGATE__(route);
+    }
+  } catch (_) {}
+  return false;
+}
+"""
               if nav_anchor not in s:
                   raise SystemExit('directNavigate anchor missing')
-              s=s.replace(nav_anchor, helper, 1)
+              s=s.replace(nav_anchor, nav_anchor+'\n'+new_helper, 1)
 
           items_anchor="""    ...items.map(([key, icon, label, route]) =>
       React.createElement(RailItem, {
@@ -145,7 +179,7 @@ function downloadAndroidApk() {
     React.createElement(RailItem, {
       key: 'download-apk', navKey: 'download-apk', icon: '⇩', label: 'Download APK', compact,
       active: false,
-      onPress: () => { onClose && onClose(); downloadAndroidApk(); },
+      onPress: () => { onClose && onClose(); openApkDownload(); },
     }),
     React.createElement(
       View,
@@ -160,7 +194,7 @@ function downloadAndroidApk() {
               'platform':'android',
               'type':'apk',
               'download_url':apk,
-              'source':'EAS latest finished build'
+              'source':'EAS latest finished build direct archive'
           }, indent=2)+'\n')
           PY
 
