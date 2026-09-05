@@ -8,6 +8,7 @@ const BORDER = '#1e2b3b';
 const TEXT = '#edf4ff';
 const MUTED = '#8da0b8';
 const GREEN = '#00d4a0';
+const APK_DOWNLOAD_PAGE = 'https://expo.dev/accounts/ayush2726/projects/option-king-saas/builds';
 
 function Dot() {
   return React.createElement(View, { style: { width: 7, height: 7, borderRadius: 99, backgroundColor: GREEN, marginRight: 7 } });
@@ -17,6 +18,20 @@ function directNavigate(route) {
   try {
     if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_WEB_NAVIGATE__ === 'function') {
       return globalThis.__OKAI_WEB_NAVIGATE__(route);
+    }
+  } catch (_) {}
+  return false;
+}
+
+function openApkDownload() {
+  try {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.open === 'function') {
+      globalThis.open(APK_DOWNLOAD_PAGE, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+    if (typeof globalThis !== 'undefined' && globalThis.location) {
+      globalThis.location.href = APK_DOWNLOAD_PAGE;
+      return true;
     }
   } catch (_) {}
   return false;
@@ -152,6 +167,18 @@ function NavPanel({ compact, onClose, activeKey, setActiveKey }) {
         onPress: () => go(key, route),
       })
     ),
+    React.createElement(RailItem, {
+      key: 'download-apk',
+      navKey: 'download-apk',
+      icon: '⇩',
+      label: 'Download APK',
+      compact,
+      active: false,
+      onPress: () => {
+        onClose && onClose();
+        openApkDownload();
+      },
+    }),
     React.createElement(
       View,
       { style: { marginTop: 'auto', marginHorizontal: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#304055' } },
