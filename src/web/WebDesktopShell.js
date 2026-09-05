@@ -1,5 +1,5 @@
 const React = require('react');
-const { View, Text, Platform, useWindowDimensions } = require('react-native');
+const { View, Text, Platform, useWindowDimensions, TouchableOpacity } = require('react-native');
 
 const BG = '#070b12';
 const PANEL = '#0d1420';
@@ -15,33 +15,115 @@ function Dot() {
   });
 }
 
-function RailItem({ icon, label, active, compact }) {
+function RailItem({ icon, label, active, compact, onPress }) {
+  const Comp = onPress ? TouchableOpacity : View;
   return React.createElement(
-    View,
+    Comp,
     {
+      onPress,
       style: {
-        minHeight: compact ? 58 : 48,
-        marginHorizontal: compact ? 6 : 10,
+        minHeight: compact ? 52 : 48,
+        marginHorizontal: compact ? 8 : 10,
         marginBottom: 6,
         borderRadius: 10,
-        alignItems: 'center',
+        alignItems: compact ? 'flex-start' : 'center',
         justifyContent: 'center',
         backgroundColor: active ? '#172133' : 'transparent',
         borderWidth: active ? 1 : 0,
         borderColor: active ? '#2d3b55' : 'transparent',
-        paddingHorizontal: 6,
+        paddingHorizontal: compact ? 14 : 6,
       },
     },
-    React.createElement(Text, { style: { fontSize: compact ? 17 : 16, marginBottom: 3 } }, icon),
-    React.createElement(Text, {
-      numberOfLines: compact ? 2 : 1,
-      style: {
-        color: active ? TEXT : MUTED,
-        fontSize: compact ? 8 : 11,
-        fontWeight: active ? '900' : '700',
-        textAlign: 'center',
+    React.createElement(View, { style: { flexDirection: compact ? 'row' : 'column', alignItems: 'center' } },
+      React.createElement(Text, { style: { fontSize: 17, marginRight: compact ? 12 : 0, marginBottom: compact ? 0 : 3 } }, icon),
+      React.createElement(Text, {
+        style: {
+          color: active ? TEXT : MUTED,
+          fontSize: compact ? 12 : 11,
+          fontWeight: active ? '900' : '700',
+          textAlign: compact ? 'left' : 'center',
+        },
+      }, label)
+    )
+  );
+}
+
+function HeaderBrand({ phone, menuOpen, setMenuOpen }) {
+  return React.createElement(
+    View,
+    { style: { flexDirection: 'row', alignItems: 'center' } },
+    phone && React.createElement(
+      TouchableOpacity,
+      {
+        onPress: () => setMenuOpen(!menuOpen),
+        style: {
+          width: 38,
+          height: 38,
+          borderRadius: 10,
+          backgroundColor: '#151e31',
+          borderWidth: 1,
+          borderColor: '#2a3852',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: 10,
+        },
       },
-    }, label)
+      React.createElement(Text, { style: { color: TEXT, fontSize: 20, fontWeight: '900' } }, menuOpen ? '×' : '☰')
+    ),
+    React.createElement(
+      View,
+      {
+        style: {
+          width: phone ? 30 : 34,
+          height: phone ? 30 : 34,
+          borderRadius: 9,
+          backgroundColor: '#151e31',
+          borderWidth: 1,
+          borderColor: '#2a3852',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: 9,
+        },
+      },
+      React.createElement(Text, { style: { color: '#8d7cff', fontSize: phone ? 14 : 18, fontWeight: '900' } }, 'OK')
+    ),
+    React.createElement(
+      View,
+      null,
+      React.createElement(Text, { style: { color: TEXT, fontSize: phone ? 15 : 18, fontWeight: '900' } }, 'Option King AI'),
+      !phone && React.createElement(Text, { style: { color: MUTED, fontSize: 9, marginTop: 1 } }, 'Trading Web Console')
+    )
+  );
+}
+
+function NavPanel({ compact, onClose }) {
+  const close = () => onClose && onClose();
+  return React.createElement(
+    View,
+    { style: { flex: 1, paddingTop: 12, paddingBottom: 12 } },
+    React.createElement(RailItem, { icon: '⌂', label: 'Dashboard', active: true, compact, onPress: close }),
+    React.createElement(RailItem, { icon: '↗', label: 'Trades', compact, onPress: close }),
+    React.createElement(RailItem, { icon: '◎', label: 'AI', compact, onPress: close }),
+    React.createElement(RailItem, { icon: '▤', label: 'Reports', compact, onPress: close }),
+    React.createElement(RailItem, { icon: '⚙', label: 'Settings', compact, onPress: close }),
+    React.createElement(
+      View,
+      {
+        style: {
+          marginTop: 'auto',
+          marginHorizontal: 10,
+          borderRadius: 10,
+          backgroundColor: PANEL_2,
+          borderWidth: 1,
+          borderColor: BORDER,
+          padding: 10,
+        },
+      },
+      React.createElement(View, { style: { flexDirection: 'row', alignItems: 'center' } },
+        React.createElement(Dot, null),
+        React.createElement(Text, { style: { color: TEXT, fontSize: 10, fontWeight: '800' } }, 'Railway Connected')
+      )
+    )
   );
 }
 
@@ -49,10 +131,13 @@ function WebDesktopShell({ children }) {
   if (Platform.OS !== 'web') return children;
 
   const { width } = useWindowDimensions();
+  const phone = width < 700;
   const compact = width < 900;
+  const [menuOpen, setMenuOpen] = React.useState(false);
+
+  const headerHeight = phone ? 56 : 64;
   const railWidth = compact ? 82 : 210;
-  const headerHeight = compact ? 54 : 64;
-  const outerPad = compact ? 8 : 18;
+  const outerPad = phone ? 6 : compact ? 8 : 18;
 
   return React.createElement(
     View,
@@ -62,44 +147,18 @@ function WebDesktopShell({ children }) {
       {
         style: {
           height: headerHeight,
-          paddingLeft: compact ? 12 : 18,
-          paddingRight: compact ? 10 : 18,
+          paddingLeft: phone ? 10 : 18,
+          paddingRight: phone ? 10 : 18,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           backgroundColor: '#09111b',
           borderBottomWidth: 1,
           borderBottomColor: BORDER,
-          zIndex: 20,
+          zIndex: 40,
         },
       },
-      React.createElement(
-        View,
-        { style: { flexDirection: 'row', alignItems: 'center' } },
-        React.createElement(
-          View,
-          {
-            style: {
-              width: compact ? 28 : 34,
-              height: compact ? 28 : 34,
-              borderRadius: 9,
-              backgroundColor: '#151e31',
-              borderWidth: 1,
-              borderColor: '#2a3852',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginRight: 9,
-            },
-          },
-          React.createElement(Text, { style: { color: '#8d7cff', fontSize: compact ? 15 : 18, fontWeight: '900' } }, 'OK')
-        ),
-        React.createElement(
-          View,
-          null,
-          React.createElement(Text, { style: { color: TEXT, fontSize: compact ? 14 : 18, fontWeight: '900' } }, 'Option King AI'),
-          !compact && React.createElement(Text, { style: { color: MUTED, fontSize: 9, marginTop: 1 } }, 'Trading Web Console')
-        )
-      ),
+      React.createElement(HeaderBrand, { phone, menuOpen, setMenuOpen }),
       React.createElement(
         View,
         {
@@ -110,18 +169,18 @@ function WebDesktopShell({ children }) {
             borderWidth: 1,
             borderColor: BORDER,
             borderRadius: 999,
-            paddingHorizontal: compact ? 8 : 11,
-            paddingVertical: compact ? 5 : 7,
+            paddingHorizontal: phone ? 8 : 11,
+            paddingVertical: phone ? 5 : 7,
           },
         },
         React.createElement(Dot, null),
-        React.createElement(Text, { style: { color: TEXT, fontSize: compact ? 9 : 11, fontWeight: '800' } }, compact ? 'WEB' : 'System Online')
+        React.createElement(Text, { style: { color: TEXT, fontSize: phone ? 9 : 11, fontWeight: '800' } }, phone ? 'WEB' : 'System Online')
       )
     ),
     React.createElement(
       View,
-      { style: { flex: 1, flexDirection: 'row', minHeight: 0 } },
-      React.createElement(
+      { style: { flex: 1, flexDirection: 'row', minHeight: 0, position: 'relative' } },
+      !phone && React.createElement(
         View,
         {
           style: {
@@ -129,32 +188,43 @@ function WebDesktopShell({ children }) {
             backgroundColor: PANEL,
             borderRightWidth: 1,
             borderRightColor: BORDER,
-            paddingTop: compact ? 10 : 16,
-            paddingBottom: 12,
           },
         },
-        React.createElement(RailItem, { icon: '⌂', label: compact ? 'Dashboard' : 'Trading Dashboard', active: true, compact }),
-        React.createElement(RailItem, { icon: '↗', label: compact ? 'Trades' : 'Live & Paper Trades', compact }),
-        React.createElement(RailItem, { icon: '◎', label: compact ? 'AI' : 'AI Signals', compact }),
-        React.createElement(RailItem, { icon: '▤', label: compact ? 'Reports' : 'Backtest & Reports', compact }),
-        React.createElement(RailItem, { icon: '⚙', label: compact ? 'Settings' : 'Broker & Settings', compact }),
+        React.createElement(NavPanel, { compact })
+      ),
+      phone && menuOpen && React.createElement(
+        React.Fragment,
+        null,
+        React.createElement(TouchableOpacity, {
+          activeOpacity: 1,
+          onPress: () => setMenuOpen(false),
+          style: {
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            zIndex: 29,
+          },
+        }),
         React.createElement(
           View,
           {
             style: {
-              marginTop: 'auto',
-              marginHorizontal: compact ? 7 : 12,
-              borderRadius: 10,
-              backgroundColor: PANEL_2,
-              borderWidth: 1,
-              borderColor: BORDER,
-              padding: compact ? 7 : 10,
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: Math.min(270, Math.max(220, width * 0.78)),
+              backgroundColor: PANEL,
+              borderRightWidth: 1,
+              borderRightColor: BORDER,
+              zIndex: 30,
+              boxShadow: '8px 0 28px rgba(0,0,0,0.35)',
             },
           },
-          React.createElement(View, { style: { flexDirection: 'row', alignItems: 'center', justifyContent: compact ? 'center' : 'flex-start' } },
-            React.createElement(Dot, null),
-            !compact && React.createElement(Text, { style: { color: TEXT, fontSize: 10, fontWeight: '800' } }, 'Railway Connected')
-          )
+          React.createElement(NavPanel, { compact: true, onClose: () => setMenuOpen(false) })
         )
       ),
       React.createElement(
@@ -176,11 +246,11 @@ function WebDesktopShell({ children }) {
               maxWidth: 1360,
               alignSelf: 'center',
               backgroundColor: '#090e16',
-              borderWidth: 1,
+              borderWidth: phone ? 0 : 1,
               borderColor: BORDER,
-              borderRadius: compact ? 10 : 16,
+              borderRadius: phone ? 0 : compact ? 10 : 16,
               overflow: 'hidden',
-              boxShadow: compact ? '0 8px 24px rgba(0,0,0,0.22)' : '0 18px 50px rgba(0,0,0,0.28)',
+              boxShadow: phone ? 'none' : compact ? '0 8px 24px rgba(0,0,0,0.22)' : '0 18px 50px rgba(0,0,0,0.28)',
             },
           },
           children
