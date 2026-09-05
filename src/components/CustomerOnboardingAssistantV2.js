@@ -9,6 +9,8 @@ const BROKER_PORTALS = {
   angelone: 'https://smartapi.angelone.in/publisher-login/v2/login/',
   upstox: 'https://account.upstox.com/developer/apps',
 };
+const UPSTOX_REDIRECT_URL = 'https://option-king-saas-production.up.railway.app/upstox/callback';
+const UPSTOX_POSTBACK_URL = 'https://option-king-saas-production.up.railway.app/upstox/postback';
 
 async function authToken() {
   for (const key of ['saas_token','token','auth_token','okai_token','access_token']) {
@@ -70,6 +72,14 @@ function Step({n,title,detail,done,active,expanded,onPress,children}) {
       )
     ),
     expanded ? React.createElement(View,{style:{marginLeft:48,marginTop:3,marginBottom:8,padding:12,borderRadius:12,backgroundColor:'#111c2c',borderWidth:1,borderColor:'#263d5b'}},children) : null
+  );
+}
+
+function GuideRow({label,value,note}) {
+  return React.createElement(View,{style:{paddingVertical:8,borderBottomWidth:1,borderBottomColor:'#26364c'}},
+    React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},label),
+    React.createElement(Text,{selectable:true,style:{color:'#fff',fontSize:12,fontWeight:'800',lineHeight:18,marginTop:3}},value),
+    note ? React.createElement(Text,{style:{color:'#91a4bd',fontSize:10,lineHeight:15,marginTop:2}},note) : null
   );
 }
 
@@ -272,9 +282,33 @@ function CustomerOnboardingAssistantV2({children}) {
                 React.createElement(View,{style:{flex:1}},React.createElement(Btn,{label:busy==='broker'?'Opening...':'Upstox — Create API',onPress:()=>chooseBrokerAndOpenPortal('upstox'),disabled:!state.assignedIp || busy==='broker',kind:state.chosenBroker==='upstox'?'green':'blue'}))
               ),
               state.chosenBroker==='angelone'
-                ? React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:19}},`Angel One: open SmartAPI → Create App → enter ${state.assignedIp || 'your dedicated IP'} as the static/registered IP → copy API Key. Then in Option King AI enter Client ID, API Key, Trading Password and TOTP Secret.`)
+                ? React.createElement(View,{style:{marginTop:10,padding:11,borderRadius:10,backgroundColor:'#111c2c',borderWidth:1,borderColor:'#31557c'}},
+                    React.createElement(Text,{style:{color:'#f2f6ff',fontSize:12,fontWeight:'900'}},'Fill these fields in Angel One SmartAPI'),
+                    React.createElement(GuideRow,{label:'APP NAME',value:'Option King AI'}),
+                    React.createElement(GuideRow,{label:'API / APP TYPE',value:'Trading API / Self-coded (Personal)',note:'Choose the trading-order API option if the portal shows multiple API products.'}),
+                    React.createElement(GuideRow,{label:'PRIMARY STATIC IP',value:state.assignedIp || 'Wait for Step 2'}),
+                    React.createElement(GuideRow,{label:'SECONDARY STATIC IP',value:'Leave blank',note:'Only the dedicated Primary IP is required for this setup.'}),
+                    React.createElement(Text,{style:{color:'#78deb0',fontSize:11,fontWeight:'900',marginTop:10}},'After Create App, copy the API Key. Then fill Option King AI:'),
+                    React.createElement(GuideRow,{label:'CLIENT ID',value:'Your Angel One login/client ID (example: A123456)'}),
+                    React.createElement(GuideRow,{label:'API KEY',value:'API Key shown in the created SmartAPI app'}),
+                    React.createElement(GuideRow,{label:'MPIN',value:'Your 4-digit Angel One login MPIN'}),
+                    React.createElement(GuideRow,{label:'TOTP SECRET',value:'Secret setup key shown below the TOTP QR code',note:'Do not enter the changing 6-digit OTP. Enter the permanent TOTP secret key.'})
+                  )
                 : state.chosenBroker==='upstox'
-                  ? React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:19}},`Upstox: open Developer Apps → Create App → enter ${state.assignedIp || 'your dedicated IP'} as Primary Static IP → complete Redirect/Postback details shown in the Broker guide → copy API Key/Secret and connect your token.`)
+                  ? React.createElement(View,{style:{marginTop:10,padding:11,borderRadius:10,backgroundColor:'#111c2c',borderWidth:1,borderColor:'#31557c'}},
+                      React.createElement(Text,{style:{color:'#f2f6ff',fontSize:12,fontWeight:'900'}},'Fill these fields in Upstox Developer Apps'),
+                      React.createElement(GuideRow,{label:'APP NAME',value:'Option King AI'}),
+                      React.createElement(GuideRow,{label:'APP TYPE',value:'Algo Trading App',note:'Use the normal/live app, not Sandbox or Analytics Token for order placement.'}),
+                      React.createElement(GuideRow,{label:'REDIRECT URL',value:UPSTOX_REDIRECT_URL,note:'Paste exactly without adding spaces.'}),
+                      React.createElement(GuideRow,{label:'POSTBACK / NOTIFIER URL',value:UPSTOX_POSTBACK_URL,note:'Enter this only when the portal shows the field.'}),
+                      React.createElement(GuideRow,{label:'PRIMARY STATIC IP',value:state.assignedIp || 'Wait for Step 2'}),
+                      React.createElement(GuideRow,{label:'SECONDARY STATIC IP',value:'Leave blank'}),
+                      React.createElement(GuideRow,{label:'ALGO NAME',value:'Leave blank unless Upstox has approved an Algo Name'}),
+                      React.createElement(Text,{style:{color:'#78deb0',fontSize:11,fontWeight:'900',marginTop:10}},'After Create App, fill Option King AI:'),
+                      React.createElement(GuideRow,{label:'API KEY (CLIENT ID)',value:'API Key shown in the created Upstox app'}),
+                      React.createElement(GuideRow,{label:'API SECRET',value:'API Secret shown in the created Upstox app'}),
+                      React.createElement(GuideRow,{label:'DAILY ACCESS TOKEN',value:'Generate the standard Access Token from the app',note:'Do not use Analytics Token for live order placement. Upstox does not need a TOTP field here.'})
+                    )
                   : null,
               state.chosenBroker ? React.createElement(Btn,{label:`Open ${brokerName} API Page Again`,onPress:reopenBrokerPortal,disabled:!state.assignedIp}) : null,
               React.createElement(Btn,{label:state.brokerReady?'Review Broker Connection':state.chosenBroker?'Enter Credentials in Option King AI':'Select a Broker First',onPress:()=>openRoute('broker'),disabled:!state.assignedIp || !state.chosenBroker})
