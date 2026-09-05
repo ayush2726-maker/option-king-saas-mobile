@@ -1,5 +1,6 @@
 name: Publish Production OTA
 
+# Touch this workflow to force-publish critical UI hotfixes when a bot-generated source commit cannot trigger downstream workflows.
 on:
   push:
     branches: [main]
