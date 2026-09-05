@@ -49,3 +49,5 @@ jobs:
           git add -A
           git commit -m "Set web subscription to ₹5000 monthly and current payment flow"
           git push origin HEAD:main
+
+# retry-v2
