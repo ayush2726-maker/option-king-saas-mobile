@@ -6683,17 +6683,21 @@ function MoreTab({ token, user, lang, setLang, isAdmin, navigateTo }) {
     try {
       const d = await apiPostAuth("/subscription/razorpay/create-link", { plan_id: "monthly_5000" }, token);
       if (!d?.success || !d?.checkout_url) {
-        const detail = typeof d?.detail === "string" ? d.detail : (d?.message || "Payment page unavailable");
+        const detail = typeof d?.detail === "string"
+          ? d.detail
+          : "Paytm / UPI QR payment page abhi available nahi hai";
         setMsg(detail);
         setLoading(false);
         return;
       }
+      setPaymentOrderId("");
+      try { await AsyncStorage.removeItem("okai_phonepe_order_id"); } catch (_) {}
       setMsg(hi
         ? "₹5,000 fixed Paytm / UPI QR khul raha hai. Payment ke baad admin 30 days activate karega."
-        : "Opening fixed ₹5,000 Paytm / UPI QR. Admin will activate 30 days after payment confirmation.");
+        : "Opening the fixed ₹5,000 Paytm / UPI QR. Admin will activate 30 days after payment confirmation.");
       await Linking.openURL(d.checkout_url);
     } catch (e) {
-      setMsg(e?.message || (hi ? "Payment page open nahi hua" : "Could not open payment page"));
+      setMsg(hi ? "Paytm / UPI QR open nahi hua" : "Could not open Paytm / UPI QR");
     }
     setLoading(false);
   }
@@ -6931,7 +6935,7 @@ function MoreTab({ token, user, lang, setLang, isAdmin, navigateTo }) {
         <Btn label="Pay ₹5,000 with Paytm / UPI QR" icon="📲" color={C.green}
           loading={loading} onPress={startPhonePePayment} />
 
-        {!!paymentOrderId && (
+        {false && !!paymentOrderId && (
           <View style={{ marginTop: 10 }}>
             <Btn label="Check Payment Status" icon="🔄" color={C.blue}
               loading={loading} onPress={checkPhonePePayment} />
