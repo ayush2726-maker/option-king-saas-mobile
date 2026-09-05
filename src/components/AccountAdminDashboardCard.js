@@ -76,6 +76,7 @@ function AccountAdminDashboardCard({ token }) {
   const [cleanup, setCleanup] = React.useState(null);
   const [msg, setMsg] = React.useState("");
   const [deletingEmail, setDeletingEmail] = React.useState("");
+  const [activatingId, setActivatingId] = React.useState(null);
 
   const load = React.useCallback(async () => {
     if (!token) return;
@@ -99,6 +100,37 @@ function AccountAdminDashboardCard({ token }) {
   }, [token]);
 
   React.useEffect(() => { load(); }, [load]);
+
+  function activateUser(user) {
+    const id = Number(user?.id || 0);
+    const email = String(user?.email || "").trim();
+    const name = String(user?.name || email || `User #${id}`).trim();
+    if (!id) return;
+
+    Alert.alert(
+      "Activate Subscription",
+      `Activate ${name}\n${email}\n\nThis grants 30 days of Option King AI access without collecting payment.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Activate 30 Days",
+          onPress: async () => {
+            setActivatingId(id);
+            setMsg("");
+            try {
+              const d = await apiPost(`/admin/users/${id}/activate`, token, {});
+              setMsg(d?.message || `${name} activated for 30 days`);
+              await load();
+            } catch (e) {
+              setMsg(e.message || "Activation failed");
+            } finally {
+              setActivatingId(null);
+            }
+          },
+        },
+      ]
+    );
+  }
 
   async function deleteUser(user) {
     const email = String(user?.email || "").trim();
@@ -125,18 +157,14 @@ function AccountAdminDashboardCard({ token }) {
                 emails: [email],
                 confirm: "DELETE USER",
               });
-
               const deleted = Array.isArray(d?.deleted) ? d.deleted : [];
               const skipped = Array.isArray(d?.skipped) ? d.skipped : [];
-
               if (deleted.length > 0) {
                 setMsg(`Deleted: ${email}`);
                 await load();
               } else if (skipped.length > 0) {
                 setMsg(`Skipped: ${skipped[0]?.reason || "not deleted"}`);
-              } else {
-                setMsg("User not deleted");
-              }
+              } else setMsg("User not deleted");
             } catch (e) {
               setMsg(e.message || "Delete failed");
             } finally {
@@ -156,155 +184,67 @@ function AccountAdminDashboardCard({ token }) {
 
   return React.createElement(
     View,
-    {
-      style: {
-        backgroundColor: C.card,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: C.border,
-        padding: 16,
-        marginTop: 12,
-      },
-    },
-
+    { style: { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 16, marginTop: 12 } },
     React.createElement(
       TouchableOpacity,
-      {
-        onPress: () => setOpen((v) => !v),
-        activeOpacity: 0.85,
-        style: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-      },
-      React.createElement(
-        View,
-        null,
+      { onPress: () => setOpen((v) => !v), activeOpacity: 0.85, style: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" } },
+      React.createElement(View, null,
         React.createElement(Text, { style: { color: C.text, fontSize: 18, fontWeight: "900" } }, "Admin Dashboard"),
-        React.createElement(Text, { style: { color: C.muted, fontSize: 11, marginTop: 4 } }, "Users and cleanup audit")
+        React.createElement(Text, { style: { color: C.muted, fontSize: 11, marginTop: 4 } }, "Users, subscriptions and cleanup audit")
       ),
       React.createElement(Text, { style: { color: C.green, fontSize: 20, fontWeight: "900" } }, open ? "−" : "+")
     ),
-
-    open
-      ? React.createElement(
+    open ? React.createElement(
+      View,
+      { style: { marginTop: 14 } },
+      loading ? React.createElement(ActivityIndicator, { color: C.green }) : null,
+      msg ? React.createElement(Text, { style: { color: msg.toLowerCase().includes("failed") || msg.startsWith("Skipped") ? C.red : C.green, fontSize: 12, fontWeight: "800", marginBottom: 8 } }, msg) : null,
+      React.createElement(Text, { style: { color: C.text, fontSize: 13, fontWeight: "900", marginBottom: 6 } }, "Summary"),
+      React.createElement(Row, { label: "Total Users", value: stats.total_users }),
+      React.createElement(Row, { label: "Trial Users", value: stats.trial_users }),
+      React.createElement(Row, { label: "Active Users", value: stats.active_subscribers }),
+      React.createElement(Row, { label: "Expired Users", value: stats.expired_users }),
+      React.createElement(Row, { label: "Bots Running", value: stats.bots_running }),
+      React.createElement(Text, { style: { color: C.gold, fontSize: 13, fontWeight: "900", marginTop: 16, marginBottom: 6 } }, "Invalid PAPER Trade Cleanup"),
+      React.createElement(Row, { label: "Total Trades Removed", value: cleanup?.total_removed_trades ?? "--", color: C.gold }),
+      React.createElement(Row, { label: "Affected Users", value: cleanup?.affected_users ?? "--" }),
+      React.createElement(Row, { label: "Far-expiry Trades", value: source.far_expiry || 0 }),
+      React.createElement(Row, { label: "Blocked/Bug Entries", value: source.blocked_entry || 0 }),
+      React.createElement(Row, { label: "Removed Recorded P&L", value: cleanup ? `₹${Number(cleanup.removed_recorded_pnl || 0).toFixed(2)}` : "--", color: C.red }),
+      React.createElement(Row, { label: "Live Trades Removed", value: cleanup?.live_trades_removed ?? 0, color: C.green }),
+      cleanupUsers.length === 0 ? React.createElement(Text, { style: { color: C.muted, fontSize: 12, marginTop: 8 } }, "No archived invalid PAPER trades found") : React.createElement(
+        View,
+        { style: { marginTop: 10 } },
+        React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900", marginBottom: 7 } }, "User-wise Removed Trades"),
+        cleanupUsers.map((u) => React.createElement(
           View,
-          { style: { marginTop: 14 } },
-
-          loading ? React.createElement(ActivityIndicator, { color: C.green }) : null,
-
-          msg
-            ? React.createElement(
-                Text,
-                { style: { color: msg.startsWith("Deleted") ? C.green : C.red, fontSize: 12, fontWeight: "800", marginBottom: 8 } },
-                msg
-              )
-            : null,
-
-          React.createElement(Text, { style: { color: C.text, fontSize: 13, fontWeight: "900", marginBottom: 6 } }, "Summary"),
-          React.createElement(Row, { label: "Total Users", value: stats.total_users }),
-          React.createElement(Row, { label: "Trial Users", value: stats.trial_users }),
-          React.createElement(Row, { label: "Active Users", value: stats.active_subscribers }),
-          React.createElement(Row, { label: "Expired Users", value: stats.expired_users }),
-          React.createElement(Row, { label: "Bots Running", value: stats.bots_running }),
-
-          React.createElement(Text, { style: { color: C.gold, fontSize: 13, fontWeight: "900", marginTop: 16, marginBottom: 6 } }, "Invalid PAPER Trade Cleanup"),
-          React.createElement(Row, { label: "Total Trades Removed", value: cleanup?.total_removed_trades ?? "--", color: C.gold }),
-          React.createElement(Row, { label: "Affected Users", value: cleanup?.affected_users ?? "--" }),
-          React.createElement(Row, { label: "Far-expiry Trades", value: source.far_expiry || 0 }),
-          React.createElement(Row, { label: "Blocked/Bug Entries", value: source.blocked_entry || 0 }),
-          React.createElement(Row, { label: "Removed Recorded P&L", value: cleanup ? `₹${Number(cleanup.removed_recorded_pnl || 0).toFixed(2)}` : "--", color: C.red }),
-          React.createElement(Row, { label: "Live Trades Removed", value: cleanup?.live_trades_removed ?? 0, color: C.green }),
-
-          cleanupUsers.length === 0
-            ? React.createElement(Text, { style: { color: C.muted, fontSize: 12, marginTop: 8 } }, "No archived invalid PAPER trades found")
-            : React.createElement(
-                View,
-                { style: { marginTop: 10 } },
-                React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900", marginBottom: 7 } }, "User-wise Removed Trades"),
-                cleanupUsers.map((u) =>
-                  React.createElement(
-                    View,
-                    {
-                      key: `cleanup-${u.user_id}`,
-                      style: {
-                        backgroundColor: C.s2,
-                        borderRadius: 10,
-                        borderWidth: 1,
-                        borderColor: C.border,
-                        padding: 10,
-                        marginBottom: 8,
-                      },
-                    },
-                    React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900" } }, `${u.name || `User ${u.user_id}`} • ${u.removed_trades || 0} trades`),
-                    React.createElement(Text, { style: { color: C.muted, fontSize: 10, marginTop: 3 } }, u.email || "--"),
-                    React.createElement(Text, { style: { color: C.gold, fontSize: 10, marginTop: 4, fontWeight: "800" } }, `Far expiry ${u.far_expiry_trades || 0} • Blocked/bug ${u.blocked_entry_trades || 0}`),
-                    React.createElement(Text, { style: { color: C.red, fontSize: 10, marginTop: 3, fontWeight: "800" } }, `Removed recorded P&L ₹${Number(u.removed_recorded_pnl || 0).toFixed(2)}`)
-                  )
-                )
-              ),
-
-          React.createElement(Text, { style: { color: C.text, fontSize: 13, fontWeight: "900", marginTop: 14, marginBottom: 6 } }, "Recent Registered Users"),
-
-          users.length === 0
-            ? React.createElement(Text, { style: { color: C.muted, fontSize: 12 } }, "No users loaded")
-            : users.map((u) =>
-                React.createElement(
-                  View,
-                  {
-                    key: String(u.id || u.email),
-                    style: {
-                      backgroundColor: C.s2,
-                      borderRadius: 10,
-                      borderWidth: 1,
-                      borderColor: C.border,
-                      padding: 10,
-                      marginBottom: 8,
-                    },
-                  },
-                  React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900" } }, u.name || u.email || "User"),
-                  React.createElement(Text, { style: { color: C.muted, fontSize: 10, marginTop: 3 } }, u.email || "--"),
-                  React.createElement(Text, { style: { color: u.is_active ? C.green : C.red, fontSize: 10, marginTop: 3, fontWeight: "900" } }, `${u.subscription_status || "--"} • ${u.is_active ? "ACTIVE" : "INACTIVE"}`),
-
-                  React.createElement(
-                    TouchableOpacity,
-                    {
-                      onPress: () => deleteUser(u),
-                      disabled: deletingEmail === u.email,
-                      style: {
-                        marginTop: 9,
-                        borderWidth: 1,
-                        borderColor: C.red,
-                        backgroundColor: C.red + "18",
-                        borderRadius: 8,
-                        paddingVertical: 8,
-                        alignItems: "center",
-                        opacity: deletingEmail === u.email ? 0.5 : 1,
-                      },
-                    },
-                    React.createElement(
-                      Text,
-                      { style: { color: C.red, fontSize: 11, fontWeight: "900" } },
-                      deletingEmail === u.email ? "Deleting..." : "Delete User"
-                    )
-                  )
-                )
-              ),
-
-          React.createElement(
-            TouchableOpacity,
-            {
-              onPress: load,
-              style: {
-                marginTop: 8,
-                borderRadius: 10,
-                borderWidth: 1,
-                borderColor: C.blue,
-                paddingVertical: 10,
-                alignItems: "center",
-              },
-            },
-            React.createElement(Text, { style: { color: C.blue, fontSize: 12, fontWeight: "900" } }, "Refresh Dashboard")
-          )
+          { key: `cleanup-${u.user_id}`, style: { backgroundColor: C.s2, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 10, marginBottom: 8 } },
+          React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900" } }, `${u.name || `User ${u.user_id}`} • ${u.removed_trades || 0} trades`),
+          React.createElement(Text, { style: { color: C.muted, fontSize: 10, marginTop: 3 } }, u.email || "--"),
+          React.createElement(Text, { style: { color: C.gold, fontSize: 10, marginTop: 4, fontWeight: "800" } }, `Far expiry ${u.far_expiry_trades || 0} • Blocked/bug ${u.blocked_entry_trades || 0}`),
+          React.createElement(Text, { style: { color: C.red, fontSize: 10, marginTop: 3, fontWeight: "800" } }, `Removed recorded P&L ₹${Number(u.removed_recorded_pnl || 0).toFixed(2)}`)
+        ))
+      ),
+      React.createElement(Text, { style: { color: C.text, fontSize: 13, fontWeight: "900", marginTop: 14, marginBottom: 6 } }, "Registered Users"),
+      users.length === 0 ? React.createElement(Text, { style: { color: C.muted, fontSize: 12 } }, "No users loaded") : users.map((u) => React.createElement(
+        View,
+        { key: String(u.id || u.email), style: { backgroundColor: C.s2, borderRadius: 10, borderWidth: 1, borderColor: C.border, padding: 10, marginBottom: 8 } },
+        React.createElement(Text, { style: { color: C.text, fontSize: 12, fontWeight: "900" } }, u.name || u.email || "User"),
+        React.createElement(Text, { style: { color: C.muted, fontSize: 10, marginTop: 3 } }, u.email || "--"),
+        React.createElement(Text, { style: { color: u.subscription_status === "active" ? C.green : C.gold, fontSize: 10, marginTop: 3, fontWeight: "900" } }, `${String(u.subscription_status || "--").toUpperCase()} • ${u.is_active ? "LOGIN ENABLED" : "LOGIN SUSPENDED"}`),
+        !u.is_admin ? React.createElement(
+          TouchableOpacity,
+          { onPress: () => activateUser(u), disabled: activatingId === Number(u.id), style: { marginTop: 9, borderWidth: 1, borderColor: C.green, backgroundColor: C.green + "18", borderRadius: 8, paddingVertical: 9, alignItems: "center", opacity: activatingId === Number(u.id) ? 0.5 : 1 } },
+          React.createElement(Text, { style: { color: C.green, fontSize: 11, fontWeight: "900" } }, activatingId === Number(u.id) ? "Activating..." : "Activate 30 Days")
+        ) : React.createElement(Text, { style: { color: C.blue, fontSize: 10, fontWeight: "900", marginTop: 8 } }, "ADMIN • Unlimited"),
+        React.createElement(
+          TouchableOpacity,
+          { onPress: () => deleteUser(u), disabled: deletingEmail === u.email || !!u.is_admin, style: { marginTop: 7, borderWidth: 1, borderColor: C.red, backgroundColor: C.red + "18", borderRadius: 8, paddingVertical: 8, alignItems: "center", opacity: deletingEmail === u.email || u.is_admin ? 0.4 : 1 } },
+          React.createElement(Text, { style: { color: C.red, fontSize: 11, fontWeight: "900" } }, u.is_admin ? "Admin Protected" : deletingEmail === u.email ? "Deleting..." : "Delete User")
         )
-      : null
+      )),
+      React.createElement(TouchableOpacity, { onPress: load, style: { marginTop: 8, borderRadius: 10, borderWidth: 1, borderColor: C.blue, paddingVertical: 10, alignItems: "center" } }, React.createElement(Text, { style: { color: C.blue, fontSize: 12, fontWeight: "900" } }, "Refresh Dashboard"))
+    ) : null
   );
 }
 
