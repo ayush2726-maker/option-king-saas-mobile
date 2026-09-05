@@ -14,10 +14,11 @@ const WEB_MENU_ROUTE_MAP = {
   dashboard: "bot",
   trades: "trade",
   ai: "ai",
-  reports: "trade",
+  reports: "score",
   settings: "tools",
   broker: "broker",
   backtest: "backtest",
+  billing: "plans",
   help: "guide",
   account: "account",
 };
