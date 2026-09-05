@@ -1,6 +1,7 @@
 const React = require('react');
 const RN = require('react-native');
-const Clipboard = require('expo-clipboard');
+let Clipboard = null;
+try { Clipboard = require('expo-clipboard'); } catch (_) {}
 const AsyncStorageModule = require('@react-native-async-storage/async-storage');
 const AsyncStorage = AsyncStorageModule.default || AsyncStorageModule;
 
@@ -80,11 +81,20 @@ function GuideRow({label,value,note}) {
   const [copied,setCopied] = React.useState(false);
   const copyValue = async()=>{
     try {
-      await Clipboard.setStringAsync(String(value ?? ''));
+      const text = String(value ?? '');
+      if (Clipboard && typeof Clipboard.setStringAsync === 'function') {
+        await Clipboard.setStringAsync(text);
+      } else if (RN.Clipboard && typeof RN.Clipboard.setString === 'function') {
+        RN.Clipboard.setString(text);
+      } else if (RN.Platform.OS === 'web' && typeof globalThis !== 'undefined' && globalThis.navigator?.clipboard?.writeText) {
+        await globalThis.navigator.clipboard.writeText(text);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
       setCopied(true);
       setTimeout(()=>setCopied(false),1400);
     } catch (_) {
-      Alert.alert('Copy failed','Press and hold the value to copy it manually.');
+      Alert.alert('Copy unavailable','Press and hold the value to copy it manually.');
     }
   };
   return React.createElement(View,{style:{paddingVertical:8,borderBottomWidth:1,borderBottomColor:'#26364c'}},
@@ -113,12 +123,13 @@ function CustomerOnboardingAssistantV2({children}) {
     if (!t) { setState(null); return; }
     setLoading(true);
     try {
-      const [me,ent,brokers,gateway,prov] = await Promise.all([
+      const [me,ent,brokers,gateway,prov,botStatus] = await Promise.all([
         api('/auth/me',t).catch(()=>({})),
         api('/subscription/entitlements',t).catch(()=>({})),
         api('/broker/list',t).catch(()=>({})),
         api('/local-gateway/status',t).catch(()=>({})),
         api('/local-gateway/provision/status',t).catch(()=>({})),
+        api('/bot/status',t).catch(()=>({})),
       ]);
       const user = me?.user || me || {};
       const selected = String(brokers?.selected_broker || '').toLowerCase();
@@ -129,6 +140,9 @@ function CustomerOnboardingAssistantV2({children}) {
       const gatewayReady = Boolean(gateway?.paired && gateway?.online && gateway?.enabled !== false && gateway?.static_ip_matches !== false && assignedIp);
       const brokerReady = Boolean(selected || saved.some(x=>x?.selected || x?.is_active));
       const userId = Number(user?.id || 0);
+      const tradingMode = String(
+        botStatus?.mode || botStatus?.trading_mode || botStatus?.bot?.mode || botStatus?.status?.mode || ''
+      ).trim().toLowerCase();
       let ack = false;
       if (userId) {
         try { ack = (await AsyncStorage.getItem('okai_paper_test_ack_' + userId)) === '1'; } catch (_) {}
@@ -146,6 +160,7 @@ function CustomerOnboardingAssistantV2({children}) {
         gateway,
         provisioning:p,
         provisionState:String(p?.state || 'not_requested').toLowerCase(),
+        tradingMode,
         ipConfirmed:Boolean(p?.broker_ip_confirmed_at),
       });
     } finally { setLoading(false); }
@@ -159,7 +174,7 @@ function CustomerOnboardingAssistantV2({children}) {
   const liveDays = Number(state.ent?.live_days_remaining ?? 0);
   const paperDays = Number(state.ent?.paper_days_remaining ?? 0);
   const provisionStarted = ['requested','allocating','bootstrapping','ready'].includes(state.provisionState);
-  const liveSetupComplete = Boolean(state.gateway?.server_armed);
+  const liveSetupComplete = Boolean(state.tradingMode === 'live' || state.gateway?.server_armed);
 
   let stage = 2;
   if (state.assignedIp) stage = 3;
