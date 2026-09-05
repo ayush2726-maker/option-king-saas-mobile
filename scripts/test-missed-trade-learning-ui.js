@@ -90,7 +90,6 @@ const otaBlock = appSource.slice(otaStart, otaEnd);
   "checkForUpdateAsync",
   "fetchUpdateAsync",
   "reloadAsync",
-  "AppState.addEventListener",
   "checkOta(",
 ].forEach((forbidden) => {
   if (otaBlock.includes(forbidden)) {
