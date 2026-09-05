@@ -1,5 +1,6 @@
 name: Add Web APK Download V1
 
+# trigger: direct-apk-download-2026-09-05
 on:
   push:
     branches: [main]
