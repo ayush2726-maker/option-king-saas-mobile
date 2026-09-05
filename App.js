@@ -6925,7 +6925,7 @@ function MoreTab({ token, user, lang, setLang, isAdmin, navigateTo }) {
               {hi ? "30 din ka software access" : "30 days of software access"}
             </Text>
           </View>
-          <Tag label="₹1,999" color={C.gold} />
+          <Tag label="₹5,000" color={C.gold} />
         </Row>
 
         {["Full OKAI access", "Paper + Live tools", "Strategy + Backtest", "Trade alerts + Reports"].map(item => (
@@ -6942,7 +6942,7 @@ function MoreTab({ token, user, lang, setLang, isAdmin, navigateTo }) {
           </Text>
         </View>
 
-        <Btn label="Pay ₹1,999 with PhonePe / UPI" icon="📲" color={C.green}
+        <Btn label="Pay ₹5,000 with PhonePe / UPI" icon="📲" color={C.green}
           loading={loading} onPress={startPhonePePayment} />
 
         {!!paymentOrderId && (
@@ -7922,7 +7922,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
             padding: 14, margin: 16, marginBottom: 0,
             borderWidth: 1, borderColor: C.red+"55" }}>
           <Text style={{ color: C.red, fontWeight: "900",
-            fontSize: 13 }}> Trial khatam — Subscribe karo → ₹1,999/month</Text>
+            fontSize: 13 }}> Trial khatam — Subscribe karo → ₹5,000/month</Text>
         </TouchableOpacity>
       )}
       {trialEndingSoon && (
@@ -7932,7 +7932,7 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
             padding: 14, margin: 16, marginBottom: 0,
             borderWidth: 1, borderColor: C.gold+"55" }}>
           <Text style={{ color: C.gold, fontWeight: "900",
-            fontSize: 13 }}>⏳ Trial {subscriptionDaysRemaining} din me khatam hoga — ₹1,999/month</Text>
+            fontSize: 13 }}>⏳ Trial {subscriptionDaysRemaining} din me khatam hoga — ₹5,000/month</Text>
         </TouchableOpacity>
       )}
 

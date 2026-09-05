@@ -208,7 +208,7 @@ function PaytmPaymentPanel() {
         : React.createElement(
             Text,
             { style: { color: "#ffffff", fontSize: 12, fontWeight: "900" } },
-            available ? "Pay ₹1,999 with Paytm" : "Paytm setup pending"
+            available ? "Pay ₹5,000 with Paytm" : "Paytm setup pending"
           )
     ),
     orderId
