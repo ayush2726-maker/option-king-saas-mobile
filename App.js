@@ -7951,7 +7951,13 @@ function DashboardScreen({ token, user, onLogout, initialLang, onLangChange }) {
 
         {activeTab === "home" && (
           <HomeTab user={displayUser} subStatus={displaySubStatus} token={token}
-            setActiveTab={navigateTo} onSubscribe={() => navigateTo("more")}
+            setActiveTab={navigateTo} onSubscribe={() => {
+              if (typeof globalThis.__OKAI_OPEN_SUBSCRIPTION__ === "function") {
+                globalThis.__OKAI_OPEN_SUBSCRIPTION__();
+              } else {
+                navigateTo("plans");
+              }
+            }}
             onPageRefresh={refreshUser} lang={lang} />
         )}
         {activeTab === "score" && <ScoreTab token={token} />}

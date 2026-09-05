@@ -72,6 +72,19 @@ function SubscriptionActivationGate({ children }) {
     return () => clearInterval(timer);
   }, [checkStatus]);
 
+  React.useEffect(() => {
+    globalThis.__OKAI_OPEN_SUBSCRIPTION__ = () => {
+      dismissedRef.current = false;
+      setMessage('');
+      setVisible(true);
+    };
+    return () => {
+      if (globalThis.__OKAI_OPEN_SUBSCRIPTION__) {
+        delete globalThis.__OKAI_OPEN_SUBSCRIPTION__;
+      }
+    };
+  }, []);
+
   function dismissPopup() {
     dismissedRef.current = true;
     setVisible(false);
