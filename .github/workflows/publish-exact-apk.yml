@@ -15,21 +15,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Capture firestorage download metadata
+      - name: Capture firestorage download API metadata
         run: |
           curl -L --fail --silent --show-error "https://firestorage.ai/ja/f/pHAN6dP_usT8" -o page.html
-          {
-            echo "=== URLS ==="
-            grep -Eo 'https?://[^"<> ]+' page.html | sed 's/&amp;/\&/g' | sort -u | head -300 || true
-            echo "=== MATCHES ==="
-            grep -Eio '.{0,180}(download|Option King|apk|api/|dWWCm3XNLk3W2NFn|pHAN6dP_usT8).{0,300}' page.html | head -300 || true
-          } > firestorage-inspect.txt
-          wc -c page.html firestorage-inspect.txt
+          CHUNKS=$(grep -Eo '/_next/static/chunks/[^" ]+\.js' page.html | sed 's/\\u0026/\&/g' | sort -u)
+          : > firestorage-inspect.txt
+          echo "=== CHUNKS ===" >> firestorage-inspect.txt
+          printf '%s\n' "$CHUNKS" >> firestorage-inspect.txt
+          i=0
+          while IFS= read -r chunk; do
+            [ -z "$chunk" ] && continue
+            i=$((i+1))
+            curl -L --fail --silent --show-error "https://firestorage.ai${chunk}" -o "chunk-${i}.js" || continue
+            echo "=== $chunk ===" >> firestorage-inspect.txt
+            grep -Eio '.{0,240}(download|presign|signed|api/|shareId|publicId|fileId|objects|files).{0,420}' "chunk-${i}.js" | head -300 >> firestorage-inspect.txt || true
+          done <<< "$CHUNKS"
+          wc -c page.html chunk-*.js firestorage-inspect.txt || true
       - name: Commit inspection output
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add firestorage-inspect.txt
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Capture firestorage APK download metadata"
+          git commit -m "Capture firestorage client download API"
           git push origin main
