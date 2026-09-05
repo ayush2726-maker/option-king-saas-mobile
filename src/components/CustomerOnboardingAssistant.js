@@ -3,35 +3,36 @@ const RN = require('react-native');
 const AsyncStorageModule = require('@react-native-async-storage/async-storage');
 const AsyncStorage = AsyncStorageModule.default || AsyncStorageModule;
 
-const { ActivityIndicator, Modal, ScrollView, Text, TouchableOpacity, View } = RN;
+const { ActivityIndicator, Alert, Modal, ScrollView, Text, TouchableOpacity, View } = RN;
 const API = 'https://option-king-saas-production.up.railway.app';
 
-async function token() {
-  for (const key of ['saas_token','token','auth_token','okai_token','access_token']) {
-    try { const v = await AsyncStorage.getItem(key); if (v && String(v).length > 20) return String(v); } catch (_) {}
+async function authToken() {
+  for (const key of ['saas_token', 'token', 'auth_token', 'okai_token', 'access_token']) {
+    try {
+      const value = await AsyncStorage.getItem(key);
+      if (value && String(value).length > 20) return String(value);
+    } catch (_) {}
   }
   return '';
 }
-async function get(path, t) {
-  const r = await fetch(API + path + (path.includes('?') ? '&' : '?') + '_ts=' + Date.now(), {
-    headers: { Authorization: 'Bearer ' + t, 'Cache-Control': 'no-cache' },
+
+async function api(path, token, options = {}) {
+  const suffix = options.method ? '' : (path.includes('?') ? '&' : '?') + '_ts=' + Date.now();
+  const response = await fetch(API + path + suffix, {
+    ...options,
+    headers: {
+      Authorization: 'Bearer ' + token,
+      'Cache-Control': 'no-cache',
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {}),
+    },
   });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d?.detail || d?.message || 'Request failed');
-  return d;
-}
-async function post(path, t, body={}) {
-  const r = await fetch(API + path, {
-    method: 'POST',
-    headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-    body: JSON.stringify(body),
-  });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d?.detail || d?.message || 'Request failed');
-  return d;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.detail || data?.message || `Request failed (${response.status})`);
+  return data;
 }
 
-function nav(route) {
+function navigate(route) {
   try {
     if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_WEB_NAVIGATE__ === 'function') {
       return Boolean(globalThis.__OKAI_WEB_NAVIGATE__(route));
@@ -40,177 +41,272 @@ function nav(route) {
   return false;
 }
 
-function Step({ n, title, detail, done, active, expanded, onPress, children }) {
-  const c = done ? '#00d4a0' : active ? '#4d9fff' : '#66758a';
-  return React.createElement(View,{style:{marginBottom:10}},
-    React.createElement(TouchableOpacity,{onPress,activeOpacity:.82,style:{flexDirection:'row',gap:12,paddingVertical:7,paddingHorizontal:2,borderRadius:12}},
-      React.createElement(View,{style:{width:34,height:34,borderRadius:17,borderWidth:1,borderColor:c,backgroundColor:c+'20',alignItems:'center',justifyContent:'center'}},
-        React.createElement(Text,{style:{color:c,fontWeight:'900',fontSize:15}},done?'✓':String(n))
-      ),
-      React.createElement(View,{style:{flex:1,minWidth:0}},
-        React.createElement(View,{style:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}},
-          React.createElement(Text,{style:{color:'#f2f6ff',fontWeight:'900',fontSize:15,flex:1}},title),
-          React.createElement(Text,{style:{color:'#7fa2cc',fontSize:18,fontWeight:'900'}},expanded?'⌃':'›')
-        ),
-        React.createElement(Text,{style:{color:'#9aabc2',fontSize:12,lineHeight:18,marginTop:3}},detail)
-      )
-    ),
-    expanded ? React.createElement(View,{style:{marginLeft:46,marginTop:3,marginBottom:8,padding:12,borderRadius:12,backgroundColor:'#111c2c',borderWidth:1,borderColor:'#263d5b'}},children) : null
+function ActionButton({ label, onPress, disabled, tone = 'blue' }) {
+  const color = tone === 'green' ? '#00d4a0' : tone === 'red' ? '#ff6478' : '#68adff';
+  return React.createElement(
+    TouchableOpacity,
+    {
+      onPress,
+      disabled,
+      activeOpacity: 0.84,
+      style: {
+        minHeight: 44,
+        marginTop: 10,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: disabled ? '#344154' : color + '99',
+        backgroundColor: disabled ? '#182231' : color + '18',
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: disabled ? 0.55 : 1,
+      },
+    },
+    React.createElement(Text, { style: { color: disabled ? '#78869a' : color, fontSize: 12, fontWeight: '900', textAlign: 'center' } }, label)
   );
 }
 
-function ActionButton({label,onPress,disabled}) {
-  return React.createElement(TouchableOpacity,{onPress,disabled,activeOpacity:.84,style:{marginTop:10,minHeight:42,borderRadius:11,backgroundColor:disabled?'#202a39':'#174c85',borderWidth:1,borderColor:disabled?'#39465a':'#3d82c4',alignItems:'center',justifyContent:'center',paddingHorizontal:12}},
-    React.createElement(Text,{style:{color:disabled?'#77859a':'#d9ecff',fontWeight:'900',fontSize:12}},label)
+function Step({ n, title, detail, done, active, expanded, onPress, children }) {
+  const color = done ? '#00d4a0' : active ? '#5ba5ff' : '#64758c';
+  return React.createElement(
+    View,
+    { style: { marginBottom: 8 } },
+    React.createElement(
+      TouchableOpacity,
+      { onPress, activeOpacity: 0.82, style: { flexDirection: 'row', gap: 12, paddingVertical: 8 } },
+      React.createElement(
+        View,
+        { style: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: color, backgroundColor: color + '1f', alignItems: 'center', justifyContent: 'center' } },
+        React.createElement(Text, { style: { color, fontWeight: '900', fontSize: 15 } }, done ? '✓' : String(n))
+      ),
+      React.createElement(
+        View,
+        { style: { flex: 1, minWidth: 0 } },
+        React.createElement(
+          View,
+          { style: { flexDirection: 'row', alignItems: 'center', gap: 8 } },
+          React.createElement(Text, { style: { color: '#f4f7ff', fontWeight: '900', fontSize: 15, flex: 1 } }, title),
+          React.createElement(Text, { style: { color: '#83a6d3', fontWeight: '900', fontSize: 18 } }, expanded ? '⌃' : '›')
+        ),
+        React.createElement(Text, { style: { color: '#98a9bf', fontSize: 12, lineHeight: 18, marginTop: 3 } }, detail)
+      )
+    ),
+    expanded ? React.createElement(View, { style: { marginLeft: 46, marginBottom: 10, padding: 12, borderRadius: 12, backgroundColor: '#111c2c', borderWidth: 1, borderColor: '#293d57' } }, children) : null
+  );
+}
+
+function StatusPill({ label, value, good }) {
+  const color = good ? '#00d4a0' : '#f6c85f';
+  return React.createElement(
+    View,
+    { style: { flex: 1, minWidth: 0, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: color + '66', backgroundColor: color + '10' } },
+    React.createElement(Text, { style: { color, fontSize: 10, fontWeight: '900' } }, label),
+    React.createElement(Text, { style: { color: '#fff', fontSize: 15, fontWeight: '900', marginTop: 3 } }, value)
   );
 }
 
 function CustomerOnboardingAssistant({ children }) {
-  const [open,setOpen]=React.useState(false);
-  const [loading,setLoading]=React.useState(false);
-  const [state,setState]=React.useState(null);
-  const [expanded,setExpanded]=React.useState(2);
-  const [provisioningBusy,setProvisioningBusy]=React.useState(false);
-  const [provisioningError,setProvisioningError]=React.useState('');
-  const [navigationError,setNavigationError]=React.useState('');
+  const [open, setOpen] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(2);
+  const [loading, setLoading] = React.useState(false);
+  const [busy, setBusy] = React.useState('');
+  const [error, setError] = React.useState('');
+  const [state, setState] = React.useState(null);
 
-  const load=React.useCallback(async()=>{
-    const t=await token();
-    if(!t){ setState(null); return; }
+  const load = React.useCallback(async () => {
+    const token = await authToken();
+    if (!token) { setState(null); return; }
     setLoading(true);
     try {
-      const [me,ent,brokers,gateway,provisioning]=await Promise.all([
-        get('/auth/me',t).catch(()=>({})),
-        get('/subscription/entitlements',t).catch(()=>({})),
-        get('/broker/list',t).catch(()=>({})),
-        get('/local-gateway/status',t).catch(()=>({})),
-        get('/local-gateway/provision/status',t).catch(()=>({})),
+      const [me, ent, brokers, provision, signal] = await Promise.all([
+        api('/auth/me', token).catch(() => ({})),
+        api('/subscription/entitlements', token).catch(() => ({})),
+        api('/broker/list', token).catch(() => ({})),
+        api('/local-gateway/provision/status', token).catch(() => ({})),
+        api('/bot/signal', token).catch(() => ({})),
       ]);
-      const user=me?.user || me || {};
-      const isAdmin=Boolean(user?.is_admin);
-      const saved=Array.isArray(brokers?.brokers)?brokers.brokers:[];
-      const selected=String(brokers?.selected_broker||'').toLowerCase();
-      const brokerReady=Boolean(selected || saved.length);
-      const gatewayReady=Boolean(gateway?.paired && gateway?.online && (gateway?.static_ip_matches !== false));
-      const assignedIp=String(gateway?.expected_static_ip || provisioning?.provisioning?.static_ip || '').trim();
-      const provisionState=String(provisioning?.provisioning?.state || 'not_requested').toLowerCase();
-      setState({isAdmin,ent,brokerReady,selected,gatewayReady,gateway,assignedIp,provisionState,provisioning:provisioning?.provisioning||{}});
-    } finally { setLoading(false); }
-  },[]);
-
-  const requestProvisioning=React.useCallback(async()=>{
-    const t=await token();
-    if(!t) return;
-    setProvisioningBusy(true);
-    setProvisioningError('');
-    try {
-      await post('/local-gateway/provision/request',t,{});
-      await load();
+      const user = me?.user || me || {};
+      const selected = String(brokers?.selected_broker || '').trim().toLowerCase();
+      const brokerReady = Boolean(selected);
+      const p = provision?.provisioning || {};
+      const gateway = provision?.gateway || {};
+      const assignedIp = String(p?.static_ip || gateway?.expected_static_ip || '').trim();
+      const expected = String(gateway?.expected_static_ip || assignedIp || '').trim();
+      const observed = String(gateway?.observed_ip || '').trim();
+      const exactIpMatch = Boolean(expected && observed && expected === observed);
+      const gatewayReady = Boolean(gateway?.paired && gateway?.enabled && gateway?.online && exactIpMatch);
+      const ipConfirmed = Boolean(p?.broker_ip_confirmed_at);
+      const provisionState = String(p?.state || 'not_requested').toLowerCase();
+      const userId = String(user?.id || 'unknown');
+      let paperTested = false;
+      try { paperTested = (await AsyncStorage.getItem('okai_paper_tested_' + userId)) === '1'; } catch (_) {}
+      const signalMode = String(signal?.trading_mode || '').toLowerCase();
+      if (brokerReady && signalMode === 'paper' && Boolean(signal?.is_running || signal?.running || Number(signal?.total_trades || 0) > 0)) {
+        paperTested = true;
+        try { await AsyncStorage.setItem('okai_paper_tested_' + userId, '1'); } catch (_) {}
+      }
+      const liveEnabled = Boolean(gateway?.server_armed && signalMode === 'live');
+      setState({ user, isAdmin: Boolean(user?.is_admin), ent, selected, brokerReady, p, gateway, assignedIp, expected, observed, gatewayReady, ipConfirmed, provisionState, paperTested, signal, liveEnabled });
+      setError('');
     } catch (e) {
-      setProvisioningError(String(e?.message || e || 'Could not start secure IP allocation'));
+      setError(String(e?.message || e));
     } finally {
-      setProvisioningBusy(false);
+      setLoading(false);
     }
-  },[load]);
+  }, []);
 
-  React.useEffect(()=>{ load(); const id=setInterval(load,10000); return()=>clearInterval(id); },[load]);
+  React.useEffect(() => {
+    load();
+    const id = setInterval(load, 10000);
+    return () => clearInterval(id);
+  }, [load]);
+
   if (!state || state.isAdmin) return children;
 
-  const liveAllowed=Boolean(state.ent?.live_allowed);
-  const paperAllowed=Boolean(state.ent?.paper_allowed);
-  const liveDays=state.ent?.live_days_remaining ?? 0;
-  const paperDays=state.ent?.paper_days_remaining ?? 0;
-  const ipReady=Boolean(state.assignedIp);
-  const stage=!ipReady?2:!state.brokerReady?3:!paperAllowed?6:!state.gatewayReady?2:liveAllowed?5:6;
+  const liveAllowed = Boolean(state.ent?.live_allowed);
+  const paperAllowed = Boolean(state.ent?.paper_allowed);
+  const liveDays = Number(state.ent?.live_days_remaining || 0);
+  const paperDays = Number(state.ent?.paper_days_remaining || 0);
+  const secureDone = state.gatewayReady && state.ipConfirmed;
+  const stage = !state.brokerReady ? 2 : !state.paperTested ? 3 : !secureDone ? 4 : !state.liveEnabled ? 5 : 6;
+  const provisionStarted = ['requested', 'allocating', 'bootstrapping', 'ready'].includes(state.provisionState);
 
-  const openRoute=(route)=>{
-    setNavigationError('');
-    if (nav(route)) {
-      setOpen(false);
-      return;
-    }
-    setNavigationError('This page could not be opened. Please refresh the app and try again.');
-  };
-  const openSubscription=()=>{
-    setNavigationError('');
+  const toggle = (n) => setExpanded((v) => (v === n ? 0 : n));
+  const openRoute = (route) => { setOpen(false); setTimeout(() => navigate(route), 80); };
+
+  const requestIp = async () => {
+    const token = await authToken();
+    if (!token) return;
+    setBusy('ip'); setError('');
     try {
-      if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_OPEN_SUBSCRIPTION__ === 'function') {
-        globalThis.__OKAI_OPEN_SUBSCRIPTION__();
-        setOpen(false);
-        return;
-      }
-    } catch (_) {}
-    openRoute('plans');
+      await api('/local-gateway/provision/request', token, { method: 'POST', body: '{}' });
+      await load();
+    } catch (e) { setError(String(e?.message || e)); }
+    finally { setBusy(''); }
   };
-  const toggle=(n)=>setExpanded(v=>v===n?0:n);
-  const ipText=state.assignedIp || 'Allocation Pending';
-  const provisionStarted=['requested','allocating','bootstrapping','ready'].includes(state.provisionState);
-  const provisionLabel=state.gatewayReady?'Connection Ready':provisioningBusy?'Starting Secure Setup...':ipReady?'Refresh Secure Connection':provisionStarted?'Provisioning in Progress':'Allocate My Secure IP';
 
-  return React.createElement(React.Fragment,null,
+  const confirmIp = () => {
+    if (!state.assignedIp) return;
+    Alert.alert('Confirm Static IP', `Broker developer app me ${state.assignedIp} ko Primary Static IP ke roop me save kar diya hai?`, [
+      { text: 'Not Yet', style: 'cancel' },
+      { text: 'Yes, Saved', onPress: async () => {
+        const token = await authToken();
+        if (!token) return;
+        setBusy('confirm-ip'); setError('');
+        try {
+          await api('/local-gateway/provision/confirm-ip', token, { method: 'POST', body: JSON.stringify({ confirmation: 'IP REGISTERED' }) });
+          await load();
+        } catch (e) { setError(String(e?.message || e)); }
+        finally { setBusy(''); }
+      } },
+    ]);
+  };
+
+  const enableLive = () => {
+    Alert.alert('Enable Live Trading?', 'Live mode real-money orders allow karega. Bot automatically start nahi hoga; real orders tabhi shuru honge jab aap Start Bot dabayenge.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Enable Live', onPress: async () => {
+        const token = await authToken();
+        if (!token) return;
+        setBusy('live'); setError('');
+        try {
+          await api('/local-gateway/provision/enable-live', token, { method: 'POST', body: JSON.stringify({ confirmation: 'ENABLE LIVE TRADING' }) });
+          await load();
+        } catch (e) { setError(String(e?.message || e)); }
+        finally { setBusy(''); }
+      } },
+    ]);
+  };
+
+  const disableLive = async () => {
+    const token = await authToken();
+    if (!token) return;
+    setBusy('disable-live'); setError('');
+    try {
+      await api('/local-gateway/provision/disable-live', token, { method: 'POST', body: '{}' });
+      await load();
+    } catch (e) { setError(String(e?.message || e)); }
+    finally { setBusy(''); }
+  };
+
+  const brokerIpInstruction = state.selected === 'upstox'
+    ? 'Upstox Developer Apps → Option King AI app → Static IP / Primary IP me niche diya IP save karein.'
+    : 'Angel One SmartAPI → My Apps → apni API app → Static IP / Primary IP me niche diya IP save karein.';
+
+  return React.createElement(
+    React.Fragment,
+    null,
     children,
-    React.createElement(TouchableOpacity,{onPress:()=>{setExpanded(stage);setOpen(true);},activeOpacity:.86,style:{position:'absolute',right:12,bottom:RN.Platform.OS==='web'?18:86,zIndex:9999,minHeight:46,paddingHorizontal:15,borderRadius:23,backgroundColor:'#0f5ecf',borderWidth:1,borderColor:'#4d9fff',alignItems:'center',justifyContent:'center',shadowColor:'#000',shadowOpacity:.35,shadowRadius:8,elevation:14}},
-      React.createElement(Text,{style:{color:'#fff',fontWeight:'900',fontSize:12}},'🚀 Set Up Live Trading')
-    ),
-    React.createElement(Modal,{visible:open,transparent:true,animationType:'slide',onRequestClose:()=>setOpen(false)},
-      React.createElement(View,{style:{flex:1,backgroundColor:'rgba(2,7,15,.92)',justifyContent:'flex-end'}},
-        React.createElement(View,{style:{maxHeight:'90%',backgroundColor:'#0b1220',borderTopLeftRadius:24,borderTopRightRadius:24,borderWidth:1,borderColor:'#263951',padding:18}},
-          React.createElement(View,{style:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
-            React.createElement(View,{style:{flex:1,minWidth:0,paddingRight:10}},
-              React.createElement(Text,{style:{color:'#fff',fontSize:22,fontWeight:'900'}},'Live Trading Setup'),
-              React.createElement(Text,{style:{color:'#91a4bd',fontSize:12,marginTop:3}},'Tap any step to open it. The next step\'s status will update automatically.')
+    React.createElement(TouchableOpacity, {
+      onPress: () => { setExpanded(stage); setOpen(true); },
+      activeOpacity: 0.86,
+      style: { position: 'absolute', right: 12, bottom: RN.Platform.OS === 'web' ? 18 : 86, zIndex: 9999, minHeight: 46, paddingHorizontal: 15, borderRadius: 23, borderWidth: 1, borderColor: '#4d9fff', backgroundColor: '#0f5ecf', alignItems: 'center', justifyContent: 'center', elevation: 14 },
+    }, React.createElement(Text, { style: { color: '#fff', fontSize: 12, fontWeight: '900' } }, '🚀 Set Up Live Trading')),
+    React.createElement(Modal, { visible: open, transparent: true, animationType: 'slide', onRequestClose: () => setOpen(false) },
+      React.createElement(View, { style: { flex: 1, backgroundColor: 'rgba(2,7,15,.92)', justifyContent: 'flex-end' } },
+        React.createElement(View, { style: { maxHeight: '92%', backgroundColor: '#0b1220', borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: '#263951', padding: 18 } },
+          React.createElement(View, { style: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 } },
+            React.createElement(View, { style: { flex: 1, paddingRight: 10 } },
+              React.createElement(Text, { style: { color: '#fff', fontSize: 22, fontWeight: '900' } }, 'Live Trading Setup'),
+              React.createElement(Text, { style: { color: '#91a4bd', fontSize: 12, marginTop: 3 } }, `Current step: ${stage} of 6 • Tap any step to open it`)
             ),
-            React.createElement(TouchableOpacity,{onPress:()=>setOpen(false),style:{width:38,height:38,borderRadius:19,backgroundColor:'#172338',alignItems:'center',justifyContent:'center'}},React.createElement(Text,{style:{color:'#fff',fontSize:22}},'×'))
+            React.createElement(TouchableOpacity, { onPress: () => setOpen(false), style: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#172338', alignItems: 'center', justifyContent: 'center' } }, React.createElement(Text, { style: { color: '#fff', fontSize: 22 } }, '×'))
           ),
-          React.createElement(View,{style:{flexDirection:'row',gap:8,marginBottom:16}},
-            React.createElement(View,{style:{flex:1,padding:11,borderRadius:12,backgroundColor:'#10231f',borderWidth:1,borderColor:'#1e6a55'}},
-              React.createElement(Text,{style:{color:'#78deb0',fontSize:11,fontWeight:'900'}},'PAPER ACCESS'),
-              React.createElement(Text,{style:{color:'#fff',fontSize:16,fontWeight:'900',marginTop:2}},paperAllowed?`${paperDays} days remaining`:'Expired')
+          React.createElement(View, { style: { flexDirection: 'row', gap: 8, marginBottom: 14 } },
+            React.createElement(StatusPill, { label: 'PAPER ACCESS', value: paperAllowed ? `${paperDays} days left` : 'Expired', good: paperAllowed }),
+            React.createElement(StatusPill, { label: 'LIVE ACCESS', value: liveAllowed ? (state.ent?.live_access === 'trial' ? `${liveDays} trial days` : 'Active') : 'Locked', good: liveAllowed })
+          ),
+          error ? React.createElement(Text, { style: { color: '#ff8f9c', fontSize: 11, lineHeight: 16, marginBottom: 8 } }, error) : null,
+          React.createElement(ScrollView, { keyboardShouldPersistTaps: 'handled', contentContainerStyle: { paddingBottom: 12 } },
+            React.createElement(Step, { n: 1, title: 'Account Created', detail: 'Option King AI account ready.', done: true, active: false, expanded: expanded === 1, onPress: () => toggle(1) },
+              React.createElement(Text, { style: { color: '#b7c5d8', fontSize: 12, lineHeight: 18 } }, 'Profile, subscription aur account details yahan check kar sakte hain.'),
+              React.createElement(ActionButton, { label: 'Open Account', onPress: () => openRoute('account') })
             ),
-            React.createElement(View,{style:{flex:1,padding:11,borderRadius:12,backgroundColor:'#122038',borderWidth:1,borderColor:'#315c91'}},
-              React.createElement(Text,{style:{color:'#73b8ff',fontSize:11,fontWeight:'900'}},'LIVE ACCESS'),
-              React.createElement(Text,{style:{color:'#fff',fontSize:16,fontWeight:'900',marginTop:2}},liveAllowed?(state.ent?.live_access==='trial'?`${liveDays} trial days remaining`:'Active'):'Locked')
+            React.createElement(Step, { n: 2, title: 'Connect Your Broker', detail: state.brokerReady ? `${state.selected === 'upstox' ? 'Upstox' : 'Angel One'} connected.` : 'Angel One ya Upstox connect karein.', done: state.brokerReady, active: stage === 2, expanded: expanded === 2, onPress: () => toggle(2) },
+              React.createElement(Text, { style: { color: '#b7c5d8', fontSize: 12, lineHeight: 18 } }, state.brokerReady ? 'Broker credentials verify ho chuke hain. Zarurat ho to yahan review/update kar sakte hain.' : 'Broker Setup screen required API Key, Client ID, password/token aur TOTP fields step-by-step dikhayegi.'),
+              React.createElement(ActionButton, { label: state.brokerReady ? 'Review Broker' : 'Connect Broker Now', onPress: () => openRoute('broker') })
+            ),
+            React.createElement(Step, { n: 3, title: 'Test Paper Trading', detail: state.paperTested ? 'Paper bot test completed.' : 'Live se pehle Paper mode me bot start karke setup verify karein.', done: state.paperTested, active: stage === 3, expanded: expanded === 3, onPress: () => toggle(3) },
+              React.createElement(Text, { style: { color: '#b7c5d8', fontSize: 12, lineHeight: 18 } }, paperAllowed ? 'Paper Bot kholein, mode PAPER rakhein aur Start Bot dabayein. App running Paper bot detect karke ye step automatically complete kar dega.' : 'Paper access expired hai. Subscription activate karna hoga.'),
+              React.createElement(ActionButton, { label: paperAllowed ? 'Open Paper Bot' : 'Paper Access Expired', onPress: () => openRoute('bot'), disabled: !paperAllowed || !state.brokerReady })
+            ),
+            React.createElement(Step, { n: 4, title: 'Secure Static IP', detail: secureDone ? 'Dedicated AWS connection ready and IP registration confirmed.' : state.assignedIp ? 'Dedicated IP allocated. Broker me register karke confirm karein.' : provisionStarted ? 'AWS secure IP provisioning in progress…' : 'Option King AI automatically dedicated AWS IP allocate karega.', done: secureDone, active: stage === 4, expanded: expanded === 4, onPress: () => toggle(4) },
+              React.createElement(Text, { style: { color: '#b7c5d8', fontSize: 12, lineHeight: 18 } }, 'Customer ko Termux, phone gateway, VPN, token pairing ya command chalane ki zarurat nahi hai. AWS worker + dedicated IP server side automatically banega.'),
+              React.createElement(View, { style: { marginTop: 10, padding: 11, borderRadius: 11, backgroundColor: '#0c1725', borderWidth: 1, borderColor: '#2a4a6d' } },
+                React.createElement(Text, { style: { color: '#7dbdff', fontSize: 10, fontWeight: '900' } }, 'YOUR DEDICATED EXECUTION IP'),
+                React.createElement(Text, { selectable: true, style: { color: '#fff', fontSize: 17, fontWeight: '900', marginTop: 4 } }, state.assignedIp || 'Allocation Pending'),
+                React.createElement(Text, { style: { color: '#93a5bc', fontSize: 11, lineHeight: 16, marginTop: 6 } }, state.assignedIp ? brokerIpInstruction : 'Paper test ke baad Allocate My Secure IP dabayein. Exact IP yahin aa jayega.'),
+                state.assignedIp ? React.createElement(Text, { style: { color: state.ipConfirmed ? '#00d4a0' : '#f6c85f', fontSize: 11, fontWeight: '900', marginTop: 7 } }, state.ipConfirmed ? '✓ Broker IP registration confirmed' : 'Waiting for your broker-IP confirmation') : null,
+                state.gatewayReady ? React.createElement(Text, { style: { color: '#00d4a0', fontSize: 11, fontWeight: '900', marginTop: 5 } }, '✓ AWS worker online • outbound IP matched') : null
+              ),
+              !state.assignedIp
+                ? React.createElement(ActionButton, { label: busy === 'ip' ? 'Allocating Secure IP…' : provisionStarted ? 'Refresh Provisioning Status' : 'Allocate My Secure IP', onPress: provisionStarted ? load : requestIp, disabled: busy === 'ip' || !state.paperTested || !liveAllowed, tone: 'green' })
+                : !state.ipConfirmed
+                  ? React.createElement(React.Fragment, null,
+                      React.createElement(ActionButton, { label: 'Open Broker Setup / Instructions', onPress: () => openRoute('broker') }),
+                      React.createElement(ActionButton, { label: busy === 'confirm-ip' ? 'Saving Confirmation…' : 'I Registered This IP', onPress: confirmIp, disabled: busy === 'confirm-ip', tone: 'green' })
+                    )
+                  : React.createElement(ActionButton, { label: state.gatewayReady ? 'Secure Connection Ready ✓' : 'Refresh Secure Connection', onPress: load, tone: 'green' })
+            ),
+            React.createElement(Step, { n: 5, title: 'Enable Live Trading', detail: state.liveEnabled ? 'Live mode enabled. Start Bot remains a separate final action.' : 'Broker + trial/subscription + static IP checks pass hone ke baad enable hoga.', done: state.liveEnabled, active: stage === 5, expanded: expanded === 5, onPress: () => toggle(5) },
+              React.createElement(Text, { style: { color: '#b7c5d8', fontSize: 12, lineHeight: 18 } }, state.liveEnabled ? 'Live enabled hai, lekin real order tabhi place hoga jab aap Bot screen par Start Bot dabayenge. Aap kabhi bhi Live disable karke Paper par wapas ja sakte hain.' : 'Enable Live par explicit confirmation maangi jayegi. Confirmation ke bina server gateway arm nahi hoga.'),
+              state.liveEnabled
+                ? React.createElement(React.Fragment, null,
+                    React.createElement(ActionButton, { label: 'Open Live Bot', onPress: () => openRoute('bot'), tone: 'green' }),
+                    React.createElement(ActionButton, { label: busy === 'disable-live' ? 'Disabling…' : 'Disable Live & Return to Paper', onPress: disableLive, disabled: busy === 'disable-live', tone: 'red' })
+                  )
+                : React.createElement(ActionButton, { label: busy === 'live' ? 'Enabling Live…' : 'Enable Live Trading', onPress: enableLive, disabled: busy === 'live' || !liveAllowed || !secureDone, tone: 'green' })
+            ),
+            React.createElement(Step, { n: 6, title: 'Subscription', detail: 'Live trial 7 days • Paper free 30 days • Paid plan unlocks both.', done: false, active: stage === 6, expanded: expanded === 6, onPress: () => toggle(6) },
+              React.createElement(Text, { style: { color: '#b7c5d8', fontSize: 12, lineHeight: 18 } }, 'Live trial khatam hone ke baad Paper registration date se 30 din tak continue karega. Paid activation ke baad Paper + Live dono active rahenge.'),
+              React.createElement(ActionButton, { label: 'Open Subscription', onPress: () => openRoute('plans') })
+            ),
+            React.createElement(View, { style: { marginTop: 4, padding: 12, borderRadius: 12, backgroundColor: '#151b29', borderWidth: 1, borderColor: '#303c50' } },
+              React.createElement(Text, { style: { color: '#f6c85f', fontSize: 11, fontWeight: '900' } }, 'LIVE SAFETY'),
+              React.createElement(Text, { style: { color: '#aebbd0', fontSize: 11, lineHeight: 17, marginTop: 5 } }, 'Real orders remain blocked until Live entitlement is active, broker is connected, the dedicated AWS worker is online from the exact assigned IP, you confirm that IP in the broker app, and you explicitly Enable Live. Start Bot is still the final action.')
             )
           ),
-          React.createElement(ScrollView,{contentContainerStyle:{paddingBottom:10},keyboardShouldPersistTaps:'handled'},
-            React.createElement(Step,{n:1,title:'Account Created',detail:'Your Option King AI account is ready.',done:true,active:false,expanded:expanded===1,onPress:()=>toggle(1)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'View your profile, registered mobile number or email, and subscription status here.'),
-              React.createElement(ActionButton,{label:'Open Account',onPress:()=>openRoute('account')})
-            ),
-            React.createElement(Step,{n:2,title:'Get Your Dedicated Static IP',detail:state.gatewayReady?'Your dedicated static IP and secure connection are ready.':ipReady?'Your dedicated static IP is ready. Add it to your broker developer app.':provisionStarted?'Your dedicated static IP is being prepared automatically.':'Get your dedicated static IP before creating your broker API app.',done:ipReady,active:stage===2,expanded:expanded===2,onPress:()=>toggle(2)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'You do not need Termux, a second phone, a VPN, or gateway commands. Option King AI provisions a dedicated AWS execution server and static IP for your account. When the IP appears below, register that exact IP in your broker developer app.'),
-              React.createElement(View,{style:{marginTop:10,padding:10,borderRadius:10,backgroundColor:'#0c1725',borderWidth:1,borderColor:'#2a4a6d'}},
-                React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},'YOUR DEDICATED EXECUTION IP'),
-                React.createElement(Text,{style:{color:'#fff',fontSize:15,fontWeight:'900',marginTop:3}},ipText),
-                React.createElement(Text,{style:{color:'#91a4bd',fontSize:11,lineHeight:16,marginTop:4}},state.assignedIp?'Register this IP as the Primary Static IP in your broker\'s Developer or My Apps section. The app will verify the match automatically.':'No IP is assigned yet. Tap Allocate My Secure IP. The exact dedicated IP will appear here when AWS allocation completes.')
-              ),
-              React.createElement(Text,{style:{color:'#90a9c8',fontSize:11,marginTop:8}},`Provisioning status: ${state.provisionState.replaceAll('_',' ')}`),
-              provisioningError?React.createElement(Text,{style:{color:'#ff8f9c',fontSize:11,lineHeight:16,marginTop:6}},provisioningError):null,
-              React.createElement(ActionButton,{label:provisionLabel,onPress:(state.gatewayReady || ipReady || provisionStarted)?load:requestProvisioning,disabled:provisioningBusy || !liveAllowed})
-            ),
-            React.createElement(Step,{n:3,title:'Connect Your Broker',detail:'Use the dedicated static IP from Step 2 to create your Angel One or Upstox API app, then save the credentials.',done:state.brokerReady,active:stage===3,expanded:expanded===3,onPress:()=>toggle(3)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},state.brokerReady?`Broker connected: ${state.selected || 'saved broker'}. You can now test Paper Trading.`:ipReady?'Open Broker Setup. Register the dedicated IP shown in Step 2 in your broker developer app, then save the API credentials and verify the connection.':'Complete Step 2 first. Broker API credentials can be created only after your dedicated static IP is available.'),
-              React.createElement(ActionButton,{label:state.brokerReady?'Review Broker':ipReady?'Connect Broker Now':'Complete Static IP First',onPress:()=>openRoute('broker'),disabled:!ipReady})
-            ),
-            React.createElement(Step,{n:4,title:'Test with Paper Trading',detail:'Verify signals, entries, exits, and capital without risking real money.',done:state.brokerReady && paperAllowed,active:stage===4,expanded:expanded===4,onPress:()=>toggle(4)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},!state.brokerReady?'Connect and verify your broker in Step 3 before starting the Paper Trading test.':paperAllowed?'Open Paper mode and start the bot. Confirm that the setup and status work correctly before switching to Live Trading.':'Your free Paper Trading access has expired. Activate a subscription to continue.'),
-              React.createElement(ActionButton,{label:!state.brokerReady?'Connect Broker First':paperAllowed?'Open Paper Bot':'Paper Access Expired',onPress:()=>openRoute('bot'),disabled:!state.brokerReady || !paperAllowed})
-            ),
-            React.createElement(Step,{n:5,title:'Enable Live Trading',detail:'Live Trading can be enabled only after your broker, Live access, and secure connection are ready.',done:state.gatewayReady && liveAllowed,active:stage===5,expanded:expanded===5,onPress:()=>toggle(5)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},liveAllowed?(state.gatewayReady?'All checks are complete. Your confirmation will still be required before Live Trading is enabled.':'Your Live trial is active, but real orders will remain blocked until the secure connection is ready.'):'Live access is locked. Real orders can be enabled only after a trial or subscription is activated.'),
-              React.createElement(ActionButton,{label:liveAllowed && state.gatewayReady?'Go to Live Controls':'Live Not Ready',onPress:()=>openRoute('bot'),disabled:!(liveAllowed && state.gatewayReady)})
-            ),
-            React.createElement(Step,{n:6,title:'Choose a Plan After the Trial',detail:'Live trial: 7 days • Paper Trading: 30 days. A paid plan unlocks both.',done:false,active:stage===6,expanded:expanded===6,onPress:()=>toggle(6)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'After the Live trial ends, you can continue Paper Trading during the 30-day free period. Both features will be available after you activate a paid plan.'),
-              React.createElement(ActionButton,{label:'Open Subscription',onPress:openSubscription})
-            ),
-            React.createElement(View,{style:{marginTop:4,padding:12,borderRadius:12,backgroundColor:'#151b29',borderWidth:1,borderColor:'#2d3a50'}},
-              React.createElement(Text,{style:{color:'#f6c85f',fontWeight:'900',fontSize:12}},'Safety Rule'),
-              React.createElement(Text,{style:{color:'#aebbd0',fontSize:11,lineHeight:17,marginTop:5}},'Real orders remain blocked until all three checks pass: broker connected, Live access active, and dedicated static-IP connection ready. Live Trading will not start without your confirmation.')
-            ),
-            navigationError?React.createElement(Text,{style:{color:'#ff8f9c',fontSize:11,lineHeight:16,marginTop:10}},navigationError):null
-          ),
-          React.createElement(TouchableOpacity,{onPress:load,disabled:loading,style:{marginTop:10,minHeight:46,borderRadius:13,backgroundColor:'#17253a',borderWidth:1,borderColor:'#31557c',alignItems:'center',justifyContent:'center'}},loading?React.createElement(ActivityIndicator,{color:'#8bc2ff'}):React.createElement(Text,{style:{color:'#8bc2ff',fontWeight:'900'}},'Refresh Setup Status'))
+          React.createElement(TouchableOpacity, { onPress: load, disabled: loading, style: { minHeight: 46, borderRadius: 13, backgroundColor: '#17253a', borderWidth: 1, borderColor: '#31557c', alignItems: 'center', justifyContent: 'center' } }, loading ? React.createElement(ActivityIndicator, { color: '#8bc2ff' }) : React.createElement(Text, { style: { color: '#8bc2ff', fontWeight: '900' } }, 'Refresh Setup Status'))
         )
       )
     )
