@@ -45,6 +45,36 @@ expect("Angel One will now be used by the bot, paper/live data and backtests. St
 expect("NIFTY", "hi", "NIFTY");
 expect("ayush@example.com", "hi", "ayush@example.com");
 expect("₹1,999.00", "hi", "₹1,999.00");
+expect("Live Trading Setup", "hi", "लाइव ट्रेडिंग सेटअप");
+expect("Live Trading Setup", "en", "Live Trading Setup");
+expect(
+  "Tap any step to open it. The next step's status will update automatically.",
+  "hi",
+  "किसी भी चरण को खोलने के लिए उस पर टैप करें। अगले चरण की स्थिति अपने-आप अपडेट हो जाएगी।"
+);
+expect(
+  "Tap any step to open it. The next step's status will update automatically.",
+  "en",
+  "Tap any step to open it. The next step's status will update automatically."
+);
+expect("4 days remaining", "hi", "4 दिन शेष");
+expect("4 days remaining", "en", "4 days remaining");
+expect("2 trial days remaining", "hi", "ट्रायल के 2 दिन शेष");
+expect("2 trial days remaining", "en", "2 trial days remaining");
+expect(
+  "Broker connected: angelone. You can now test Paper Trading.",
+  "hi",
+  "ब्रोकर कनेक्ट है: angelone। अब आप पेपर ट्रेडिंग की जाँच कर सकते हैं।"
+);
+expect(
+  "Broker connected: angelone. You can now test Paper Trading.",
+  "en",
+  "Broker connected: angelone. You can now test Paper Trading."
+);
+expect("Set Up Secure Connection", "hi", "सुरक्षित कनेक्शन सेट करें");
+expect("Set Up Secure Connection", "en", "Set Up Secure Connection");
+expect("Safety Rule", "hi", "सुरक्षा नियम");
+expect("Safety Rule", "en", "Safety Rule");
 
 const hindiSamples = [
   "Login Karo",
