@@ -77,6 +77,7 @@ function AccountAdminDashboardCard({ token }) {
   const [msg, setMsg] = React.useState("");
   const [deletingEmail, setDeletingEmail] = React.useState("");
   const [activatingId, setActivatingId] = React.useState(null);
+  const [deactivatingId, setDeactivatingId] = React.useState(null);
 
   const load = React.useCallback(async () => {
     if (!token) return;
@@ -125,6 +126,38 @@ function AccountAdminDashboardCard({ token }) {
               setMsg(e.message || "Activation failed");
             } finally {
               setActivatingId(null);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  function deactivateSubscription(user) {
+    const id = Number(user?.id || 0);
+    const email = String(user?.email || "").trim();
+    const name = String(user?.name || email || `User #${id}`).trim();
+    if (!id) return;
+
+    Alert.alert(
+      "Deactivate Subscription?",
+      `Deactivate ${name}\n${email}\n\nPaid/app access will expire now. Login remains enabled so the customer can renew for ₹5,000 / 30 days.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Deactivate",
+          style: "destructive",
+          onPress: async () => {
+            setDeactivatingId(id);
+            setMsg("");
+            try {
+              const d = await apiPost(`/admin/users/${id}/deactivate-subscription`, token, {});
+              setMsg(d?.message || `${name} subscription deactivated`);
+              await load();
+            } catch (e) {
+              setMsg(e.message || "Deactivation failed");
+            } finally {
+              setDeactivatingId(null);
             }
           },
         },
@@ -237,6 +270,11 @@ function AccountAdminDashboardCard({ token }) {
           { onPress: () => activateUser(u), disabled: activatingId === Number(u.id), style: { marginTop: 9, borderWidth: 1, borderColor: C.green, backgroundColor: C.green + "18", borderRadius: 8, paddingVertical: 9, alignItems: "center", opacity: activatingId === Number(u.id) ? 0.5 : 1 } },
           React.createElement(Text, { style: { color: C.green, fontSize: 11, fontWeight: "900" } }, activatingId === Number(u.id) ? "Activating..." : "Activate 30 Days")
         ) : React.createElement(Text, { style: { color: C.blue, fontSize: 10, fontWeight: "900", marginTop: 8 } }, "ADMIN • Unlimited"),
+        !u.is_admin && String(u.subscription_status || "").toLowerCase() === "active" ? React.createElement(
+          TouchableOpacity,
+          { onPress: () => deactivateSubscription(u), disabled: deactivatingId === Number(u.id), style: { marginTop: 7, borderWidth: 1, borderColor: C.gold, backgroundColor: C.gold + "16", borderRadius: 8, paddingVertical: 9, alignItems: "center", opacity: deactivatingId === Number(u.id) ? 0.5 : 1 } },
+          React.createElement(Text, { style: { color: C.gold, fontSize: 11, fontWeight: "900" } }, deactivatingId === Number(u.id) ? "Deactivating..." : "Deactivate Subscription")
+        ) : null,
         React.createElement(
           TouchableOpacity,
           { onPress: () => deleteUser(u), disabled: deletingEmail === u.email || !!u.is_admin, style: { marginTop: 7, borderWidth: 1, borderColor: C.red, backgroundColor: C.red + "18", borderRadius: 8, paddingVertical: 8, alignItems: "center", opacity: deletingEmail === u.email || u.is_admin ? 0.4 : 1 } },

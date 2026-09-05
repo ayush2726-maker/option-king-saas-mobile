@@ -2212,13 +2212,13 @@ function PlansTab({ token, user, onSuccess }) {
   async function subscribe(plan) {
     setError(""); setLoading(plan);
     try {
-      const d = await apiPostAuth("/subscription/paytm/create-link", {}, token);
-      const checkoutUrl = d?.checkout_url || d?.redirect_url || d?.payment_url;
+      const d = await apiPostAuth("/subscription/razorpay/create-link", {}, token);
+      const checkoutUrl = d?.checkout_url;
       if (checkoutUrl) {
         await Linking.openURL(checkoutUrl);
         Alert.alert(
-          "Secure Payment Started",
-          "₹5,000 monthly subscription payment link opened. After successful payment, return to Option King AI and refresh your account status."
+          "UPI / QR Payment",
+          "₹5,000 for 30 days. Secure checkout opened. Pay using UPI / QR / supported payment method. After the verified payment, your account activates automatically."
         );
         onSuccess && onSuccess();
       } else setError(d?.detail || d?.message || "Payment link create failed");
@@ -2284,7 +2284,7 @@ function PlansTab({ token, user, onSuccess }) {
             </Row>
           ))}
 
-          <Btn label={"Subscribe — " + plan.price} icon="💳"
+          <Btn label={"Pay ₹5,000 via UPI / QR"} icon="▣"
             color={plan.color} onPress={() => subscribe(plan.id)}
             loading={loading === plan.id}
             style={{ marginTop: 12 }} />
@@ -2296,9 +2296,9 @@ function PlansTab({ token, user, onSuccess }) {
           textTransform: "uppercase", letterSpacing: 1.2,
           marginBottom: 12 }}>🔒 Secure Payment</Text>
         {[
-          ["🏦", "Paytm / UPI", "Secure payment link"],
+          ["▣", "UPI / QR", "Secure verified payment checkout"],
           ["🔐", "SSL Encrypted", "100% secure transactions"],
-          ["✅", "Server Verified", "Access activates after verified payment"],
+          ["✅", "Server Verified", "Automatic access after verified ₹5,000 payment"],
         ].map(([icon, t, d]) => (
           <Row key={t} style={{ gap: 10, paddingVertical: 8,
             borderBottomWidth: 1, borderBottomColor: C.border }}>
