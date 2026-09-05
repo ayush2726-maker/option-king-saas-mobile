@@ -15,32 +15,63 @@ function Dot() {
   });
 }
 
+function isOwnWebNavNode(node) {
+  try {
+    const aria = String(node.getAttribute?.('aria-label') || '');
+    if (aria.startsWith('okai-web-nav-')) return true;
+    if (node.closest?.('#okai-web-drawer')) return true;
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+
 function clickMatchingButton(labels) {
   if (typeof document === 'undefined') return false;
   const wanted = labels.map((x) => String(x).trim().toLowerCase());
-  const nodes = Array.from(document.querySelectorAll('[role="button"],button,a'));
-  const match = nodes.find((node) => {
+  const nodes = Array.from(document.querySelectorAll('[role="button"],button,a'))
+    .filter((node) => !isOwnWebNavNode(node));
+
+  const exact = nodes.find((node) => {
     const text = String(node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
     const aria = String(node.getAttribute?.('aria-label') || '').trim().toLowerCase();
-    return wanted.some((label) => text === label || aria === label || text.includes(label));
+    return wanted.some((label) => text === label || aria === label);
   });
+  const match = exact || nodes.find((node) => {
+    const text = String(node.innerText || node.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const aria = String(node.getAttribute?.('aria-label') || '').trim().toLowerCase();
+    return wanted.some((label) => aria.includes(label) || text.includes(label));
+  });
+
   if (!match) return false;
-  try { match.click(); return true; } catch (_) { return false; }
+  try {
+    match.click();
+    return true;
+  } catch (_) {
+    try {
+      match.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 function navigateTo(primaryLabels, secondaryLabels) {
   const primaryWorked = clickMatchingButton(primaryLabels);
   if (secondaryLabels && secondaryLabels.length) {
-    setTimeout(() => clickMatchingButton(secondaryLabels), primaryWorked ? 180 : 0);
+    setTimeout(() => clickMatchingButton(secondaryLabels), primaryWorked ? 260 : 80);
   }
 }
 
-function RailItem({ icon, label, active, compact, onPress }) {
+function RailItem({ icon, label, active, compact, onPress, navKey }) {
   return React.createElement(
     TouchableOpacity,
     {
       onPress,
       activeOpacity: 0.75,
+      accessibilityRole: 'button',
+      accessibilityLabel: `okai-web-nav-${navKey || label}`,
       style: {
         minHeight: compact ? 48 : 46,
         marginHorizontal: compact ? 8 : 10,
@@ -77,6 +108,8 @@ function HeaderBrand({ phone, menuOpen, setMenuOpen }) {
       {
         onPress: () => setMenuOpen(!menuOpen),
         activeOpacity: 0.8,
+        accessibilityRole: 'button',
+        accessibilityLabel: 'okai-web-menu-toggle',
         style: {
           width: 38,
           height: 38,
@@ -121,13 +154,14 @@ function NavPanel({ compact, onClose, activeKey, setActiveKey }) {
   const go = (key, primary, secondary) => {
     setActiveKey && setActiveKey(key);
     onClose && onClose();
-    setTimeout(() => navigateTo(primary, secondary), 30);
+    setTimeout(() => navigateTo(primary, secondary), 80);
   };
+
   const items = [
     ['dashboard', '⌂', 'Dashboard', ['Home', 'Bot'], null],
     ['trades', '↗', 'Trades', ['Trade', 'Trades'], null],
-    ['ai', '◎', 'AI', ['AI'], null],
-    ['reports', '▤', 'Reports', ['Trade', 'Trades'], ['Reports', 'Report', 'History']],
+    ['ai', '◎', 'AI', ['AI', 'Advanced AI'], null],
+    ['reports', '▤', 'Reports', ['Trade', 'Trades'], ['Reports', 'Report', 'History', 'Trade History']],
     ['settings', '⚙', 'Settings', ['Settings', 'Tools'], null],
     ['broker', '⌁', 'Brokers', ['Settings', 'Tools'], ['Broker', 'Broker Setup', 'Angel One', 'Upstox']],
     ['backtest', '↺', 'Backtest', ['Settings', 'Tools'], ['Backtest']],
@@ -137,10 +171,11 @@ function NavPanel({ compact, onClose, activeKey, setActiveKey }) {
 
   return React.createElement(
     View,
-    { style: { flex: 1, paddingTop: 12, paddingBottom: 14 } },
+    { nativeID: 'okai-web-drawer', style: { flex: 1, paddingTop: 12, paddingBottom: 14 } },
     ...items.map(([key, icon, label, primary, secondary]) =>
       React.createElement(RailItem, {
         key,
+        navKey: key,
         icon,
         label,
         compact,
@@ -181,6 +216,22 @@ function WebDesktopShell({ children }) {
   const headerHeight = phone ? 56 : 64;
   const railWidth = compact ? 82 : 210;
   const outerPad = phone ? 0 : compact ? 8 : 18;
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const styleId = 'okai-web-safe-area-style';
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      @media (max-width: 699px) {
+        html, body, #root { min-height: 100%; background: ${BG}; }
+        #okai-web-content { padding-bottom: max(96px, env(safe-area-inset-bottom)); }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { try { style.remove(); } catch (_) {} };
+  }, []);
 
   return React.createElement(
     View,
@@ -241,6 +292,7 @@ function WebDesktopShell({ children }) {
         React.createElement(TouchableOpacity, {
           activeOpacity: 1,
           onPress: () => setMenuOpen(false),
+          accessibilityLabel: 'okai-web-nav-overlay',
           style: {
             position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
             backgroundColor: 'rgba(0,0,0,0.58)', zIndex: 29,
@@ -270,11 +322,12 @@ function WebDesktopShell({ children }) {
       React.createElement(
         View,
         {
+          nativeID: 'okai-web-content',
           style: {
             flex: 1,
             minWidth: 0,
             padding: outerPad,
-            paddingBottom: phone ? 22 : outerPad,
+            paddingBottom: phone ? 34 : outerPad,
             backgroundColor: BG,
           },
         },
@@ -292,7 +345,7 @@ function WebDesktopShell({ children }) {
               borderRadius: phone ? 0 : compact ? 10 : 16,
               overflow: 'hidden',
               boxShadow: phone ? 'none' : compact ? '0 8px 24px rgba(0,0,0,0.22)' : '0 18px 50px rgba(0,0,0,0.28)',
-              paddingBottom: phone ? 72 : 0,
+              paddingBottom: phone ? 96 : 0,
             },
           },
           children
