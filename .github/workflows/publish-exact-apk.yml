@@ -1,0 +1,160 @@
+name: Publish Exact APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/publish-exact-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright --no-audit --no-fund
+          npx playwright install chromium --with-deps
+
+      - name: Download exact APK from firestorage share
+        shell: bash
+        run: |
+          cat > /tmp/get-apk.js <<'JS'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+          (async () => {
+            const browser = await chromium.launch({headless:true});
+            const page = await browser.newPage({ acceptDownloads: true });
+            const url = 'https://firestorage.ai/ja/f/pHAN6dP_usT8';
+            await page.goto(url, {waitUntil:'networkidle', timeout:120000});
+
+            const links = await page.locator('a').evaluateAll(as => as.map(a => ({text:(a.innerText||'').trim(), href:a.href, download:a.getAttribute('download')})));
+            console.log('LINKS', JSON.stringify(links, null, 2));
+
+            const direct = links.find(x => x.href && (/\.apk(\?|$)/i.test(x.href) || /download/i.test(x.href)) && !x.href.includes('/ja/f/'));
+            if (direct) {
+              console.log('Trying direct href', direct.href);
+              const resp = await page.request.get(direct.href, {timeout:120000});
+              if (resp.ok()) {
+                const body = await resp.body();
+                fs.writeFileSync('Option-King-AI.apk', body);
+              }
+            }
+
+            if (!fs.existsSync('Option-King-AI.apk') || fs.statSync('Option-King-AI.apk').size < 10000000) {
+              const candidates = [
+                page.getByRole('button', {name:/download|ダウンロード/i}),
+                page.getByRole('link', {name:/download|ダウンロード/i}),
+                page.locator('button').filter({hasText:/download|ダウンロード/i}),
+                page.locator('a').filter({hasText:/download|ダウンロード/i})
+              ];
+              let ok = false;
+              for (const loc of candidates) {
+                const n = await loc.count().catch(()=>0);
+                for (let i=0; i<n && !ok; i++) {
+                  try {
+                    const [download] = await Promise.all([
+                      page.waitForEvent('download', {timeout:15000}),
+                      loc.nth(i).click({timeout:10000})
+                    ]);
+                    await download.saveAs('Option-King-AI.apk');
+                    ok = true;
+                    break;
+                  } catch (_) {}
+                }
+                if (ok) break;
+              }
+            }
+
+            await browser.close();
+            if (!fs.existsSync('Option-King-AI.apk')) throw new Error('APK download did not start');
+            const size = fs.statSync('Option-King-AI.apk').size;
+            console.log('Downloaded bytes:', size);
+            if (size < 80000000) throw new Error('Downloaded file is too small; expected ~84.7 MB APK');
+          })().catch(e => { console.error(e); process.exit(1); });
+          JS
+          node /tmp/get-apk.js
+          sha256sum Option-King-AI.apk
+
+      - name: Publish GitHub Release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="option-king-ai-latest"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Option King AI APK" --notes "Direct APK download for Option King AI web users."
+          gh release upload "$TAG" Option-King-AI.apk --clobber
+
+      - name: Patch web button to GitHub direct release asset
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('src/web/WebDesktopShell.js')
+          s=p.read_text()
+          direct='https://github.com/ayush2726-maker/option-king-saas-mobile/releases/download/option-king-ai-latest/Option-King-AI.apk'
+          s=re.sub(r"const APK_DOWNLOAD_PAGE = .*?;\n", f"const APK_DOWNLOAD_URL = '{direct}';\n", s, count=1)
+          if 'const APK_DOWNLOAD_URL' not in s:
+              s=s.replace("const GREEN = '#00d4a0';\n", "const GREEN = '#00d4a0';\nconst APK_DOWNLOAD_URL = '"+direct+"';\n", 1)
+          old="""function openApkDownload() {
+  try {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.open === 'function') {
+      globalThis.open(APK_DOWNLOAD_PAGE, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+    if (typeof globalThis !== 'undefined' && globalThis.location) {
+      globalThis.location.href = APK_DOWNLOAD_PAGE;
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+"""
+          new="""function openApkDownload() {
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis.document) {
+      const a = globalThis.document.createElement('a');
+      a.href = APK_DOWNLOAD_URL;
+      a.download = 'Option-King-AI.apk';
+      a.rel = 'noopener noreferrer';
+      globalThis.document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return true;
+    }
+    if (typeof globalThis !== 'undefined' && globalThis.location) {
+      globalThis.location.href = APK_DOWNLOAD_URL;
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+"""
+          if old in s:
+              s=s.replace(old,new,1)
+          else:
+              s=re.sub(r"function openApkDownload\(\) \{.*?\n\}\n", new, s, count=1, flags=re.S)
+          p.write_text(s)
+          PY
+          node --check src/web/WebDesktopShell.js
+          git diff --check
+
+      - name: Commit web direct-download patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/web/WebDesktopShell.js
+          git commit -m "Serve exact APK from direct release download"
+          git push origin main
