@@ -1,0 +1,34 @@
+name: Fix Subscription Sync Logout
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-subscription-sync-logout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Patch App.js
+        run: python scripts/fix_subscription_sync_logout.py
+      - name: Commit patch
+        run: |
+          if git diff --quiet -- App.js; then
+            echo 'No App.js changes to commit'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add App.js
+          git commit -m 'Fix subscription refresh and web logout'
+          git push
