@@ -75,6 +75,18 @@ expect("Set Up Secure Connection", "hi", "सुरक्षित कनेक�
 expect("Set Up Secure Connection", "en", "Set Up Secure Connection");
 expect("Safety Rule", "hi", "सुरक्षा नियम");
 expect("Safety Rule", "en", "Safety Rule");
+expect("Allocate My Secure IP", "hi", "मेरा सुरक्षित IP आवंटित करें");
+expect("Allocate My Secure IP", "en", "Allocate My Secure IP");
+expect("Starting Secure Setup...", "hi", "सुरक्षित सेटअप शुरू हो रहा है...");
+expect("Provisioning in Progress", "hi", "सुरक्षित IP तैयार हो रहा है");
+expect("Provisioning status: not requested", "hi", "सुरक्षित IP की स्थिति: अनुरोध नहीं किया गया");
+expect("Provisioning status: allocating", "hi", "सुरक्षित IP की स्थिति: IP आवंटित हो रहा है");
+expect("Provisioning status: ready", "hi", "सुरक्षित IP की स्थिति: तैयार");
+expect(
+  "This page could not be opened. Please refresh the app and try again.",
+  "hi",
+  "यह पेज नहीं खुल पाया। ऐप रीफ़्रेश करके दोबारा प्रयास करें।"
+);
 
 const hindiSamples = [
   "Login Karo",

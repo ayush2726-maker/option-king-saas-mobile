@@ -36,6 +36,17 @@ function navigate(route) {
   return true;
 }
 
+function captureDashboardSetter(initialValue, currentValue, setter) {
+  if (typeof setter !== "function") return false;
+  if (!isDashboardState(initialValue, currentValue)) return false;
+
+  currentSetter = setter;
+  if (typeof globalThis !== "undefined") {
+    globalThis.__OKAI_WEB_NAVIGATE__ = navigate;
+  }
+  return true;
+}
+
 function installDomMenuBridge() {
   if (Platform.OS !== "web" || typeof document === "undefined") return;
   if (globalThis.__OKAI_WEB_MENU_CLICK_BRIDGE__) return;
@@ -64,16 +75,10 @@ function installWebNavigationBridge() {
     const value = pair[0];
     const setter = pair[1];
 
-    if (
-      Platform.OS === "web" &&
-      typeof setter === "function" &&
-      isDashboardState(initialValue, value)
-    ) {
-      currentSetter = setter;
-      if (typeof globalThis !== "undefined") {
-        globalThis.__OKAI_WEB_NAVIGATE__ = navigate;
-      }
-    }
+    // The onboarding assistant is shared by Android and web. Capture the
+    // dashboard setter on both platforms so its action buttons can open the
+    // requested screen instead of only closing the modal on Android.
+    captureDashboardSetter(initialValue, value, setter);
 
     return pair;
   };
@@ -84,4 +89,5 @@ function installWebNavigationBridge() {
 module.exports = {
   installWebNavigationBridge,
   navigate,
+  captureDashboardSetter,
 };

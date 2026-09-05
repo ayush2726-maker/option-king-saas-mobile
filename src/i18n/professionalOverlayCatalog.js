@@ -78,6 +78,18 @@ const EXACT = {
     hi: "आपके डेडिकेटेड स्टैटिक-IP कनेक्शन का सेटअप लंबित है।",
     en: "Your dedicated static-IP connection setup is pending."
   },
+  "Your dedicated static IP is being prepared automatically.": {
+    hi: "आपका डेडिकेटेड स्टैटिक IP अपने-आप तैयार किया जा रहा है।",
+    en: "Your dedicated static IP is being prepared automatically."
+  },
+  "Tap below and Option King AI will allocate your dedicated static IP automatically.": {
+    hi: "नीचे दिए गए बटन पर टैप करें। Option King AI आपका डेडिकेटेड स्टैटिक IP अपने-आप आवंटित करेगा।",
+    en: "Tap below and Option King AI will allocate your dedicated static IP automatically."
+  },
+  "You do not need Termux, a second phone, a VPN, or gateway commands. Option King AI provisions a dedicated AWS execution server and static IP for your account. When the IP appears below, register that exact IP in your broker developer app.": {
+    hi: "आपको Termux, दूसरे फ़ोन, VPN या गेटवे कमांड की आवश्यकता नहीं है। Option King AI आपके अकाउंट के लिए डेडिकेटेड AWS एक्ज़ीक्यूशन सर्वर और स्टैटिक IP तैयार करेगा। नीचे IP दिखाई देने पर वही सटीक IP अपने ब्रोकर डेवलपर ऐप में पंजीकृत करें।",
+    en: "You do not need Termux, a second phone, a VPN, or gateway commands. Option King AI provisions a dedicated AWS execution server and static IP for your account. When the IP appears below, register that exact IP in your broker developer app."
+  },
   "Live API orders will be sent only from the registered static IP. You will not need to keep a phone or Termux running; Option King AI will use a secure server-side connection.": {
     hi: "लाइव API ऑर्डर केवल पंजीकृत स्टैटिक IP से भेजे जाएँगे। आपको फ़ोन या Termux चालू रखने की आवश्यकता नहीं होगी; Option King AI सुरक्षित सर्वर-साइड कनेक्शन का उपयोग करेगा।",
     en: "Live API orders will be sent only from the registered static IP. You will not need to keep a phone or Termux running; Option King AI will use a secure server-side connection."
@@ -95,8 +107,15 @@ const EXACT = {
     hi: "डेडिकेटेड IP अभी आवंटित नहीं हुआ है। उपलब्ध होते ही सटीक IP यहाँ दिखाई देगा। किसी रैंडम या साझा IP को पंजीकृत न करें।",
     en: "A dedicated IP has not been assigned yet. Once it is provisioned, the exact IP will appear here. Do not register a random or shared IP."
   },
+  "No IP is assigned yet. Tap Allocate My Secure IP. The exact dedicated IP will appear here when AWS allocation completes.": {
+    hi: "अभी कोई IP आवंटित नहीं हुआ है। ‘मेरा सुरक्षित IP आवंटित करें’ पर टैप करें। AWS आवंटन पूरा होने पर सटीक डेडिकेटेड IP यहाँ दिखाई देगा।",
+    en: "No IP is assigned yet. Tap Allocate My Secure IP. The exact dedicated IP will appear here when AWS allocation completes."
+  },
   "Connection Ready": { hi: "कनेक्शन तैयार", en: "Connection Ready" },
   "Check Secure Connection": { hi: "सुरक्षित कनेक्शन जाँचें", en: "Check Secure Connection" },
+  "Allocate My Secure IP": { hi: "मेरा सुरक्षित IP आवंटित करें", en: "Allocate My Secure IP" },
+  "Starting Secure Setup...": { hi: "सुरक्षित सेटअप शुरू हो रहा है...", en: "Starting Secure Setup..." },
+  "Provisioning in Progress": { hi: "सुरक्षित IP तैयार हो रहा है", en: "Provisioning in Progress" },
   "Enable Live Trading": { hi: "लाइव ट्रेडिंग चालू करें", en: "Enable Live Trading" },
   "Live Trading can be enabled only after your broker, Live access, and secure connection are ready.": {
     hi: "ब्रोकर, लाइव एक्सेस और सुरक्षित कनेक्शन तैयार होने के बाद ही लाइव ट्रेडिंग चालू की जा सकती है।",
@@ -131,6 +150,10 @@ const EXACT = {
     hi: "तीनों जाँच पूरी होने तक वास्तविक ऑर्डर ब्लॉक रहेंगे: ब्रोकर कनेक्ट हो, लाइव एक्सेस सक्रिय हो और डेडिकेटेड स्टैटिक-IP कनेक्शन तैयार हो। आपकी पुष्टि के बिना लाइव ट्रेडिंग शुरू नहीं होगी।",
     en: "Real orders remain blocked until all three checks pass: broker connected, Live access active, and dedicated static-IP connection ready. Live Trading will not start without your confirmation."
   },
+  "This page could not be opened. Please refresh the app and try again.": {
+    hi: "यह पेज नहीं खुल पाया। ऐप रीफ़्रेश करके दोबारा प्रयास करें।",
+    en: "This page could not be opened. Please refresh the app and try again."
+  },
   "Refresh Setup Status": { hi: "सेटअप स्थिति रीफ़्रेश करें", en: "Refresh Setup Status" }
 };
 
@@ -159,6 +182,22 @@ const DYNAMIC = [
     re: /^Broker connected:\s*(.+)\. You can now test Paper Trading\.$/i,
     hi: (match) => `ब्रोकर कनेक्ट है: ${match[1]}। अब आप पेपर ट्रेडिंग की जाँच कर सकते हैं।`,
     en: (match) => `Broker connected: ${match[1]}. You can now test Paper Trading.`
+  },
+  {
+    re: /^Provisioning status:\s*(.+)$/i,
+    hi: (match) => {
+      const status = String(match[1] || "").toLowerCase();
+      const labels = {
+        "not requested": "अनुरोध नहीं किया गया",
+        requested: "अनुरोध प्राप्त हुआ",
+        allocating: "IP आवंटित हो रहा है",
+        bootstrapping: "सर्वर तैयार हो रहा है",
+        ready: "तैयार",
+        failed: "असफल"
+      };
+      return `सुरक्षित IP की स्थिति: ${labels[status] || match[1]}`;
+    },
+    en: (match) => `Provisioning status: ${match[1]}`
   }
 ];
 

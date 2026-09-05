@@ -72,6 +72,7 @@ function CustomerOnboardingAssistant({ children }) {
   const [expanded,setExpanded]=React.useState(2);
   const [provisioningBusy,setProvisioningBusy]=React.useState(false);
   const [provisioningError,setProvisioningError]=React.useState('');
+  const [navigationError,setNavigationError]=React.useState('');
 
   const load=React.useCallback(async()=>{
     const t=await token();
@@ -121,7 +122,25 @@ function CustomerOnboardingAssistant({ children }) {
   const paperDays=state.ent?.paper_days_remaining ?? 0;
   const stage=!state.brokerReady?2:!state.gatewayReady?4:liveAllowed?5:6;
 
-  const openRoute=(route)=>{ setOpen(false); setTimeout(()=>nav(route),80); };
+  const openRoute=(route)=>{
+    setNavigationError('');
+    if (nav(route)) {
+      setOpen(false);
+      return;
+    }
+    setNavigationError('This page could not be opened. Please refresh the app and try again.');
+  };
+  const openSubscription=()=>{
+    setNavigationError('');
+    try {
+      if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_OPEN_SUBSCRIPTION__ === 'function') {
+        globalThis.__OKAI_OPEN_SUBSCRIPTION__();
+        setOpen(false);
+        return;
+      }
+    } catch (_) {}
+    openRoute('plans');
+  };
   const toggle=(n)=>setExpanded(v=>v===n?0:n);
   const ipText=state.assignedIp || 'Allocation Pending';
   const provisionStarted=['requested','allocating','bootstrapping','ready'].includes(state.provisionState);
@@ -182,12 +201,13 @@ function CustomerOnboardingAssistant({ children }) {
             ),
             React.createElement(Step,{n:6,title:'Choose a Plan After the Trial',detail:'Live trial: 7 days • Paper Trading: 30 days. A paid plan unlocks both.',done:false,active:stage===6,expanded:expanded===6,onPress:()=>toggle(6)},
               React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'After the Live trial ends, you can continue Paper Trading during the 30-day free period. Both features will be available after you activate a paid plan.'),
-              React.createElement(ActionButton,{label:'Open Subscription',onPress:()=>openRoute('plans')})
+              React.createElement(ActionButton,{label:'Open Subscription',onPress:openSubscription})
             ),
             React.createElement(View,{style:{marginTop:4,padding:12,borderRadius:12,backgroundColor:'#151b29',borderWidth:1,borderColor:'#2d3a50'}},
               React.createElement(Text,{style:{color:'#f6c85f',fontWeight:'900',fontSize:12}},'Safety Rule'),
               React.createElement(Text,{style:{color:'#aebbd0',fontSize:11,lineHeight:17,marginTop:5}},'Real orders remain blocked until all three checks pass: broker connected, Live access active, and dedicated static-IP connection ready. Live Trading will not start without your confirmation.')
-            )
+            ),
+            navigationError?React.createElement(Text,{style:{color:'#ff8f9c',fontSize:11,lineHeight:16,marginTop:10}},navigationError):null
           ),
           React.createElement(TouchableOpacity,{onPress:load,disabled:loading,style:{marginTop:10,minHeight:46,borderRadius:13,backgroundColor:'#17253a',borderWidth:1,borderColor:'#31557c',alignItems:'center',justifyContent:'center'}},loading?React.createElement(ActivityIndicator,{color:'#8bc2ff'}):React.createElement(Text,{style:{color:'#8bc2ff',fontWeight:'900'}},'Refresh Setup Status'))
         )

@@ -21,7 +21,8 @@
     "broker-rate-limit:test": "node scripts/test-broker-rate-limit.js",
     "angel-broker-save:test": "node scripts/test-angel-broker-save.js",
     "live-risk-sizing:test": "node scripts/test-live-risk-sizing.js",
-    "paper-capital:test": "node scripts/test-paper-capital-flexible.js"
+    "paper-capital:test": "node scripts/test-paper-capital-flexible.js",
+    "onboarding:test": "node scripts/test-onboarding-navigation.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.2.3",
