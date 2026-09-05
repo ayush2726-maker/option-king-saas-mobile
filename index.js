@@ -6,7 +6,7 @@ const BiometricAppLock = require('./src/security/BiometricAppLock15m');
 const SessionAwareManualExitOverlayV10 = require(
   './src/components/SessionAwareManualExitOverlayV10'
 );
-const CustomerOnboardingAssistant = require('./src/components/CustomerOnboardingAssistant');
+const CustomerOnboardingAssistant = require('./src/components/CustomerOnboardingAssistantV2');
 const WebDesktopShell = require('./src/web/WebDesktopShell');
 const SubscriptionActivationGate = require('./src/runtime/SubscriptionActivationGate');
 
