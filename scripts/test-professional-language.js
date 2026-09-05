@@ -82,6 +82,11 @@ expect("Provisioning in Progress", "hi", "सुरक्षित IP तैय�
 expect("Provisioning status: not requested", "hi", "सुरक्षित IP की स्थिति: अनुरोध नहीं किया गया");
 expect("Provisioning status: allocating", "hi", "सुरक्षित IP की स्थिति: IP आवंटित हो रहा है");
 expect("Provisioning status: ready", "hi", "सुरक्षित IP की स्थिति: तैयार");
+expect("Get Your Dedicated Static IP", "hi", "अपना डेडिकेटेड स्टैटिक IP प्राप्त करें");
+expect("Get Your Dedicated Static IP", "en", "Get Your Dedicated Static IP");
+expect("Complete Static IP First", "hi", "पहले स्टैटिक IP पूरा करें");
+expect("Connect Broker First", "hi", "पहले ब्रोकर कनेक्ट करें");
+expect("Refresh Secure Connection", "hi", "सुरक्षित कनेक्शन रीफ़्रेश करें");
 expect(
   "This page could not be opened. Please refresh the app and try again.",
   "hi",

@@ -45,9 +45,9 @@ const assistant = fs.readFileSync(
 
 const buttonWiring = [
   ["Open Account", /label:'Open Account',onPress:\(\)=>openRoute\('account'\)/],
-  ["Connect Broker", /label:state\.brokerReady\?'Review Broker':'Connect Broker Now',onPress:\(\)=>openRoute\('broker'\)/],
-  ["Paper Bot", /label:paperAllowed\?'Open Paper Bot':'Paper Access Expired',onPress:\(\)=>openRoute\('bot'\)/],
-  ["Secure IP", /onPress:state\.gatewayReady\?load:\(provisionStarted\?load:requestProvisioning\)/],
+  ["Secure IP", /onPress:\(state\.gatewayReady \|\| ipReady \|\| provisionStarted\)\?load:requestProvisioning/],
+  ["Connect Broker", /label:state\.brokerReady\?'Review Broker':ipReady\?'Connect Broker Now':'Complete Static IP First',onPress:\(\)=>openRoute\('broker'\),disabled:!ipReady/],
+  ["Paper Bot", /label:!state\.brokerReady\?'Connect Broker First':paperAllowed\?'Open Paper Bot':'Paper Access Expired',onPress:\(\)=>openRoute\('bot'\),disabled:!state\.brokerReady \|\| !paperAllowed/],
   ["Live Controls", /label:liveAllowed && state\.gatewayReady\?'Go to Live Controls':'Live Not Ready',onPress:\(\)=>openRoute\('bot'\)/],
   ["Subscription", /label:'Open Subscription',onPress:openSubscription/],
   ["Refresh", /onPress:load,disabled:loading/],
@@ -56,6 +56,26 @@ const buttonWiring = [
 buttonWiring.forEach(([name, pattern]) => {
   assert(pattern.test(assistant), `${name} button is not wired to its expected action`);
 });
+
+const orderedSteps = [
+  "Account Created",
+  "Get Your Dedicated Static IP",
+  "Connect Your Broker",
+  "Test with Paper Trading",
+  "Enable Live Trading",
+  "Choose a Plan After the Trial",
+];
+let previousIndex = -1;
+orderedSteps.forEach((title) => {
+  const currentIndex = assistant.indexOf(`title:'${title}'`);
+  assert(currentIndex > previousIndex, `${title} is not in the correct setup order`);
+  previousIndex = currentIndex;
+});
+
+assert(
+  /const stage=!ipReady\?2:!state\.brokerReady\?3:/.test(assistant),
+  "Broker setup must not become the active step before a static IP is ready"
+);
 
 assert(
   /if \(nav\(route\)\) \{\s*setOpen\(false\)/.test(assistant),

@@ -120,7 +120,8 @@ function CustomerOnboardingAssistant({ children }) {
   const paperAllowed=Boolean(state.ent?.paper_allowed);
   const liveDays=state.ent?.live_days_remaining ?? 0;
   const paperDays=state.ent?.paper_days_remaining ?? 0;
-  const stage=!state.brokerReady?2:!state.gatewayReady?4:liveAllowed?5:6;
+  const ipReady=Boolean(state.assignedIp);
+  const stage=!ipReady?2:!state.brokerReady?3:!paperAllowed?6:!state.gatewayReady?2:liveAllowed?5:6;
 
   const openRoute=(route)=>{
     setNavigationError('');
@@ -144,7 +145,7 @@ function CustomerOnboardingAssistant({ children }) {
   const toggle=(n)=>setExpanded(v=>v===n?0:n);
   const ipText=state.assignedIp || 'Allocation Pending';
   const provisionStarted=['requested','allocating','bootstrapping','ready'].includes(state.provisionState);
-  const provisionLabel=state.gatewayReady?'Connection Ready':provisioningBusy?'Starting Secure Setup...':provisionStarted?'Provisioning in Progress':'Allocate My Secure IP';
+  const provisionLabel=state.gatewayReady?'Connection Ready':provisioningBusy?'Starting Secure Setup...':ipReady?'Refresh Secure Connection':provisionStarted?'Provisioning in Progress':'Allocate My Secure IP';
 
   return React.createElement(React.Fragment,null,
     children,
@@ -176,15 +177,7 @@ function CustomerOnboardingAssistant({ children }) {
               React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'View your profile, registered mobile number or email, and subscription status here.'),
               React.createElement(ActionButton,{label:'Open Account',onPress:()=>openRoute('account')})
             ),
-            React.createElement(Step,{n:2,title:'Connect Your Broker',detail:'Choose Angel One or Upstox and complete the API setup.',done:state.brokerReady,active:stage===2,expanded:expanded===2,onPress:()=>toggle(2)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},state.brokerReady?`Broker connected: ${state.selected || 'saved broker'}. You can now test Paper Trading.`:'The Broker Setup page will open. Select your broker, save the required credentials and API details, and verify the connection.'),
-              React.createElement(ActionButton,{label:state.brokerReady?'Review Broker':'Connect Broker Now',onPress:()=>openRoute('broker')})
-            ),
-            React.createElement(Step,{n:3,title:'Test with Paper Trading',detail:'Verify signals, entries, exits, and capital without risking real money.',done:state.brokerReady && paperAllowed,active:stage===3,expanded:expanded===3,onPress:()=>toggle(3)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},paperAllowed?'Open Paper mode and start the bot. Confirm that the setup and status work correctly before switching to Live Trading.':'Your free Paper Trading access has expired. Activate a subscription to continue.'),
-              React.createElement(ActionButton,{label:paperAllowed?'Open Paper Bot':'Paper Access Expired',onPress:()=>openRoute('bot'),disabled:!paperAllowed})
-            ),
-            React.createElement(Step,{n:4,title:'Set Up Secure Connection',detail:state.gatewayReady?'Your dedicated secure connection is ready.':provisionStarted?'Your dedicated static IP is being prepared automatically.':'Tap below and Option King AI will allocate your dedicated static IP automatically.',done:state.gatewayReady,active:stage===4,expanded:expanded===4,onPress:()=>toggle(4)},
+            React.createElement(Step,{n:2,title:'Get Your Dedicated Static IP',detail:state.gatewayReady?'Your dedicated static IP and secure connection are ready.':ipReady?'Your dedicated static IP is ready. Add it to your broker developer app.':provisionStarted?'Your dedicated static IP is being prepared automatically.':'Get your dedicated static IP before creating your broker API app.',done:ipReady,active:stage===2,expanded:expanded===2,onPress:()=>toggle(2)},
               React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'You do not need Termux, a second phone, a VPN, or gateway commands. Option King AI provisions a dedicated AWS execution server and static IP for your account. When the IP appears below, register that exact IP in your broker developer app.'),
               React.createElement(View,{style:{marginTop:10,padding:10,borderRadius:10,backgroundColor:'#0c1725',borderWidth:1,borderColor:'#2a4a6d'}},
                 React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},'YOUR DEDICATED EXECUTION IP'),
@@ -193,7 +186,15 @@ function CustomerOnboardingAssistant({ children }) {
               ),
               React.createElement(Text,{style:{color:'#90a9c8',fontSize:11,marginTop:8}},`Provisioning status: ${state.provisionState.replaceAll('_',' ')}`),
               provisioningError?React.createElement(Text,{style:{color:'#ff8f9c',fontSize:11,lineHeight:16,marginTop:6}},provisioningError):null,
-              React.createElement(ActionButton,{label:provisionLabel,onPress:state.gatewayReady?load:(provisionStarted?load:requestProvisioning),disabled:provisioningBusy || !liveAllowed})
+              React.createElement(ActionButton,{label:provisionLabel,onPress:(state.gatewayReady || ipReady || provisionStarted)?load:requestProvisioning,disabled:provisioningBusy || !liveAllowed})
+            ),
+            React.createElement(Step,{n:3,title:'Connect Your Broker',detail:'Use the dedicated static IP from Step 2 to create your Angel One or Upstox API app, then save the credentials.',done:state.brokerReady,active:stage===3,expanded:expanded===3,onPress:()=>toggle(3)},
+              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},state.brokerReady?`Broker connected: ${state.selected || 'saved broker'}. You can now test Paper Trading.`:ipReady?'Open Broker Setup. Register the dedicated IP shown in Step 2 in your broker developer app, then save the API credentials and verify the connection.':'Complete Step 2 first. Broker API credentials can be created only after your dedicated static IP is available.'),
+              React.createElement(ActionButton,{label:state.brokerReady?'Review Broker':ipReady?'Connect Broker Now':'Complete Static IP First',onPress:()=>openRoute('broker'),disabled:!ipReady})
+            ),
+            React.createElement(Step,{n:4,title:'Test with Paper Trading',detail:'Verify signals, entries, exits, and capital without risking real money.',done:state.brokerReady && paperAllowed,active:stage===4,expanded:expanded===4,onPress:()=>toggle(4)},
+              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},!state.brokerReady?'Connect and verify your broker in Step 3 before starting the Paper Trading test.':paperAllowed?'Open Paper mode and start the bot. Confirm that the setup and status work correctly before switching to Live Trading.':'Your free Paper Trading access has expired. Activate a subscription to continue.'),
+              React.createElement(ActionButton,{label:!state.brokerReady?'Connect Broker First':paperAllowed?'Open Paper Bot':'Paper Access Expired',onPress:()=>openRoute('bot'),disabled:!state.brokerReady || !paperAllowed})
             ),
             React.createElement(Step,{n:5,title:'Enable Live Trading',detail:'Live Trading can be enabled only after your broker, Live access, and secure connection are ready.',done:state.gatewayReady && liveAllowed,active:stage===5,expanded:expanded===5,onPress:()=>toggle(5)},
               React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},liveAllowed?(state.gatewayReady?'All checks are complete. Your confirmation will still be required before Live Trading is enabled.':'Your Live trial is active, but real orders will remain blocked until the secure connection is ready.'):'Live access is locked. Real orders can be enabled only after a trial or subscription is activated.'),

@@ -69,6 +69,22 @@ const EXACT = {
   },
   "Open Paper Bot": { hi: "पेपर बॉट खोलें", en: "Open Paper Bot" },
   "Paper Access Expired": { hi: "पेपर एक्सेस समाप्त", en: "Paper Access Expired" },
+  "Get Your Dedicated Static IP": {
+    hi: "अपना डेडिकेटेड स्टैटिक IP प्राप्त करें",
+    en: "Get Your Dedicated Static IP"
+  },
+  "Your dedicated static IP and secure connection are ready.": {
+    hi: "आपका डेडिकेटेड स्टैटिक IP और सुरक्षित कनेक्शन तैयार है।",
+    en: "Your dedicated static IP and secure connection are ready."
+  },
+  "Your dedicated static IP is ready. Add it to your broker developer app.": {
+    hi: "आपका डेडिकेटेड स्टैटिक IP तैयार है। इसे अपने ब्रोकर डेवलपर ऐप में जोड़ें।",
+    en: "Your dedicated static IP is ready. Add it to your broker developer app."
+  },
+  "Get your dedicated static IP before creating your broker API app.": {
+    hi: "ब्रोकर API ऐप बनाने से पहले अपना डेडिकेटेड स्टैटिक IP प्राप्त करें।",
+    en: "Get your dedicated static IP before creating your broker API app."
+  },
   "Set Up Secure Connection": { hi: "सुरक्षित कनेक्शन सेट करें", en: "Set Up Secure Connection" },
   "Your dedicated secure connection is ready.": {
     hi: "आपका डेडिकेटेड सुरक्षित कनेक्शन तैयार है।",
@@ -116,6 +132,25 @@ const EXACT = {
   "Allocate My Secure IP": { hi: "मेरा सुरक्षित IP आवंटित करें", en: "Allocate My Secure IP" },
   "Starting Secure Setup...": { hi: "सुरक्षित सेटअप शुरू हो रहा है...", en: "Starting Secure Setup..." },
   "Provisioning in Progress": { hi: "सुरक्षित IP तैयार हो रहा है", en: "Provisioning in Progress" },
+  "Refresh Secure Connection": { hi: "सुरक्षित कनेक्शन रीफ़्रेश करें", en: "Refresh Secure Connection" },
+  "Use the dedicated static IP from Step 2 to create your Angel One or Upstox API app, then save the credentials.": {
+    hi: "चरण 2 में मिले डेडिकेटेड स्टैटिक IP से Angel One या Upstox API ऐप बनाएँ, फिर क्रेडेंशियल सुरक्षित करें।",
+    en: "Use the dedicated static IP from Step 2 to create your Angel One or Upstox API app, then save the credentials."
+  },
+  "Open Broker Setup. Register the dedicated IP shown in Step 2 in your broker developer app, then save the API credentials and verify the connection.": {
+    hi: "ब्रोकर सेटअप खोलें। चरण 2 में दिखाया गया डेडिकेटेड IP अपने ब्रोकर डेवलपर ऐप में पंजीकृत करें, फिर API क्रेडेंशियल सुरक्षित करके कनेक्शन सत्यापित करें।",
+    en: "Open Broker Setup. Register the dedicated IP shown in Step 2 in your broker developer app, then save the API credentials and verify the connection."
+  },
+  "Complete Step 2 first. Broker API credentials can be created only after your dedicated static IP is available.": {
+    hi: "पहले चरण 2 पूरा करें। डेडिकेटेड स्टैटिक IP मिलने के बाद ही ब्रोकर API क्रेडेंशियल बनाए जा सकते हैं।",
+    en: "Complete Step 2 first. Broker API credentials can be created only after your dedicated static IP is available."
+  },
+  "Complete Static IP First": { hi: "पहले स्टैटिक IP पूरा करें", en: "Complete Static IP First" },
+  "Connect and verify your broker in Step 3 before starting the Paper Trading test.": {
+    hi: "पेपर ट्रेडिंग टेस्ट शुरू करने से पहले चरण 3 में अपना ब्रोकर कनेक्ट और सत्यापित करें।",
+    en: "Connect and verify your broker in Step 3 before starting the Paper Trading test."
+  },
+  "Connect Broker First": { hi: "पहले ब्रोकर कनेक्ट करें", en: "Connect Broker First" },
   "Enable Live Trading": { hi: "लाइव ट्रेडिंग चालू करें", en: "Enable Live Trading" },
   "Live Trading can be enabled only after your broker, Live access, and secure connection are ready.": {
     hi: "ब्रोकर, लाइव एक्सेस और सुरक्षित कनेक्शन तैयार होने के बाद ही लाइव ट्रेडिंग चालू की जा सकती है।",
