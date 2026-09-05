@@ -20,6 +20,16 @@ async function get(path, t) {
   if (!r.ok) throw new Error(d?.detail || d?.message || 'Request failed');
   return d;
 }
+async function post(path, t, body={}) {
+  const r = await fetch(API + path, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+    body: JSON.stringify(body),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d?.detail || d?.message || 'Request failed');
+  return d;
+}
 
 function nav(route) {
   try {
@@ -60,17 +70,20 @@ function CustomerOnboardingAssistant({ children }) {
   const [loading,setLoading]=React.useState(false);
   const [state,setState]=React.useState(null);
   const [expanded,setExpanded]=React.useState(2);
+  const [provisioningBusy,setProvisioningBusy]=React.useState(false);
+  const [provisioningError,setProvisioningError]=React.useState('');
 
   const load=React.useCallback(async()=>{
     const t=await token();
     if(!t){ setState(null); return; }
     setLoading(true);
     try {
-      const [me,ent,brokers,gateway]=await Promise.all([
+      const [me,ent,brokers,gateway,provisioning]=await Promise.all([
         get('/auth/me',t).catch(()=>({})),
         get('/subscription/entitlements',t).catch(()=>({})),
         get('/broker/list',t).catch(()=>({})),
         get('/local-gateway/status',t).catch(()=>({})),
+        get('/local-gateway/provision/status',t).catch(()=>({})),
       ]);
       const user=me?.user || me || {};
       const isAdmin=Boolean(user?.is_admin);
@@ -78,12 +91,28 @@ function CustomerOnboardingAssistant({ children }) {
       const selected=String(brokers?.selected_broker||'').toLowerCase();
       const brokerReady=Boolean(selected || saved.length);
       const gatewayReady=Boolean(gateway?.paired && gateway?.online && (gateway?.static_ip_matches !== false));
-      const assignedIp=String(gateway?.expected_static_ip || '').trim();
-      setState({isAdmin,ent,brokerReady,selected,gatewayReady,gateway,assignedIp});
+      const assignedIp=String(gateway?.expected_static_ip || provisioning?.provisioning?.static_ip || '').trim();
+      const provisionState=String(provisioning?.provisioning?.state || 'not_requested').toLowerCase();
+      setState({isAdmin,ent,brokerReady,selected,gatewayReady,gateway,assignedIp,provisionState,provisioning:provisioning?.provisioning||{}});
     } finally { setLoading(false); }
   },[]);
 
-  React.useEffect(()=>{ load(); const id=setInterval(load,15000); return()=>clearInterval(id); },[load]);
+  const requestProvisioning=React.useCallback(async()=>{
+    const t=await token();
+    if(!t) return;
+    setProvisioningBusy(true);
+    setProvisioningError('');
+    try {
+      await post('/local-gateway/provision/request',t,{});
+      await load();
+    } catch (e) {
+      setProvisioningError(String(e?.message || e || 'Could not start secure IP allocation'));
+    } finally {
+      setProvisioningBusy(false);
+    }
+  },[load]);
+
+  React.useEffect(()=>{ load(); const id=setInterval(load,10000); return()=>clearInterval(id); },[load]);
   if (!state || state.isAdmin) return children;
 
   const liveAllowed=Boolean(state.ent?.live_allowed);
@@ -95,6 +124,8 @@ function CustomerOnboardingAssistant({ children }) {
   const openRoute=(route)=>{ setOpen(false); setTimeout(()=>nav(route),80); };
   const toggle=(n)=>setExpanded(v=>v===n?0:n);
   const ipText=state.assignedIp || 'Allocation Pending';
+  const provisionStarted=['requested','allocating','bootstrapping','ready'].includes(state.provisionState);
+  const provisionLabel=state.gatewayReady?'Connection Ready':provisioningBusy?'Starting Secure Setup...':provisionStarted?'Provisioning in Progress':'Allocate My Secure IP';
 
   return React.createElement(React.Fragment,null,
     children,
@@ -134,14 +165,16 @@ function CustomerOnboardingAssistant({ children }) {
               React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},paperAllowed?'Open Paper mode and start the bot. Confirm that the setup and status work correctly before switching to Live Trading.':'Your free Paper Trading access has expired. Activate a subscription to continue.'),
               React.createElement(ActionButton,{label:paperAllowed?'Open Paper Bot':'Paper Access Expired',onPress:()=>openRoute('bot'),disabled:!paperAllowed})
             ),
-            React.createElement(Step,{n:4,title:'Set Up Secure Connection',detail:state.gatewayReady?'Your dedicated secure connection is ready.':'Your dedicated static-IP connection setup is pending.',done:state.gatewayReady,active:stage===4,expanded:expanded===4,onPress:()=>toggle(4)},
-              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'Live API orders will be sent only from the registered static IP. You will not need to keep a phone or Termux running; Option King AI will use a secure server-side connection.'),
+            React.createElement(Step,{n:4,title:'Set Up Secure Connection',detail:state.gatewayReady?'Your dedicated secure connection is ready.':provisionStarted?'Your dedicated static IP is being prepared automatically.':'Tap below and Option King AI will allocate your dedicated static IP automatically.',done:state.gatewayReady,active:stage===4,expanded:expanded===4,onPress:()=>toggle(4)},
+              React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},'You do not need Termux, a second phone, a VPN, or gateway commands. Option King AI provisions a dedicated AWS execution server and static IP for your account. When the IP appears below, register that exact IP in your broker developer app.'),
               React.createElement(View,{style:{marginTop:10,padding:10,borderRadius:10,backgroundColor:'#0c1725',borderWidth:1,borderColor:'#2a4a6d'}},
                 React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},'YOUR DEDICATED EXECUTION IP'),
                 React.createElement(Text,{style:{color:'#fff',fontSize:15,fontWeight:'900',marginTop:3}},ipText),
-                React.createElement(Text,{style:{color:'#91a4bd',fontSize:11,lineHeight:16,marginTop:4}},state.assignedIp?'Register this IP as the Primary Static IP in your broker\'s Developer or My Apps section. The app will verify the match automatically.':'A dedicated IP has not been assigned yet. Once it is provisioned, the exact IP will appear here. Do not register a random or shared IP.')
+                React.createElement(Text,{style:{color:'#91a4bd',fontSize:11,lineHeight:16,marginTop:4}},state.assignedIp?'Register this IP as the Primary Static IP in your broker\'s Developer or My Apps section. The app will verify the match automatically.':'No IP is assigned yet. Tap Allocate My Secure IP. The exact dedicated IP will appear here when AWS allocation completes.')
               ),
-              React.createElement(ActionButton,{label:state.gatewayReady?'Connection Ready':'Check Secure Connection',onPress:load})
+              React.createElement(Text,{style:{color:'#90a9c8',fontSize:11,marginTop:8}},`Provisioning status: ${state.provisionState.replaceAll('_',' ')}`),
+              provisioningError?React.createElement(Text,{style:{color:'#ff8f9c',fontSize:11,lineHeight:16,marginTop:6}},provisioningError):null,
+              React.createElement(ActionButton,{label:provisionLabel,onPress:state.gatewayReady?load:(provisionStarted?load:requestProvisioning),disabled:provisioningBusy || !liveAllowed})
             ),
             React.createElement(Step,{n:5,title:'Enable Live Trading',detail:'Live Trading can be enabled only after your broker, Live access, and secure connection are ready.',done:state.gatewayReady && liveAllowed,active:stage===5,expanded:expanded===5,onPress:()=>toggle(5)},
               React.createElement(Text,{style:{color:'#b8c6d9',fontSize:12,lineHeight:18}},liveAllowed?(state.gatewayReady?'All checks are complete. Your confirmation will still be required before Live Trading is enabled.':'Your Live trial is active, but real orders will remain blocked until the secure connection is ready.'):'Live access is locked. Real orders can be enabled only after a trial or subscription is activated.'),
