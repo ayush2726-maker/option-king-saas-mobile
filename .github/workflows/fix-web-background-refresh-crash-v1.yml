@@ -1,5 +1,6 @@
 name: Fix Web Background Refresh Crash V1
 
+# Trigger v2: apply resilience after the web service was confirmed healthy on Railway.
 on:
   push:
     branches: [main]
@@ -31,7 +32,6 @@ jobs:
           s = p.read_text()
           original = s
 
-          # Do not let a transient background history request take down the dashboard.
           s = re.sub(
               r'(apiGet\(\n\s*`/bot/signal-history\?limit=\$\{historyLimit\}&days=\$\{chartRangeRef\.current\}&instrument=\$\{encodeURIComponent\(chartInstrumentRef\.current\)\}`,\n\s*token\n\s*\))(?!\.catch)',
               r'\1.catch(() => null)',
@@ -45,7 +45,6 @@ jobs:
               count=1,
           )
 
-          # Background/silent refresh must preserve the last good screen instead of showing a fatal-looking red error.
           old = '''    } catch (e) {
       setError(hi ? "Status load nahi ho paya. Refresh try karein." : "Could not load status. Please try refreshing.");
     }
@@ -66,7 +65,6 @@ jobs:
           else:
               p.write_text(s)
 
-          # Verify expected safety markers are present after patching.
           out = p.read_text()
           if 'WEB_DASHBOARD_BACKGROUND_REFRESH_FAILED' not in out:
               raise SystemExit('silent refresh guard was not applied')
