@@ -4,10 +4,7 @@ import { registerRootComponent } from 'expo';
 const React = require('react');
 const { Platform } = require('react-native');
 
-const BiometricAppLock = Platform.OS === 'web'
-  ? function WebSafeBiometricPassThrough({ children }) { return children; }
-  : require('./src/security/BiometricAppLock15m');
-
+const BiometricAppLock = require('./src/security/BiometricAppLock15m');
 const SessionAwareManualExitOverlayV10 = require(
   './src/components/SessionAwareManualExitOverlayV10'
 );
@@ -44,6 +41,17 @@ const AppModule = require('./AppTradeExplanationPatched');
 const App = AppModule.default || AppModule;
 
 function SecuredOptionKingApp() {
+  // Web must stay isolated from native-only security/onboarding/subscription wrappers.
+  // Those wrappers use AppState, LocalAuthentication, native Modal/Linking and timed
+  // background checks that can unmount the React Native Web tree after initial load.
+  if (Platform.OS === 'web') {
+    return React.createElement(
+      WebDesktopShell,
+      null,
+      React.createElement(App)
+    );
+  }
+
   return React.createElement(
     BiometricAppLock,
     null,
