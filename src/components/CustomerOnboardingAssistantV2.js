@@ -1,5 +1,6 @@
 const React = require('react');
 const RN = require('react-native');
+const Clipboard = require('expo-clipboard');
 const AsyncStorageModule = require('@react-native-async-storage/async-storage');
 const AsyncStorage = AsyncStorageModule.default || AsyncStorageModule;
 
@@ -76,9 +77,24 @@ function Step({n,title,detail,done,active,expanded,onPress,children}) {
 }
 
 function GuideRow({label,value,note}) {
+  const [copied,setCopied] = React.useState(false);
+  const copyValue = async()=>{
+    try {
+      await Clipboard.setStringAsync(String(value ?? ''));
+      setCopied(true);
+      setTimeout(()=>setCopied(false),1400);
+    } catch (_) {
+      Alert.alert('Copy failed','Press and hold the value to copy it manually.');
+    }
+  };
   return React.createElement(View,{style:{paddingVertical:8,borderBottomWidth:1,borderBottomColor:'#26364c'}},
     React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},label),
-    React.createElement(Text,{selectable:true,style:{color:'#fff',fontSize:12,fontWeight:'800',lineHeight:18,marginTop:3}},value),
+    React.createElement(View,{style:{flexDirection:'row',alignItems:'center',gap:8,marginTop:3}},
+      React.createElement(Text,{selectable:true,style:{color:'#fff',fontSize:12,fontWeight:'800',lineHeight:18,flex:1}},value),
+      React.createElement(TouchableOpacity,{onPress:copyValue,activeOpacity:.8,accessibilityLabel:`Copy ${label}`,style:{minWidth:58,height:30,paddingHorizontal:9,borderRadius:8,backgroundColor:copied?'#0e5947':'#172f4d',borderWidth:1,borderColor:copied?'#21a981':'#3d82c4',alignItems:'center',justifyContent:'center'}},
+        React.createElement(Text,{style:{color:copied?'#78deb0':'#8bc2ff',fontSize:10,fontWeight:'900'}},copied?'✓ Copied':'⧉ Copy')
+      )
+    ),
     note ? React.createElement(Text,{style:{color:'#91a4bd',fontSize:10,lineHeight:15,marginTop:2}},note) : null
   );
 }
@@ -143,6 +159,7 @@ function CustomerOnboardingAssistantV2({children}) {
   const liveDays = Number(state.ent?.live_days_remaining ?? 0);
   const paperDays = Number(state.ent?.paper_days_remaining ?? 0);
   const provisionStarted = ['requested','allocating','bootstrapping','ready'].includes(state.provisionState);
+  const liveSetupComplete = Boolean(state.gateway?.server_armed);
 
   let stage = 2;
   if (state.assignedIp) stage = 3;
@@ -211,6 +228,7 @@ function CustomerOnboardingAssistantV2({children}) {
     try {
       await api('/local-gateway/provision/enable-live',t,'POST',{confirmation:'ENABLE LIVE TRADING'});
       await load();
+      setOpen(false);
       Alert.alert('Live Trading Ready','Live mode enabled. Real orders will be possible only after you press Start Bot.');
     } catch (e) { setError(String(e?.message || e)); }
     finally { setBusy(''); }
@@ -232,7 +250,7 @@ function CustomerOnboardingAssistantV2({children}) {
 
   return React.createElement(React.Fragment,null,
     children,
-    React.createElement(TouchableOpacity,{onPress:()=>{setExpanded(stage);setOpen(true);},activeOpacity:.86,style:{position:'absolute',right:12,bottom:RN.Platform.OS==='web'?18:86,zIndex:9999,minHeight:46,paddingHorizontal:15,borderRadius:23,backgroundColor:'#0f5ecf',borderWidth:1,borderColor:'#4d9fff',alignItems:'center',justifyContent:'center',elevation:14}},
+    liveSetupComplete ? null : React.createElement(TouchableOpacity,{onPress:()=>{setExpanded(stage);setOpen(true);},activeOpacity:.86,style:{position:'absolute',right:12,bottom:RN.Platform.OS==='web'?18:86,zIndex:9999,minHeight:46,paddingHorizontal:15,borderRadius:23,backgroundColor:'#0f5ecf',borderWidth:1,borderColor:'#4d9fff',alignItems:'center',justifyContent:'center',elevation:14}},
       React.createElement(Text,{style:{color:'#fff',fontWeight:'900',fontSize:12}},'🚀 Set Up Live Trading')
     ),
     React.createElement(Modal,{visible:open,transparent:true,animationType:'slide',onRequestClose:()=>setOpen(false)},
@@ -329,8 +347,8 @@ function CustomerOnboardingAssistantV2({children}) {
               React.createElement(Btn,{label:state.ipConfirmed?'IP Registered ✓':busy==='confirm'?'Confirming...':'I Registered This IP in Broker',onPress:confirmIp,disabled:!state.gatewayReady || !state.brokerReady || busy==='confirm',kind:state.ipConfirmed?'green':'blue'})
             ),
 
-            React.createElement(Step,{n:6,title:liveAllowed?'Enable Live Trading':'Activate Live Subscription',detail:liveAllowed?'Enable Live only after the broker, paper test and secure connection are ready.':'Your Live trial has ended. Activate a plan to unlock Live Trading.',done:false,active:stage===6,expanded:expanded===6,onPress:()=>toggle(6)},
-              React.createElement(Btn,{label:liveAllowed?(busy==='live'?'Enabling Live...':'Enable LIVE Trading'):'Live Trial / Subscription Required',onPress:askEnableLive,disabled:!liveAllowed || !state.ipConfirmed || !state.gatewayReady || !paperAck || busy==='live',kind:'red'}),
+            React.createElement(Step,{n:6,title:liveSetupComplete?'Live Trading Enabled':liveAllowed?'Enable Live Trading':'Activate Live Subscription',detail:liveSetupComplete?'Live setup is complete. The setup shortcut is now hidden.':liveAllowed?'Enable Live only after the broker, paper test and secure connection are ready.':'Your Live trial has ended. Activate a plan to unlock Live Trading.',done:liveSetupComplete,active:stage===6 && !liveSetupComplete,expanded:expanded===6,onPress:()=>toggle(6)},
+              React.createElement(Btn,{label:liveSetupComplete?'LIVE Trading Enabled ✓':liveAllowed?(busy==='live'?'Enabling Live...':'Enable LIVE Trading'):'Live Trial / Subscription Required',onPress:askEnableLive,disabled:liveSetupComplete || !liveAllowed || !state.ipConfirmed || !state.gatewayReady || !paperAck || busy==='live',kind:liveSetupComplete?'green':'red'}),
               !liveAllowed && paperAllowed ? React.createElement(Text,{style:{color:'#f6c85f',fontSize:11,lineHeight:17,marginTop:8}},'Your 7-day Live trial has ended, but Paper Trading remains available during the 30-day free period. Activate a paid plan to unlock Live again.') : null,
               !liveAllowed ? React.createElement(Btn,{label:'Open Subscription',onPress:()=>openRoute('plans')}) : null
             ),
