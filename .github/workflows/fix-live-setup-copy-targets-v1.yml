@@ -1,0 +1,87 @@
+name: Fix Live Setup Copy Targets V1
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fix-live-setup-copy-targets-v1.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch copy buttons
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/components/CustomerOnboardingAssistantV2.js')
+          s = p.read_text()
+
+          s = s.replace(
+          "function GuideRow({label,value,note}) {",
+          "function GuideRow({label,value,note,copyable=false}) {",
+          1)
+
+          old = """      React.createElement(TouchableOpacity,{onPress:copyValue,activeOpacity:.8,accessibilityLabel:`Copy ${label}`,style:{minWidth:58,height:30,paddingHorizontal:9,borderRadius:8,backgroundColor:copied?'#0e5947':'#172f4d',borderWidth:1,borderColor:copied?'#21a981':'#3d82c4',alignItems:'center',justifyContent:'center'}},\n        React.createElement(Text,{style:{color:copied?'#78deb0':'#8bc2ff',fontSize:10,fontWeight:'900'}},copied?'✓ Copied':'⧉ Copy')\n      )\n"""
+          new = """      copyable ? React.createElement(TouchableOpacity,{onPress:copyValue,activeOpacity:.8,accessibilityLabel:`Copy ${label}`,style:{minWidth:58,height:30,paddingHorizontal:9,borderRadius:8,backgroundColor:copied?'#0e5947':'#172f4d',borderWidth:1,borderColor:copied?'#21a981':'#3d82c4',alignItems:'center',justifyContent:'center'}},\n        React.createElement(Text,{style:{color:copied?'#78deb0':'#8bc2ff',fontSize:10,fontWeight:'900'}},copied?'✓ Copied':'⧉ Copy')\n      ) : null\n"""
+          if old not in s:
+              raise SystemExit('GuideRow copy button anchor not found')
+          s = s.replace(old,new,1)
+
+          # Mark only broker-portal values that are actually meant to be pasted.
+          replacements = {
+            "React.createElement(GuideRow,{label:'APP NAME',value:'Option King AI'})": "React.createElement(GuideRow,{label:'APP NAME',value:'Option King AI',copyable:true})",
+            "React.createElement(GuideRow,{label:'API / APP TYPE',value:'Trading API / Self-coded (Personal)',note:'Choose the trading-order API option if the portal shows multiple API products.'})": "React.createElement(GuideRow,{label:'API / APP TYPE',value:'Trading API / Self-coded (Personal)',note:'Choose the trading-order API option if the portal shows multiple API products.',copyable:true})",
+            "React.createElement(GuideRow,{label:'PRIMARY STATIC IP',value:state.assignedIp || 'Wait for Step 2'})": "React.createElement(GuideRow,{label:'PRIMARY STATIC IP',value:state.assignedIp || 'Wait for Step 2',copyable:Boolean(state.assignedIp)})",
+            "React.createElement(GuideRow,{label:'APP TYPE',value:'Algo Trading App',note:'Use the normal/live app, not Sandbox or Analytics Token for order placement.'})": "React.createElement(GuideRow,{label:'APP TYPE',value:'Algo Trading App',note:'Use the normal/live app, not Sandbox or Analytics Token for order placement.',copyable:true})",
+            "React.createElement(GuideRow,{label:'REDIRECT URL',value:UPSTOX_REDIRECT_URL,note:'Paste exactly without adding spaces.'})": "React.createElement(GuideRow,{label:'REDIRECT URL',value:UPSTOX_REDIRECT_URL,note:'Paste exactly without adding spaces.',copyable:true})",
+            "React.createElement(GuideRow,{label:'POSTBACK / NOTIFIER URL',value:UPSTOX_POSTBACK_URL,note:'Enter this only when the portal shows the field.'})": "React.createElement(GuideRow,{label:'POSTBACK / NOTIFIER URL',value:UPSTOX_POSTBACK_URL,note:'Enter this only when the portal shows the field.',copyable:true})",
+          }
+          for a,b in replacements.items():
+              s = s.replace(a,b)
+
+          # Add a copy helper for the prominent static-IP box used before opening broker portal.
+          marker = "  const brokerName = state.chosenBroker === 'angelone' ? 'Angel One' : state.chosenBroker === 'upstox' ? 'Upstox' : '';\n  const ip = state.assignedIp || 'Preparing...';\n"
+          helper = marker + """  const [ipCopied,setIpCopied] = React.useState(false);\n  const copyStaticIp = async()=>{\n    if (!state.assignedIp) return;\n    try {\n      const text = String(state.assignedIp);\n      if (Clipboard && typeof Clipboard.setStringAsync === 'function') await Clipboard.setStringAsync(text);\n      else if (RN.Clipboard && typeof RN.Clipboard.setString === 'function') RN.Clipboard.setString(text);\n      else if (RN.Platform.OS === 'web' && typeof globalThis !== 'undefined' && globalThis.navigator?.clipboard?.writeText) await globalThis.navigator.clipboard.writeText(text);\n      else throw new Error('Clipboard API unavailable');\n      setIpCopied(true);\n      setTimeout(()=>setIpCopied(false),1400);\n    } catch (_) {\n      Alert.alert('Copy unavailable','Press and hold the static IP to copy it manually.');\n    }\n  };\n"""
+          if 'const [ipCopied,setIpCopied]' not in s:
+              if marker not in s:
+                  raise SystemExit('IP helper anchor not found')
+              s = s.replace(marker, helper, 1)
+
+          ipbox = """                React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},'ENTER THIS STATIC IP IN THE BROKER APP'),\n                React.createElement(Text,{style:{color:'#fff',fontSize:17,fontWeight:'900',marginTop:3}},state.assignedIp || 'Waiting for IP')\n"""
+          ipbox_new = """                React.createElement(Text,{style:{color:'#7dbdff',fontSize:10,fontWeight:'900'}},'ENTER THIS STATIC IP IN THE BROKER APP'),\n                React.createElement(View,{style:{flexDirection:'row',alignItems:'center',gap:8,marginTop:3}},\n                  React.createElement(Text,{selectable:true,style:{color:'#fff',fontSize:17,fontWeight:'900',flex:1}},state.assignedIp || 'Waiting for IP'),\n                  state.assignedIp ? React.createElement(TouchableOpacity,{onPress:copyStaticIp,activeOpacity:.8,accessibilityLabel:'Copy static IP',style:{minWidth:66,height:32,paddingHorizontal:10,borderRadius:8,backgroundColor:ipCopied?'#0e5947':'#172f4d',borderWidth:1,borderColor:ipCopied?'#21a981':'#3d82c4',alignItems:'center',justifyContent:'center'}},\n                    React.createElement(Text,{style:{color:ipCopied?'#78deb0':'#8bc2ff',fontSize:10,fontWeight:'900'}},ipCopied?'✓ Copied':'⧉ Copy')\n                  ) : null\n                )\n"""
+          if ipbox not in s:
+              raise SystemExit('Prominent static IP box anchor not found')
+          s = s.replace(ipbox, ipbox_new, 1)
+
+          p.write_text(s)
+          PY
+
+          git diff --check
+          node --check src/components/CustomerOnboardingAssistantV2.js
+          git diff -- src/components/CustomerOnboardingAssistantV2.js
+
+      - name: Commit hotfix
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "Already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/CustomerOnboardingAssistantV2.js
+          git commit -m "Fix live setup copy button targets"
+          git push origin main
