@@ -10,7 +10,7 @@ const BORDER = '#1e2b3b';
 const TEXT = '#edf4ff';
 const MUTED = '#8da0b8';
 const GREEN = '#00d4a0';
-const APK_DOWNLOAD_PAGE = 'https://expo.dev/accounts/ayush2726/projects/option-king-saas/builds';
+const APK_DOWNLOAD_URL = 'https://github.com/ayush2726-maker/option-king-saas-mobile/releases/download/option-king-ai-latest/Option-King-AI.apk';
 
 function Dot() {
   return React.createElement(View, { style: { width: 7, height: 7, borderRadius: 99, backgroundColor: GREEN, marginRight: 7 } });
@@ -27,12 +27,18 @@ function directNavigate(route) {
 
 function openApkDownload() {
   try {
-    if (typeof globalThis !== 'undefined' && typeof globalThis.open === 'function') {
-      globalThis.open(APK_DOWNLOAD_PAGE, '_blank', 'noopener,noreferrer');
+    if (typeof globalThis !== 'undefined' && globalThis.document) {
+      const a = globalThis.document.createElement('a');
+      a.href = APK_DOWNLOAD_URL;
+      a.download = 'Option-King-AI.apk';
+      a.rel = 'noopener noreferrer';
+      globalThis.document.body.appendChild(a);
+      a.click();
+      a.remove();
       return true;
     }
     if (typeof globalThis !== 'undefined' && globalThis.location) {
-      globalThis.location.href = APK_DOWNLOAD_PAGE;
+      globalThis.location.href = APK_DOWNLOAD_URL;
       return true;
     }
   } catch (_) {}
