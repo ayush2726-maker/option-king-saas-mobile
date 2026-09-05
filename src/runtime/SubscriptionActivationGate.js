@@ -5,6 +5,7 @@ const AsyncStorage = AsyncStorageModule.default || AsyncStorageModule;
 
 const { ActivityIndicator, AppState, Linking, Modal, Text, TouchableOpacity, View } = ReactNative;
 const API = 'https://option-king-saas-production.up.railway.app';
+const MANUAL_PAYTM_LINK = 'https://p.ppsl.io/PYTMPS/cn1hjk';
 
 async function getAuthToken() {
   const preferred = ['saas_token', 'token', 'auth_token', 'okai_token', 'access_token'];
@@ -78,21 +79,9 @@ function SubscriptionActivationGate({ children }) {
     setLoading(true);
     setMessage('');
     try {
-      const token = await getAuthToken();
-      if (!token) throw new Error('Please login again.');
-      const response = await fetch(API + '/subscription/manual-payment-link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + token,
-        },
-        body: JSON.stringify({ plan_id: 'monthly_5000' }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data?.checkout_url) {
-        throw new Error(data?.detail || 'Payment page is not available right now.');
-      }
-      await Linking.openURL(data.checkout_url);
+      const supported = await Linking.canOpenURL(MANUAL_PAYTM_LINK);
+      if (!supported) throw new Error('Payment link open nahi ho pa rahi.');
+      await Linking.openURL(MANUAL_PAYTM_LINK);
       setMessage('Payment ke baad admin payment confirm karke 30 days activate karega. Activation ke baad Refresh dabayein.');
     } catch (error) {
       setMessage(error?.message || 'Could not open payment page.');
