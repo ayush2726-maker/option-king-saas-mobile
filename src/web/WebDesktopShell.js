@@ -1,5 +1,7 @@
 const React = require('react');
 const { View, Text, Platform, useWindowDimensions, TouchableOpacity } = require('react-native');
+const AsyncStorageModule = require('@react-native-async-storage/async-storage');
+const AsyncStorage = AsyncStorageModule.default || AsyncStorageModule;
 
 const BG = '#070b12';
 const PANEL = '#0b1523';
@@ -8,6 +10,7 @@ const BORDER = '#1e2b3b';
 const TEXT = '#edf4ff';
 const MUTED = '#8da0b8';
 const GREEN = '#00d4a0';
+const APK_DOWNLOAD_PAGE = 'https://expo.dev/accounts/ayush2726/projects/option-king-saas/builds';
 
 function Dot() {
   return React.createElement(View, { style: { width: 7, height: 7, borderRadius: 99, backgroundColor: GREEN, marginRight: 7 } });
@@ -17,6 +20,39 @@ function directNavigate(route) {
   try {
     if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_WEB_NAVIGATE__ === 'function') {
       return globalThis.__OKAI_WEB_NAVIGATE__(route);
+    }
+  } catch (_) {}
+  return false;
+}
+
+function openApkDownload() {
+  try {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.open === 'function') {
+      globalThis.open(APK_DOWNLOAD_PAGE, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+    if (typeof globalThis !== 'undefined' && globalThis.location) {
+      globalThis.location.href = APK_DOWNLOAD_PAGE;
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+
+async function directLogout() {
+  try {
+    await AsyncStorage.multiRemove(['okai_auth_session_v2', 'saas_token', 'saas_user', 'token', 'auth_token', 'okai_token', 'access_token']);
+  } catch (_) {}
+  try {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.__OKAI_WEB_LOGOUT__ === 'function') {
+      await globalThis.__OKAI_WEB_LOGOUT__();
+      return true;
+    }
+  } catch (_) {}
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis.location) {
+      globalThis.location.reload();
+      return true;
     }
   } catch (_) {}
   return false;
@@ -62,7 +98,7 @@ function RailItem({ icon, label, active, compact, onPress, navKey }) {
       React.createElement(Text, {
         style: {
           color: active ? '#ffffff' : '#c7d3e5',
-          fontSize: compact ? 13 : 13,
+          fontSize: 13,
           fontWeight: active ? '900' : '700',
         },
       }, label)
@@ -152,6 +188,16 @@ function NavPanel({ compact, onClose, activeKey, setActiveKey }) {
         onPress: () => go(key, route),
       })
     ),
+    React.createElement(RailItem, {
+      key: 'download-apk', navKey: 'download-apk', icon: '⇩', label: 'Download APK', compact,
+      active: false,
+      onPress: () => { onClose && onClose(); openApkDownload(); },
+    }),
+    React.createElement(RailItem, {
+      key: 'logout', navKey: 'logout', icon: '⇥', label: 'Logout', compact,
+      active: false,
+      onPress: async () => { onClose && onClose(); await directLogout(); },
+    }),
     React.createElement(
       View,
       { style: { marginTop: 'auto', marginHorizontal: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#304055' } },
@@ -188,9 +234,15 @@ function WebDesktopShell({ children }) {
     return () => { try { style.remove(); } catch (_) {} };
   }, []);
 
+  const openLiveSetup = () => {
+    setMenuOpen(false);
+    setActiveKey('broker');
+    setTimeout(() => directNavigate('broker'), 0);
+  };
+
   return React.createElement(
     View,
-    { style: { flex: 1, backgroundColor: BG, minHeight: '100vh' } },
+    { style: { flex: 1, backgroundColor: BG, minHeight: '100vh', position: 'relative' } },
     React.createElement(
       View,
       {
@@ -252,6 +304,23 @@ function WebDesktopShell({ children }) {
           children
         )
       )
+    ),
+    React.createElement(
+      TouchableOpacity,
+      {
+        onPress: openLiveSetup,
+        activeOpacity: 0.86,
+        accessibilityRole: 'button',
+        accessibilityLabel: 'okai-web-start-live-trading',
+        style: {
+          position: 'absolute', right: phone ? 14 : 22, bottom: phone ? 18 : 24,
+          zIndex: 80, minHeight: 48, paddingHorizontal: 18,
+          borderRadius: 999, backgroundColor: '#1677ff', borderWidth: 1, borderColor: '#5fa0ff',
+          alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 8px 24px rgba(22,119,255,0.35)',
+        },
+      },
+      React.createElement(Text, { style: { color: '#fff', fontSize: phone ? 12 : 13, fontWeight: '900' } }, '🚀 Start Live Trading')
     )
   );
 }
